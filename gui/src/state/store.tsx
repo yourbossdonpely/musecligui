@@ -6,7 +6,7 @@ import { MODES, defaultSettings } from '../lib/modes';
 import { cmpVersions, uuid } from '../lib/protocol';
 import { useRunEngine, type RunState } from './run';
 
-export const BRIDGE_URL = 'ws://localhost:8765';
+export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
 export const MIN_BRIDGE = '2.1.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
@@ -25,6 +25,9 @@ interface AppValue {
   toasts: ToastMsg[];
   modal: ModalState;
   runsDone: number;
+  lastTokens: { inp: number; out: number } | null;
+  inspectorTab: string;
+  setInspectorTab: (t: string) => void;
   project: Project | null;
   session: Session | null;
   currentMessages: ChatMsg[];
@@ -70,6 +73,8 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [modal, setModal] = useState<ModalState>({ kind: null });
   const [runsDone, setRunsDone] = useState(0);
+  const [lastTokens, setLastTokens] = useState<{ inp: number; out: number } | null>(null);
+  const [inspectorTab, setInspectorTab] = useState('files');
 
   const snap = useRef({ projects, sel, settings, attached });
   snap.current = { projects, sel, settings, attached };
@@ -97,9 +102,10 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   }, []);
 
   const bumpRuns = useCallback(() => setRunsDone((n) => n + 1), []);
+  const setTokens = useCallback((t: { inp: number; out: number }) => setLastTokens(t), []);
   const clearAttached = useCallback(() => setAttached([]), []);
   const getSnap = useCallback(() => snap.current, []);
-  const { run, send, stop } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached });
+  const { run, send, stop } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens });
 
   const reconnect = useCallback(() => {
     setStatus('connecting');
@@ -277,7 +283,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
 
   const value: AppValue = {
     client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal,
-    runsDone, project, session, currentMessages, reconnect, toast, openModal, closeModal,
+    runsDone, lastTokens, inspectorTab, setInspectorTab, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
     removeAttach, send, stop,

@@ -1,6 +1,8 @@
 import type { IBridge } from './lib/bridge';
 import { AppProvider, useApp } from './state/store';
 import { Sidebar } from './components/sidebar';
+import { MessageList } from './components/chat/MessageList';
+import { Composer } from './components/composer/Composer';
 import { Footer } from './components/footer';
 import { ToastStack } from './components/toasts';
 import { ProjectModal } from './components/modals/project';
@@ -22,8 +24,9 @@ function Shell() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <OutdatedBanner />
-        <div data-testid="main-view" className="flex flex-1 items-center justify-center text-[13px] text-faint">
-          Chat lands in the next slice — projects work now.
+        <div data-testid="main-view" className="flex min-h-0 flex-1 flex-col">
+          <MessageList />
+          <Composer />
         </div>
         <Footer />
       </div>

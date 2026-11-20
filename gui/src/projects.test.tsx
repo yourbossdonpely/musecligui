@@ -22,6 +22,7 @@ test('add project flow persists', async () => {
   fireEvent.change(screen.getByTestId('proj-path'), { target: { value: 'C:\\demo' } });
   fireEvent.click(screen.getByText('Save Project'));
   await waitFor(() => expect(screen.getByTestId('project-item')).toHaveTextContent('Demo'));
+  await waitFor(() => expect(JSON.parse(localStorage.getItem('muse_projects') || '[]').length).toBe(1));
   const saved = JSON.parse(localStorage.getItem('muse_projects')!);
   expect(saved[0].name).toBe('Demo');
   expect(saved[0].sessions[0].sid).toMatch(/^[0-9a-f-]{36}$/);
