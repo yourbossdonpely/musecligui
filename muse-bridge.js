@@ -9,7 +9,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -324,6 +324,49 @@ async function handleBuffered(socket, msg, action) {
       const r = await runMuse(['mcp', 'list', '--json'], { cwd: __dirname, timeout: 60000 });
       if (r.code !== 0) throw new Error('mcp list failed: ' + ((r.stderr || r.stdout) || ('exit ' + r.code)).slice(0, 500));
       try { return ok(JSON.parse(r.stdout)); } catch (e) { return ok({ raw: r.stdout.slice(0, 2000) }); }
+    }
+    if (action === 'mcp-add') {
+      const name = cleanSlug(msg.name);
+      if (!name) throw new Error('Invalid server name');
+      const scope = msg.scope === 'project' ? 'project' : 'user';
+      let args;
+      if (typeof msg.url === 'string' && msg.url.trim()) {
+        if (!/^https?:\/\/[^/\s]+/.test(msg.url.trim())) throw new Error('Invalid URL (http/https only)');
+        args = ['mcp', 'add', name, '--url', msg.url.trim(), '--' + scope];
+      } else if (Array.isArray(msg.command) && msg.command.length) {
+        if (msg.command.length > 20 || !msg.command.every((x) => typeof x === 'string' && x && x.length < 500)) throw new Error('Invalid command');
+        args = ['mcp', 'add', name, '--' + scope, '--', ...msg.command];
+      } else throw new Error('Provide url or command');
+      const r = await runMuse(args, { cwd: __dirname, timeout: 60000 });
+      if (r.code !== 0) throw new Error('mcp add failed: ' + ((r.stdout + '\n' + r.stderr) || ('exit ' + r.code)).slice(0, 800));
+      return ok({ name, output: (r.stdout || '').slice(0, 1000) });
+    }
+    if (action === 'mcp-remove') {
+      const name = cleanSlug(msg.name);
+      if (!name) throw new Error('Invalid server name');
+      const scope = msg.scope === 'project' ? 'project' : 'user';
+      const r = await runMuse(['mcp', 'remove', name, '--' + scope], { cwd: __dirname, timeout: 60000 });
+      if (r.code !== 0) throw new Error('mcp remove failed: ' + ((r.stdout + '\n' + r.stderr) || ('exit ' + r.code)).slice(0, 800));
+      return ok({ name, output: (r.stdout || '').slice(0, 1000) });
+    }
+    if (action === 'mcp-get') {
+      const name = cleanSlug(msg.name);
+      if (!name) throw new Error('Invalid server name');
+      const r = await runMuse(['mcp', 'get', name, '--json'], { cwd: __dirname, timeout: 60000 });
+      if (r.code !== 0) throw new Error('mcp get failed: ' + ((r.stderr || r.stdout) || ('exit ' + r.code)).slice(0, 500));
+      try { return ok(JSON.parse(r.stdout)); } catch (e) { return ok({ raw: r.stdout.slice(0, 2000) }); }
+    }
+    if (action === 'git-diff') {
+      const cwd = msg.cwd;
+      if (typeof cwd !== 'string' || !cwd) throw new Error('No folder');
+      const args = ['diff', '--no-color', '--'];
+      if (typeof msg.rel === 'string' && msg.rel) {
+        if (msg.rel.charAt(0) === '-' || msg.rel.length > 500) throw new Error('Invalid path');
+        args.push(msg.rel);
+      }
+      const r = await runCmd('git', args, { cwd, timeout: 20000 });
+      if (r.code !== 0) return ok({ repo: false });
+      return ok({ repo: true, diff: r.stdout.slice(0, 100000), truncated: r.stdout.length > 100000 });
     }
     if (action === 'sessions-list') {
       const r = await runMuse(['sessions', '--json'], { cwd: __dirname, timeout: 60000 });
