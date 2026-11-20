@@ -1,5 +1,7 @@
 import { useApp } from '../state/store';
 import { Projects } from './projects';
+import { Skills } from './Skills';
+import { Usage } from './Usage';
 
 export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const { openModal } = useApp();
@@ -19,6 +21,10 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
         <button onClick={() => openModal({ kind: 'project', editProject: null })} className="mt-2 w-full rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] font-semibold text-dim transition-colors hover:border-flare hover:text-flare">
           + New Project
         </button>
+        <div className="mb-2 ml-1.5 mt-5 text-[10px] font-bold uppercase tracking-widest text-faint">Skills</div>
+        <Skills />
+        <div className="mb-2 ml-1.5 mt-5 text-[10px] font-bold uppercase tracking-widest text-faint">Subscription</div>
+        <Usage />
       </div>
     </aside>
   );

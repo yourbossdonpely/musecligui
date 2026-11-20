@@ -25,6 +25,8 @@ interface AppValue {
   toasts: ToastMsg[];
   modal: ModalState;
   runsDone: number;
+  usage: { tier: string; window: string; weekly: string } | null;
+  refreshUsage: () => void;
   lastTokens: { inp: number; out: number } | null;
   inspectorTab: string;
   setInspectorTab: (t: string) => void;
@@ -76,6 +78,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [modal, setModal] = useState<ModalState>({ kind: null });
   const [runsDone, setRunsDone] = useState(0);
+  const [usage, setUsage] = useState<{ tier: string; window: string; weekly: string } | null>(null);
   const [lastTokens, setLastTokens] = useState<{ inp: number; out: number } | null>(null);
   const [inspectorTab, setInspectorTab] = useState('files');
 
@@ -105,6 +108,14 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   }, []);
 
   const bumpRuns = useCallback(() => setRunsDone((n) => n + 1), []);
+  const refreshUsage = useCallback(() => {
+    if (!client.connected) return;
+    client.rpc('usage', {}, 60000).then(
+      (u) => { const v = u as { tier?: string; window?: string; weekly?: string }; setUsage({ tier: v.tier ?? '', window: v.window ?? '', weekly: v.weekly ?? '' }); },
+      () => {},
+    );
+  }, [client]);
+  useEffect(() => { refreshUsage(); }, [refreshUsage, status, runsDone]);
   const setTokens = useCallback((t: { inp: number; out: number }) => setLastTokens(t), []);
   const clearAttached = useCallback(() => setAttached([]), []);
   const getSnap = useCallback(() => snap.current, []);
@@ -285,7 +296,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const closeModal = useCallback(() => setModal({ kind: null }), []);
 
   const value: AppValue = {
-    client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal,
+    client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal, usage, refreshUsage,
     runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
