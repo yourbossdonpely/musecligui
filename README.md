@@ -1,4 +1,6 @@
-﻿# Muse Code — AI Coding Agent GUI (v2)
+﻿# Muse CLI GUI
+
+**Muse Code CLI · AI Coding Agent GUI (v2)**
 
 ## Overview
 
@@ -48,7 +50,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## How to Use
 
-1. Double-click **`launch-muse-gui.bat`**.
+1. Double-click **`MuseCLIGUI.exe`** (or `launch-muse-gui.bat`). If Windows SmartScreen asks, choose More info > Run anyway.
 2. Click **+ Add Project**, enter a name and a real project folder (not your home folder).
 3. Pick a mode in the toolbar (Build / Supervised / Plan / Research) or open **Permissions** to tune flags.
 4. Click the model stat to pick a model/effort; type below and Send. Stop interrupts a run.
@@ -101,6 +103,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Changelog (updated as I work)
 
+- **2026-11-20, v2.0.1:** `MuseCLIGUI.exe` one-click launcher, ready-to-run zip with bundled Node.js, bridge prefers bundled node, consistent Muse CLI GUI naming.
 - **2026-11-20, release v2.0.0:** published on GitHub Releases (https://github.com/yourbossdonpely/musecligui/releases/tag/v2.0.0).
 - **2026-11-20, launcher reliability:** fixed `start-bridge.cmd` batch parse error (a `(...)` comment inside a block aborted the script, so the window blinked off) and the `launch-muse-gui.bat` port check (`findstr` needs `/C:` for patterns with spaces - it always saw the port as busy and skipped the bridge). The launcher now starts the bridge if needed, waits for the port, then opens the GUI, and stays open with the error if the bridge fails.
 - **2026-11-20, stuck "thinking" fix:** the GUI now surfaces run failures (e.g. a project folder containing the OS temp dir) instead of hanging on "Muse is thinking", warns if the bridge takes over 45s to start a run, and the bridge ignores stdin (no stdin hangs) plus logs every run start/finish/reject to its window.
