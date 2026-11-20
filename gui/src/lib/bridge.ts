@@ -8,11 +8,23 @@ export interface SocketLike {
 }
 export type WsFactory = (url: string) => SocketLike;
 export interface ExecEvent { id?: string; type: string; [k: string]: unknown }
+export interface IBridge {
+  readonly connected: boolean;
+  onOpen: (() => void) | null;
+  onClose: (() => void) | null;
+  onLegacy: ((text: string, isError: boolean) => void) | null;
+  connect(url: string): void;
+  close(): void;
+  rpc(action: string, payload?: Record<string, unknown>, timeoutMs?: number): Promise<unknown>;
+  sendExec(id: string, payload: Record<string, unknown>): void;
+  onExec(id: string, handler: (m: ExecEvent) => void): void;
+  offExec(id: string): void;
+}
 interface Pending { resolve: (d: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }
 
 const defaultFactory: WsFactory = (url) => new WebSocket(url) as unknown as SocketLike;
 
-export class BridgeClient {
+export class BridgeClient implements IBridge {
   private ws: SocketLike | null = null;
   private open = false;
   private seq = 0;
@@ -118,6 +130,13 @@ export class BridgeClient {
       clearTimeout(p.timer);
       if (m.ok) p.resolve(m.data);
       else p.reject(new Error(String(m.error || 'Request failed')));
+      return;
+    }
+
+    if (m.type === 'result' && m.action === 'exec' && typeof m.id === 'string' && this.execHandlers.has(m.id)) {
+      const h = this.execHandlers.get(m.id)!;
+      this.execHandlers.delete(m.id);
+      h(m);
       return;
     }
     if (typeof m.id === 'string' && this.execHandlers.has(m.id)) {
