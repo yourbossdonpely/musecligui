@@ -28,6 +28,8 @@ interface AppValue {
   lastTokens: { inp: number; out: number } | null;
   inspectorTab: string;
   setInspectorTab: (t: string) => void;
+  draft: string;
+  setDraft: (s: string) => void;
   project: Project | null;
   session: Session | null;
   currentMessages: ChatMsg[];
@@ -46,7 +48,7 @@ interface AppValue {
   deleteSession: (pIdx: number, sIdx: number) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   setMode: (mode: string) => void;
-  attachFile: (rel: string, content: string) => void;
+  attachFile: (rel: string, content: string) => boolean;
   removeAttach: (i: number) => void;
   send: (text: string) => void;
   stop: () => void;
@@ -69,6 +71,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const [sel, setSel] = useState<Selection>(() => loadSelection() ?? { p: null, s: null });
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [attached, setAttached] = useState<AttachedFile[]>([]);
+  const [draft, setDraft] = useState('');
   const [ephemeral, setEphemeral] = useState<ChatMsg[]>([]);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [modal, setModal] = useState<ModalState>({ kind: null });
@@ -262,18 +265,18 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     if (!def) return;
     setSettings((prev) => ({ ...prev, mode, flags: { ...def.flags } }));
   }, []);
-  const attachFile = useCallback((rel: string, content: string) => {
-    setAttached((prev) => {
-      if (prev.length >= 5) {
-        toast('Attach limit reached (5 files).');
-        return prev;
-      }
-      if (prev.some((a) => a.rel === rel)) {
-        toast('Already attached: ' + rel);
-        return prev;
-      }
-      return [...prev, { rel, content: content.slice(0, 15000) }];
-    });
+  const attachFile = useCallback((rel: string, content: string): boolean => {
+    const cur = snap.current.attached;
+    if (cur.length >= 5) {
+      toast('Attach limit reached (5 files).');
+      return false;
+    }
+    if (cur.some((a) => a.rel === rel)) {
+      toast('Already attached: ' + rel);
+      return false;
+    }
+    setAttached((prev) => [...prev, { rel, content: content.slice(0, 15000) }]);
+    return true;
   }, [toast]);
   const removeAttach = useCallback((i: number) => {
     setAttached((prev) => prev.filter((_, ix) => ix !== i));
@@ -283,7 +286,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
 
   const value: AppValue = {
     client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal,
-    runsDone, lastTokens, inspectorTab, setInspectorTab, project, session, currentMessages, reconnect, toast, openModal, closeModal,
+    runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
     removeAttach, send, stop,
