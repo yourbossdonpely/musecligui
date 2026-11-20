@@ -53,3 +53,12 @@ test('close rejects pending and clears', async () => {
   await expect(p).rejects.toThrow();
   expect(c.connected).toBe(false);
 });
+test('exec result errors route to exec handler', async () => {
+  const f = makeFake();
+  const c = new BridgeClient(() => f);
+  c.connect('ws://x'); f.open();
+  const got: string[] = [];
+  c.onExec('e5', (m) => { got.push(String(m.type)); });
+  f.receive({ id: 'e5', type: 'result', action: 'exec', ok: false, error: 'nope' });
+  expect(got).toEqual(['result']);
+});
