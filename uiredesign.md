@@ -26,6 +26,93 @@ Sources: OpenCode desktop changelog/docs, Cline UI codebase notes, Antigravity p
 ## Hook contract (must stay stable for the E2E suite)
 All existing element IDs, CSS hook classes (`.tool-call`, `.bubble.muse`, `.typing`, `.file-node`, `.model-row[data-model]`, `.mode-card`, `#permsPreview`, etc.) and `window.*` functions keep working. The v2 E2E suite must pass unchanged against the redesign.
 
+
+---
+
+# Phase 2: React rebuild (2026-11-20) — design record
+
+## Intent and why
+The v3 restyle kept the old structure and still reads as the same app. Rebuild the
+GUI as a genuinely new, modern agent console (OpenCode/Cline-grade) in React, while
+keeping the user's one-click run (exe/zip) and all saved data working.
+
+## Goals / non-goals / anti-goals
+- Goals: new visual system; component architecture; full feature parity with v3;
+  previously deferred safe items (session import, MCP add/remove, slash commands,
+  send queue, checkpoint diff view); committed tests; committed dist/.
+- Non-goals: in-GUI file editor (user chose agent-edits), full browser tab
+  (user chose preview+research), checkpoint restore (destructive; needs explicit ask),
+  parallel runs (queue instead), command palette, mobile-first.
+- Anti-goals: anything that breaks one-click run (no dev server needed by users);
+  losing saved projects/settings; purple-SaaS generic look.
+
+## Approaches considered
+1. **React + Vite + Tailwind, singlefile dist (CHOSEN, user approved).** Real
+   components, modern polish, testable; I absorb the build step, dist/ committed.
+2. Radical single-file restyle (dropped: two passes proved diminishing returns).
+3. Next.js/Electron shell (dropped: server runtime / 100MB+ wrapper kill one-click
+   simplicity; browser + exe launcher already covers distribution).
+
+## Decisions
+- User picks: React rebuild; OpenCode-like modern direction.
+- Builder calls: TypeScript; Tailwind v4; vite-plugin-singlefile; hand-rolled
+  shadcn-style primitives (no radix tree: lean offline dist, testable DOM);
+  vitest + testing-library; bridge protocol unchanged (old GUI keeps working);
+  localStorage keys unchanged (data migrates); dist/ committed.
+
+## Design system (frontend-design skill)
+- Tokens: bg #0B0C0E, surface #131417, raised #1B1E24, line #262A33,
+  text #F2F0EA, dim #A8A29A, muted #6E6A63, accent amber #E8A33D.
+  Status: green #4ADE80, red #F87171, info #7DD3FC.
+- Type: system sans (Inter-first) for UI; ui-monospace stack for code/data.
+  No webfonts (offline zip must work).
+- Layout: 3-column agent console (264px rail / conversation max-w 880 /
+  320px inspector), docked composer card, slim footer status.
+- Principles: warm precision instrument; narration-first (agent always says
+  what it is doing); quiet surfaces, one amber voice; motion answers actions
+  only; keyboard-first (Enter/Esc); reduced-motion respected.
+- Uniqueness check: amber-on-warm-black + narration spine is not the
+  purple-SaaS default nor the acid/vermilon cliche; OpenCode gives the
+  minimal bones, Cline gives the activity language.
+
+## Wireframe
+```
++--------+--------------------------------+--------+
+| brand  |  conversation (scroll)         | tabs:  |
+| PROJ   |  user msg (right, amber tint)  | Files/ |
+|  tree  |  thinking orb + narration+time | Browser|
+| SKILLS |  tool cards (icon/status/time) | More   |
+| filter |  markdown answer (streaming)   |        |
+| USAGE  |  thought summary + checkpoint  |        |
+| bars   +--------------------------------+--------+
+|        |  composer: modes|model|input   |        |
++--------+--------------------------------+--------+
+| footer: bridge . model . mode . tokens . usage  |
++------------------------------------------------+
+```
+
+## Test seams (tdd skill)
+1. lib unit (markdown, protocol builders, storage+migration, modes) — vitest node.
+2. Component/integration (rendered UI + MockBridge) — testing-library.
+3. E2E (rendered UI + REAL stub-backed bridge) — testing-library + ws.
+4. dist smoke (built file mounts + key flows) + tsc + vite build gates.
+
+## Slices (incremental skill: implement->test->verify->commit each)
+- S0 scaffold+tokens+build+harness green. S1 lib+unit tests. S2 shell+sidebar.
+- S3 chat+composer+exec E2E. S4 thinking/tools/checkpoints/markdown. S5 right
+  panels. S6 modals+picker+skills+usage+perms+models. S7 deferred+bridge adds.
+  S8 packaging (dist/exe/zip) + full verify.
+
+## Skills applied this phase
+brainstorming (this record + approaches), 21st-ui-explore (direction contract),
+frontend-design (system above), frontend-ui-engineering (composition, tokens,
+a11y, states), beautiful-ui (thinking/tool/composer patterns), shadcn (rules:
+gap, cn, Badge/Empty/Skeleton/Separator, ToggleGroup, dialog titles, chat
+composition), tdd (seams + red-green), verification-before-completion (gates),
+incremental-implementation (slices + commits).
+
+## Work log
+- [x] 2026-11-20: direction set, this record written + self builder-checked.
 ## Work log
 - [x] 2026-11-20: research done, this file created.
 - [x] Bridge: `fs-drives` action (drives B:-G: + Home verified live).
