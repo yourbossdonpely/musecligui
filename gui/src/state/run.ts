@@ -12,6 +12,7 @@ interface Deps {
   appendMessage: (m: ChatMsg) => void;
   toast: (t: string) => void;
   bumpRuns: () => void;
+  setLastTokens: (t: { inp: number; out: number }) => void;
   clearAttached: () => void;
 }
 
@@ -22,6 +23,7 @@ export function useRunEngine(deps: Deps) {
   const liveRef = useRef<{ id: string; t0: number; stopped: boolean } | null>(null);
   const startedRef = useRef(false);
   const toolsRef = useRef(0);
+  const toolsSnapRef = useRef<ToolState[]>([]);
   const deltasRef = useRef(0);
   const depsRef = useRef(deps);
   depsRef.current = deps;
@@ -45,6 +47,9 @@ export function useRunEngine(deps: Deps) {
     let text = String(m.text || '(no output)');
     if (live.stopped) text += '\n\n[Stopped by user]';
     d.appendMessage({ type: 'muse', text });
+    for (const t of toolsSnapRef.current) {
+      d.appendMessage({ type: 'tool', text: t.name, tool: { name: t.name, event: t.event, t0: t.t0, durMs: Date.now() - t.t0, raw: t.raw } });
+    }
     const stats = (m.stats as { deltas?: number; tools?: number } | undefined) ?? {};
     d.appendMessage({ type: 'thought', text: 'Thought ' + ((Date.now() - live.t0) / 1000).toFixed(1) + 's · ' + (stats.tools ?? toolsRef.current) + ' tool events · ' + (stats.deltas ?? deltasRef.current) + ' deltas' });
     if (failed && m.reason) d.appendMessage({ type: 'system', text: 'Run failed: ' + String(m.reason) });
@@ -87,6 +92,9 @@ export function useRunEngine(deps: Deps) {
       const name = String(m.name ?? 'task');
       const event = String(m.event ?? 'running');
       toolsRef.current += 1;
+      const ti = toolsSnapRef.current.findIndex((t) => t.taskId === taskId);
+      if (ti >= 0) toolsSnapRef.current[ti] = { ...toolsSnapRef.current[ti], name, event, raw: m.raw };
+      else toolsSnapRef.current.push({ taskId, name, event, raw: m.raw, t0: Date.now() });
       setRun((prev) => {
         if (!prev || prev.id !== id) return prev;
         const ix = prev.tools.findIndex((t) => t.taskId === taskId);
@@ -99,6 +107,14 @@ export function useRunEngine(deps: Deps) {
       const t = m.text;
       setRun((prev) => (prev && prev.id === id ? { ...prev, log: [...prev.log.slice(-199), t] } : prev));
     } else if (m.type === 'exec-usage') {
+      try {
+        const mods = ((m.usage as { models?: Array<{ input_tokens?: number; output_tokens?: number }> }).models) ?? [];
+        let inp = 0; let out = 0;
+        mods.forEach((x) => { inp += x.input_tokens ?? 0; out += x.output_tokens ?? 0; });
+        depsRef.current.setLastTokens({ inp, out });
+      } catch {
+        /* usage optional */
+      }
       setRun((prev) => (prev && prev.id === id ? { ...prev, usage: m.usage } : prev));
     } else if (m.type === 'exec-done') {
       void finish(id, m);
@@ -132,6 +148,7 @@ export function useRunEngine(deps: Deps) {
     liveRef.current = { id, t0: Date.now(), stopped: false };
     startedRef.current = false;
     toolsRef.current = 0;
+    toolsSnapRef.current = [];
     deltasRef.current = 0;
     setRun({ id, text: '', tools: [], log: [], usage: null, t0: Date.now(), stopped: false, started: false });
     d.client.onExec(id, (m) => handleEvent(id, m));
