@@ -302,6 +302,7 @@ code { background: var(--bg3); padding: 2px 6px; border-radius: 5px; font-family
 </div>
 </aside>
 <div class="main">
+<div id="bridgeWarn" style="display:none;margin:12px 40px 0;padding:10px 16px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.4);border-radius:10px;font-size:12px;color:var(--text);"></div>
 <div class="terminal" id="terminal"></div>
 <div class="composer"><div class="composer-card">
 <div class="toolbar" id="modeToolbar">
@@ -309,6 +310,7 @@ code { background: var(--bg3); padding: 2px 6px; border-radius: 5px; font-family
 <button class="mode-tab" data-mode="supervised" onclick="setModeTab('supervised')">Supervised</button>
 <button class="mode-tab" data-mode="plan" onclick="setModeTab('plan')">Plan</button>
 <button class="mode-tab" data-mode="research" onclick="setModeTab('research')">Research</button>
+<button class="mode-tab" data-mode="debug" onclick="setModeTab('debug')">Debug</button>
 <span class="mode-custom" id="modeCustom">Custom</span>
 <button class="btn-perms" onclick="openPermsModal()">Permissions</button>
 </div>
@@ -392,6 +394,7 @@ code { background: var(--bg3); padding: 2px 6px; border-radius: 5px; font-family
 <script>
 /* ================= STATE ================= */
 const BRIDGE_URL = 'ws://localhost:8765';
+const MIN_BRIDGE = '2.1.0';
 const FALLBACK_MODELS = ['muse-spark-1.3', 'muse-spark-1.2', 'muse-wonder-1.0', 'muse-ember-1.0'];
 const EFFORTS = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
 const terminal = document.getElementById('terminal');
@@ -406,7 +409,8 @@ const MODES = {
   build: { label: 'Build', desc: 'Full speed: no approvals, no sandbox. Trusts the workspace.', flags: { yolo: true, approvalMode: 'never', trustWorkspace: true, sandbox: false, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } },
   supervised: { label: 'Supervised', desc: 'Agent acts freely but the OS sandbox stays on (network via proxy).', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } },
   plan: { label: 'Plan', desc: 'Read-only exploration. The agent plans but cannot write files or run shell commands.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: false, shell: false, webTools: true } },
-  research: { label: 'Research', desc: 'Deep research with web tools. Answers come back with cited sources.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } }
+  research: { label: 'Research', desc: 'Deep research with web tools. Answers come back with cited sources.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } },
+  debug: { label: 'Debug', desc: 'Fix mode: runs code and tests to reproduce, diagnose, fix and verify.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } }
 };
 const FLAG_DEFS = [
   { key: 'yolo', label: 'YOLO mode', desc: 'Disables approval AND sandbox, trusts workspace. Overrides all other flags.', code: '--yolo', type: 'bool' },
@@ -507,6 +511,28 @@ function handleWsMessage(d) {
   if (m.type === 'error' && !m.id) { removeTyping(); addMuse('Error: ' + (m.text || '')); return; }
   if (run && m.id === run.id) { handleExecEvent(m); return; }
 }
+async function checkBridgeVersion() {
+  try {
+    const info = await rpc('ping', {}, 10000);
+    const cur = String((info && info.version) || '0');
+    if (cmpVersions(cur, MIN_BRIDGE) < 0) {
+      const w = document.getElementById('bridgeWarn');
+      w.style.display = 'block';
+      w.innerHTML = '<b>Bridge v' + escapeHtml(cur) + ' is outdated (need ' + MIN_BRIDGE + '+).</b> Close the black bridge window and double-click MuseCLIGUI.exe, then press Ctrl+F5 here.';
+      addSystem('Bridge outdated (v' + cur + ') — restart it to unlock the newest GUI features.');
+    } else {
+      document.getElementById('bridgeWarn').style.display = 'none';
+    }
+  } catch (e) {}
+}
+function cmpVersions(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
 function updateStatus(connected) {
   connDot.className = 'conn-dot' + (connected ? ' connected' : '');
   connText.textContent = connected ? 'Bridge: Connected' : 'Bridge: Disconnected — click to retry';
@@ -516,7 +542,7 @@ function enterDemo() {
   addSystem('Demo Mode — connect the bridge for real CLI control.');
 }
 function afterConnect() {
-  refreshSkills(); refreshModels(); refreshUsage(); refreshMore();
+  refreshSkills(); refreshModels(); refreshUsage(); refreshMore(); checkBridgeVersion();
   const p = currentProject();
   if (p) { renderFsRoot(p.path); updateStats(); }
 }

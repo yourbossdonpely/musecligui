@@ -9,7 +9,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -112,6 +112,7 @@ function buildPrompt(msg, cmd) {
   const parts = [];
   if (msg.mode === 'plan') parts.push('MODE: You are in READ-ONLY PLANNING mode. Explore the codebase and propose a concrete plan. Do not modify any files and do not run shell commands that change state.');
   if (msg.mode === 'research') parts.push('MODE: Deep-research mode. Use your web tools to research thoroughly. Answer with findings and cite sources as URLs for key claims.');
+  if (msg.mode === 'debug') parts.push('MODE: Debugging. Reproduce the reported issue, find the root cause, apply the smallest correct fix, then verify with tests or a reproduction. Explain what was wrong.');
   if (Array.isArray(msg.history) && msg.history.length) {
     parts.push('[Previous conversation — for context only]');
     for (const h of msg.history.slice(-12)) {
