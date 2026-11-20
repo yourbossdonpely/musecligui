@@ -8,6 +8,8 @@ import { Composer } from './components/composer/Composer';
 import { Footer } from './components/footer';
 import { ToastStack } from './components/toasts';
 import { ProjectModal } from './components/modals/project';
+import { ModelModal } from './components/modals/ModelModal';
+import { PermsModal } from './components/modals/PermsModal';
 import { FileModal } from './components/modals/FileModal';
 
 function OutdatedBanner() {
@@ -46,6 +48,8 @@ function Shell() {
       )}
       {modal.kind === 'project' ? <ProjectModal /> : null}
       {modal.kind === 'file' ? <FileModal /> : null}
+      {modal.kind === 'model' ? <ModelModal /> : null}
+      {modal.kind === 'perms' ? <PermsModal /> : null}
       <ToastStack />
     </div>
   );
