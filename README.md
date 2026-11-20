@@ -1,0 +1,105 @@
+﻿# Muse Code — AI Coding Agent GUI (v2)
+
+## Overview
+
+A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control.
+
+**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location (`%~dp0`); no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
+
+## Features
+
+| Area | What it does |
+|------|--------------|
+| **Agent chat** | Live streaming replies, live tool-call cards, run log, Stop button, multi-turn memory (transcript sent with each run), stable session id per GUI session |
+| **Modes** | Build (full speed), Supervised (sandbox on), Plan (read-only), Research (web + citations) |
+| **Permissions** | Mode presets plus every flag individually: yolo, approval mode, trust workspace, sandbox, sandbox network, file writes, shell, web tools — with a live CLI preview |
+| **Models** | Real list from `muse exec --list-models`, reasoning effort, contributor mode |
+| **Projects** | Add/select/delete projects, sub-sessions per project, messages persisted per session, session export to Markdown |
+| **Skills** | Real list from `muse skills list`, enable/disable in the real CLI config |
+| **File browser** | Real filesystem tree for the selected project, file preview, attach files to prompts (up to 5) |
+| **Browser tab** | URL preview + open externally + one-click "Research this page" |
+| **More tab** | MCP servers, running sessions (`muse sessions`), git status / changed files, bridge info |
+| **Subscription** | Live tier + window/weekly allowance from `muse usage`, refreshed after every run |
+| **Token counts** | Real input/output tokens per run from the CLI event stream |
+| **Demo Mode** | GUI stays usable with scripted replies when the bridge is down |
+
+## How It Works
+
+- `muse-gui.html` (single file, no build step) talks WebSocket to `muse-bridge.js` on `ws://localhost:8765`.
+- The bridge spawns the real `muse` binary directly (`muse-bin-*.exe`, newest wins — falls back to `muse.cmd`, then `muse` on PATH) and streams `muse exec --json` events: text deltas, tool/task lifecycle, token usage, terminal result.
+- Prompts travel via `--prompt-file`, so any text (quotes, symbols, newlines) is passed safely with zero shell-quoting risk.
+- Each run executes inside the selected project's folder. The bridge refuses to run when the OS temp folder is inside the project folder (the Muse runtime fails there — e.g. never pick your home folder as a project).
+- Old `{command}`-only messages still work (legacy `{type:'output'|'error'}` reply).
+
+### Bridge protocol (for hackers)
+
+Client sends `{id, action, ...}`. Requests get `{id, type:'result', ok, data|error}`; `exec` streams `exec-start / exec-delta / exec-tool / exec-log / exec-usage / exec-done`.
+
+Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxSteps, flags, history, context, provider), `stop`, `ping`, `skills-list`, `skills-set`, `models-list`, `usage`, `mcp-list`, `sessions-list`, `fs-list`, `fs-read`, `git-status`.
+
+`MUSE_CMD` may point at a `.js` stub (run with node) — the test suite uses this. `MUSE_BRIDGE_PORT` overrides the port.
+
+## Launchers (all portable)
+
+- `launch-muse-gui.bat` — One click: starts the bridge if needed, then opens the GUI
+- `start-bridge.cmd` — Runs the bridge server (installs `ws` dependency on first run)
+- `muse-full.cmd` — Launches Muse CLI directly with all permission flags disabled
+- `opencode.cmd` — Shim for the OpenCode desktop CLI
+
+## How to Use
+
+1. Double-click **`launch-muse-gui.bat`**.
+2. Click **+ Add Project**, enter a name and a real project folder (not your home folder).
+3. Pick a mode in the toolbar (Build / Supervised / Plan / Research) or open **Permissions** to tune flags.
+4. Click the model stat to pick a model/effort; type below and Send. Stop interrupts a run.
+5. Browse real files on the right; click a file to preview and **Attach to prompt**; use the Browser tab for page previews and one-click research.
+
+## Environment Overrides (optional)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MUSE_CMD` | newest `muse-bin-*.exe`, else `muse.cmd`, else PATH | Which Muse executable the bridge runs (or a `.js` stub for tests) |
+| `MUSE_BRIDGE_PORT` | `8765` | Bridge port (must match `BRIDGE_URL` in `muse-gui.html`) |
+
+## Requirements
+
+- **A Muse Code subscription** (any plan) — the app drives the official `muse` CLI with whatever plan you have signed in.
+- **Node.js** on PATH (or use the release zip, which bundles it).
+- **The official `muse` CLI** installed and logged in.
+- Models are discovered live via `--list-models` (Spark, Wonder, Ember families); contributor variants via `--contributor-mode`. Usage allowances depend on your plan — watch the Subscription panel.
+## Important Notes
+
+1. **Subscription keys only work in the official `muse` CLI** (`client_attestation_denied` elsewhere). This GUI works by driving that CLI — nothing bypasses Meta's client check.
+2. **Headless runs cannot answer approval prompts**, so the practical approval default here is `never`; use Supervised/Plan modes (sandbox on, writes/shell gated) when you want guardrails.
+3. **Bridge must be running** for real CLI control (`launch-muse-gui.bat` starts it; otherwise Demo Mode).
+4. **Moved folder?** If you pinned the old taskbar shortcut, delete it and re-pin `launch-muse-gui.bat` from the new location.
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| GUI won't connect | Run `start-bridge.cmd`, then click the status bar to retry |
+| "temp folder is inside" error | Pick a project folder that does not contain the OS temp dir (never your home folder) |
+| No projects showing | Click "+ Add Project" and add one, then select it |
+| File browser empty/errors | Select a project first; check the folder path exists |
+| Model not changing | Click the model stat in the status bar |
+| Bridge crashes | Restart with `start-bridge.cmd` from this folder |
+
+## Verification (all observed passing)
+
+- 29 bridge protocol tests against a stub CLI (streaming, stop, validation, escape-blocking, legacy compat)
+- 21 end-to-end GUI tests in headless jsdom against the stub-backed bridge (connect, skills toggle, models, permissions, projects, real file tree, preview, attach, streaming, tool cards, tokens, browser, research, MCP/sessions/git, stop)
+- Live run through the real `muse` exe: echo provider streams correctly; 1 approved subscription prompt returned exactly `GUI_OK`
+- Real CLI exit codes confirmed 0 for `usage`, `skills list`, `--list-models`, `mcp list`, `sessions`, `exec`
+
+## Future Enhancements
+
+- In-GUI file editing (currently: browse/view/attach; the agent edits)
+- Checkpoints/undo with diffs (shadow history)
+- Slash commands and custom agent modes
+- Multi-run queue and parallel sessions
+
+---
+
+**Project:** Muse CLI GUI — AI coding agent GUI for the Meta Muse Code CLI
+(portable — runs from wherever it is cloned or unzipped)

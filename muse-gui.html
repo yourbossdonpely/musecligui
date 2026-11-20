@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muse Code — AI Coding Agent</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #050507; --sidebar: #0d0d12; --panel: #111118; --accent: #6366f1;
+  --accent-glow: rgba(99,102,241,0.35); --text: #e2e8f0; --text-dim: #94a3b8;
+  --text-muted: #64748b; --success: #22c55e; --warning: #f59e0b; --error: #ef4444;
+  --border: #1e293b; --hover: #1e1e2e; --input-bg: #0b0b10;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; }
+.app { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
+/* ---------- Left sidebar ---------- */
+.sidebar { width: 270px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+.sidebar-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent-glow); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.sidebar-header h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.25px; }
+.sidebar-header h2 span { color: var(--accent); }
+.sidebar-body { flex: 1; overflow-y: auto; padding: 16px 16px 24px; }
+.section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin: 18px 0 10px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+.section-title:first-child { margin-top: 4px; }
+.mini-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer; }
+.mini-btn:hover { color: var(--accent); border-color: var(--accent); }
+.projects-list { display: flex; flex-direction: column; gap: 6px; }
+.project-item { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: all 0.2s; }
+.project-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.project-header { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.project-header:hover { background: var(--hover); }
+.project-name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.project-path { font-size: 10px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+.project-arrow.expanded { transform: rotate(90deg); }
+.project-del { font-size: 11px; color: var(--text-muted); cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.project-del:hover { color: var(--error); background: rgba(239,68,68,0.1); }
+.sessions-list { padding: 6px 12px 8px; border-top: 1px solid var(--border); display: none; }
+.sessions-list.expanded { display: block; }
+.session-item { padding: 7px 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; border-left: 3px solid transparent; border-radius: 0 6px 6px 0; margin: 2px 0; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+.session-item:hover { background: var(--hover); color: var(--text); border-left-color: var(--accent); }
+.session-item.active { background: rgba(99,102,241,0.1); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.session-time { font-size: 10px; opacity: 0.6; }
+.session-item .session-action { font-size: 10px; color: var(--text-muted); margin-left: auto; opacity: 0.7; cursor: pointer; }
+.session-item .session-action:hover { opacity: 1; color: var(--error); }
+.btn-add-project { width: 100%; padding: 10px 14px; background: transparent; border: 1px dashed var(--border); color: var(--text-dim); border-radius: 8px; font-size: 12px; cursor: pointer; margin-top: 8px; margin-bottom: 6px; transition: all 0.2s; }
+.btn-add-project:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.05); }
+.skills-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+.skill-item { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.skill-item:hover { background: var(--hover); }
+.skill-item.enabled { border-left: 3px solid var(--success); }
+.skill-item.disabled { border-left: 3px solid var(--text-muted); opacity: 0.7; }
+.skill-name { font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-scope { font-size: 9px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+.skill-warn { font-size: 9px; color: var(--warning); }
+.skill-status { font-size: 10px; font-weight: 600; }
+.skill-status.enabled { color: var(--success); }
+.skill-status.disabled { color: var(--text-muted); }
+.usage-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--text-dim); }
+.usage-box .u-tier { font-weight: 700; color: var(--text); margin-bottom: 8px; font-size: 12px; }
+.usage-bar { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin: 4px 0 8px; }
+.usage-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), #a855f7); }
+.empty-state { padding: 24px 16px; text-align: center; color: var(--text-dim); }
+.empty-state h3 { font-size: 13px; margin-bottom: 6px; color: var(--text); }
+.empty-state p { font-size: 11px; line-height: 1.5; }/* ---------- Main / chat ---------- */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; background: var(--bg); min-width: 0; }
+.toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 32px; border-bottom: 1px solid var(--border); background: #0a0a10; flex-shrink: 0; }
+.mode-tab { background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.mode-tab:hover { border-color: var(--accent); color: var(--text); }
+.mode-tab.active { background: rgba(99,102,241,0.15); border-color: var(--accent); color: var(--accent); }
+.mode-custom { font-size: 11px; color: var(--warning); border: 1px solid var(--warning); border-radius: 6px; padding: 6px 10px; display: none; }
+.mode-custom.show { display: inline-block; }
+.btn-perms { margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--text-dim); border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-perms:hover { border-color: var(--accent); color: var(--accent); }
+.terminal { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 14px; }
+.terminal::-webkit-scrollbar, .sidebar-body::-webkit-scrollbar, .right-body::-webkit-scrollbar { width: 8px; }
+.terminal::-webkit-scrollbar-thumb, .sidebar-body::-webkit-scrollbar-thumb, .right-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.message { display: flex; gap: 12px; animation: slideIn 0.25s ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.avatar { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; font-weight: 700; }
+.avatar.user { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
+.avatar.muse { background: var(--accent); color: #fff; box-shadow: 0 0 16px var(--accent-glow); }
+.avatar.system { background: #1e293b; color: var(--text-dim); border: 1px solid var(--border); }
+.bubble { max-width: 78%; padding: 12px 16px; border-radius: 10px; font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
+.bubble.user { background: var(--panel); border: 1px solid var(--border); }
+.bubble.muse { background: #0f172a; border: 1px solid var(--border); }
+.bubble.muse.live { border-color: var(--accent); }
+.bubble.muse.live::after { content: '▍'; color: var(--accent); animation: pulse 1s infinite; }
+.bubble.system { background: #0f172a; border: 1px solid #334155; color: var(--text-dim); font-size: 12px; padding: 8px 12px; max-width: 92%; }
+.tool-call { max-width: 92%; background: #0b0c10; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; animation: toolAppear 0.3s ease-out; }
+@keyframes toolAppear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.tool-header { padding: 9px 14px; background: #121218; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 600; color: var(--text-dim); gap: 8px; cursor: pointer; }
+.tool-badge { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tool-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: Consolas, monospace; font-size: 11.5px; }
+.tool-pill { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px; background: rgba(99,102,241,0.15); color: var(--accent); white-space: nowrap; }
+.tool-pill.done { background: rgba(34,197,94,0.12); color: var(--success); }
+.tool-pill.fail { background: rgba(239,68,68,0.12); color: var(--error); }
+.tool-raw { display: none; padding: 10px 14px; font-family: Consolas, monospace; font-size: 11px; color: var(--text-muted); white-space: pre-wrap; max-height: 200px; overflow: auto; }
+.tool-call.open .tool-raw { display: block; }
+.runlog { max-width: 92%; background: #0b0c10; border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--text-muted); }
+.runlog summary { padding: 8px 14px; cursor: pointer; font-weight: 600; }
+.runlog pre { margin: 0; border: none; background: transparent; padding: 0 14px 10px; font-size: 11px; color: var(--text-dim); max-height: 160px; overflow: auto; }
+.typing { max-width: 60%; padding: 12px 16px; background: #0f172a; border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+.typing-dots span { width: 6px; height: 6px; background: var(--text-dim); border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
+.typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes bounce { 0%,80%,100% { transform: scale(0.75); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+.chips-row { display: none; gap: 8px; padding: 8px 32px 0; background: var(--panel); flex-wrap: wrap; }
+.chips-row.show { display: flex; }
+.chip { display: flex; align-items: center; gap: 8px; background: rgba(99,102,241,0.12); border: 1px solid var(--accent); color: var(--text); border-radius: 16px; padding: 4px 6px 4px 12px; font-size: 11px; }
+.chip button { background: transparent; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0 6px; }
+.input-wrap { background: var(--panel); border-top: 1px solid var(--border); padding: 14px 32px; flex-shrink: 0; display: flex; align-items: flex-end; gap: 12px; }
+#commandInput { flex: 1; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); font-size: 13.5px; outline: none; resize: none; min-height: 24px; max-height: 140px; border-radius: 8px; padding: 12px 16px; font-family: inherit; }
+#commandInput:focus { border-color: var(--accent); }
+.btn-send { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 26px; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn-send:hover { background: #4f46e5; }
+.btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-stop { display: none; background: var(--error); color: #fff; border: none; border-radius: 8px; padding: 10px 26px; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.btn-stop.show { display: inline-block; }
+.conn-bar { background: #0b0b10; border-top: 1px solid var(--border); padding: 8px 24px; font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 12px; min-height: 32px; flex-shrink: 0; flex-wrap: wrap; cursor: pointer; }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--error); flex-shrink: 0; }
+.conn-dot.connected { background: var(--success); box-shadow: 0 0 10px var(--success); }
+.stat-item { display: flex; align-items: center; gap: 6px; border-left: 1px solid var(--border); padding-left: 12px; white-space: nowrap; }
+.stat-item.clickable { cursor: pointer; }
+.stat-item.clickable:hover .stat-value { text-decoration: underline; }
+.stat-label { font-size: 10px; color: var(--text-muted); }
+.stat-value { font-size: 11px; font-weight: 600; color: var(--accent); font-family: Consolas, monospace; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }/* ---------- Right sidebar ---------- */
+.right-sidebar { width: 320px; background: var(--sidebar); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+.right-sidebar.hidden { display: none; }
+.right-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+.right-tab { flex: 1; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); font-size: 12px; font-weight: 600; padding: 10px 4px; cursor: pointer; }
+.right-tab:hover { color: var(--text); }
+.right-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.right-body { flex: 1; overflow-y: auto; padding: 12px; display: none; }
+.right-body.active { display: block; }
+.folder-display { background: #0b0b10; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 6px 0 10px; }
+.mini-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.file-tree { display: flex; flex-direction: column; gap: 1px; }
+.file-node { padding: 5px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
+.file-node:hover { background: var(--hover); color: var(--text); }
+.file-node .fname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-node.folder { font-weight: 600; color: var(--accent); }
+.file-node.file { color: var(--text-dim); }
+.file-children { padding-left: 16px; border-left: 2px solid var(--border); margin: 2px 0 2px 8px; }
+.file-meta { font-size: 10px; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+.browser-urlrow { display: flex; gap: 6px; margin-bottom: 8px; }
+.browser-urlrow input { flex: 1; min-width: 0; background: #0b0b10; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 12px; }
+.browser-urlrow input:focus { outline: none; border-color: var(--accent); }
+.browser-frame { width: 100%; height: calc(100vh - 260px); min-height: 300px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.browser-note { font-size: 10px; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+.kv-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.kv-row { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 11.5px; color: var(--text-dim); white-space: pre-wrap; word-break: break-word; }
+.kv-row b { color: var(--text); }
+/* ---------- Modals ---------- */
+.modal { position: fixed; inset: 0; background: rgba(5,5,7,0.85); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+.modal-content { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 28px; max-width: 520px; width: 92%; max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+.modal-content.wide { max-width: 640px; }
+.modal h2 { margin-bottom: 6px; font-size: 16px; }
+.modal .sub { color: var(--text-dim); margin-bottom: 20px; font-size: 13px; line-height: 1.5; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 700; }
+.field input[type=text], .field select { width: 100%; padding: 10px 14px; background: #0b0b10; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: inherit; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.modal-btn { border: none; border-radius: 6px; padding: 9px 20px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.modal-btn.primary { background: var(--accent); color: #fff; }
+.modal-btn.primary:hover { background: #4f46e5; }
+.modal-btn.secondary { background: transparent; color: var(--text-dim); }
+.modal-btn.secondary:hover { color: var(--text); background: var(--hover); }
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.mode-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.15s; }
+.mode-card:hover { border-color: var(--accent); }
+.mode-card.selected { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+.mode-card h4 { font-size: 13px; margin-bottom: 4px; }
+.mode-card p { font-size: 11px; color: var(--text-dim); line-height: 1.45; }
+.flag-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.flag-row:last-child { border-bottom: none; }
+.flag-row input[type=checkbox] { margin-top: 3px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.flag-row select { background: #0b0b10; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 5px 8px; font-size: 12px; margin-left: auto; flex-shrink: 0; }
+.flag-info { flex: 1; min-width: 0; }
+.flag-info b { font-size: 12.5px; display: block; }
+.flag-info span { font-size: 11px; color: var(--text-muted); line-height: 1.4; display: block; }
+.flag-info code { font-size: 10.5px; }
+.cli-preview { background: #0b0b10; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-family: Consolas, monospace; font-size: 11.5px; color: var(--success); white-space: pre-wrap; word-break: break-word; margin-top: 14px; }
+.model-row { padding: 10px 14px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; }
+.model-row:hover { border-color: var(--accent); }
+.model-row.selected { background: rgba(99,102,241,0.1); border-color: var(--accent); }
+.model-row .m-name { font-weight: 600; font-size: 13px; font-family: Consolas, monospace; }
+.model-row .m-tag { font-size: 11px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+.file-pre { background: #0b0b10; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: Consolas, monospace; font-size: 12px; max-height: 50vh; overflow: auto; white-space: pre; }
+.scroll-btn { position: fixed; bottom: 22px; right: 22px; background: var(--accent); color: #fff; border: none; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; box-shadow: 0 4px 16px var(--accent-glow); opacity: 0; transition: opacity 0.3s; z-index: 50; font-size: 18px; }
+.scroll-btn.visible { opacity: 1; }
+code { background: #0b0c10; padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace; font-size: 11.5px; border: 1px solid #334155; }
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="sidebar-header"><div class="logo-dot"></div><h2>Muse<span>Code</span></h2></div>
+<div class="sidebar-body">
+<div class="section-title">Projects</div>
+<div class="projects-list" id="projectsList"></div>
+<button class="btn-add-project" onclick="openAddProjectModal()">+ Add Project</button>
+<div id="emptyProjects" class="empty-state"><h3>No projects yet</h3><p>Add a project, select its folder, then start sessions</p></div>
+<div class="section-title">Skills <button class="mini-btn" onclick="refreshSkills()" title="Reload from CLI">Reload</button></div>
+<div class="skills-list" id="skillsList"></div>
+<div id="skillsMeta" style="font-size:10px;color:var(--text-muted);margin-top:6px;"></div>
+<div class="section-title">Subscription</div>
+<div class="usage-box" id="usageBox"><div class="u-tier" id="usageTier">—</div><div id="usageWindowText">—</div><div class="usage-bar"><div id="usageWindowBar" style="width:0%"></div></div><div id="usageWeekly">—</div></div>
+</div>
+</aside>
+<div class="main">
+<div class="toolbar" id="modeToolbar">
+<button class="mode-tab" data-mode="build" onclick="setModeTab('build')">Build</button>
+<button class="mode-tab" data-mode="supervised" onclick="setModeTab('supervised')">Supervised</button>
+<button class="mode-tab" data-mode="plan" onclick="setModeTab('plan')">Plan</button>
+<button class="mode-tab" data-mode="research" onclick="setModeTab('research')">Research</button>
+<span class="mode-custom" id="modeCustom">Custom</span>
+<button class="btn-perms" onclick="openPermsModal()">Permissions</button>
+</div>
+<div class="terminal" id="terminal"></div>
+<div class="chips-row" id="attachChips"></div>
+<div class="input-wrap">
+<textarea id="commandInput" rows="1" placeholder="Ask Muse to write code, edit files, run commands... (Enter to send, Shift+Enter for newline)"></textarea>
+<button class="btn-send" id="sendBtn" onclick="sendCommand()">Send</button>
+<button class="btn-stop" id="stopBtn" onclick="stopRun()">Stop</button>
+</div>
+<div class="conn-bar" id="connBar" title="Click to reconnect">
+<div class="conn-dot" id="connDot"></div><span id="connText">Bridge: Disconnected</span>
+<span class="stat-item clickable" id="modelStat" title="Select model"><span class="stat-label">Model:</span><span class="stat-value" id="modelValue">—</span></span>
+<span class="stat-item clickable" id="modeStat" title="Permissions"><span class="stat-label">Mode:</span><span class="stat-value" id="modeValue">—</span></span>
+<span class="stat-item"><span class="stat-label">Tokens:</span><span class="stat-value" id="tokensValue">—</span></span>
+<span class="stat-item"><span class="stat-label">Usage:</span><span class="stat-value" id="usageValue">—</span></span>
+<span class="stat-item"><span class="stat-label">Project:</span><span class="stat-value" id="projectValue">None</span></span>
+</div>
+</div><aside class="right-sidebar" id="rightSidebar">
+<div class="right-tabs">
+<button class="right-tab active" data-rtab="files" onclick="setRightTab('files')">Files</button>
+<button class="right-tab" data-rtab="browser" onclick="setRightTab('browser')">Browser</button>
+<button class="right-tab" data-rtab="more" onclick="setRightTab('more')">More</button>
+</div>
+<div class="right-body active" id="paneFiles">
+<div style="display:flex;align-items:center;justify-content:space-between;"><span class="mini-label">Project files</span><button class="mini-btn" onclick="reloadFs()">Reload</button></div>
+<div class="folder-display" id="currentFolderDisplay">No project selected</div>
+<div class="file-tree" id="fileTree"><div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center;">Select a project to browse real files</div></div>
+</div>
+<div class="right-body" id="paneBrowser">
+<div class="browser-urlrow"><input type="text" id="browserUrl" placeholder="example.com or https://..." onkeypress="if(event.key==='Enter')goBrowser()"><button class="mini-btn" onclick="goBrowser()">Go</button></div>
+<div class="browser-urlrow"><button class="mini-btn" onclick="openBrowserExternal()">Open externally</button><button class="mini-btn" onclick="researchPage()">Research this page</button></div>
+<iframe class="browser-frame" id="browserFrame" title="Browser preview"></iframe>
+<div class="browser-note">Some sites block embedding (X-Frame-Options) — use Open externally for those. Research this page sends the URL to the agent for a cited summary.</div>
+</div>
+<div class="right-body" id="paneMore">
+<div class="section-title">MCP servers <button class="mini-btn" onclick="refreshMore()">Reload</button></div>
+<div class="kv-list" id="mcpList"></div>
+<div class="section-title">Running sessions</div>
+<div class="kv-list" id="sessList"></div>
+<div class="section-title">Git changes</div>
+<div class="kv-list" id="gitList"></div>
+<div class="section-title">Bridge</div>
+<div class="kv-list" id="bridgeInfo"></div>
+<button class="btn-add-project" onclick="exportSession()">Export current session (.md)</button>
+</div>
+</aside>
+</div>
+<div class="modal" id="addProjectModal"><div class="modal-content">
+<h2>Add New Project</h2><p class="sub">The agent runs inside this folder. Pick a real project folder (not your home folder).</p>
+<div class="field"><label>Project Name</label><input type="text" id="projName" placeholder="e.g., My Laravel App"></div>
+<div class="field"><label>Folder Path</label><input type="text" id="projPath" placeholder="C:\path\to\laravel-project"></div>
+<div class="modal-actions"><button class="modal-btn secondary" onclick="closeAddProjectModal()">Cancel</button><button class="modal-btn primary" onclick="saveProject()">Save Project</button></div>
+</div></div>
+<div class="modal" id="modelModal"><div class="modal-content">
+<h2>Select Model</h2><p class="sub">Model and reasoning settings for the next runs. Loaded live from the CLI.</p>
+<div class="field"><label>Model</label><div id="modelList"></div></div>
+<div class="field"><label>Reasoning effort</label><select id="effortSelect"></select></div>
+<div class="field"><label>Contributor mode</label><select id="contribSelect"><option value="off">off — content not used for training</option><option value="on">on — content may be used for training</option></select></div>
+<div class="modal-actions"><button class="modal-btn secondary" onclick="closeModelModal()">Close</button></div>
+</div></div>
+<div class="modal" id="permsModal"><div class="modal-content wide">
+<h2>Permissions</h2><p class="sub">Pick a mode or tune individual flags. These map directly onto real Muse CLI flags (preview below) and apply to every run until changed.</p>
+<div class="mode-cards" id="permsModes"></div>
+<div id="flagsWrap"></div>
+<div class="cli-preview" id="permsPreview"></div>
+<div class="modal-actions"><button class="modal-btn secondary" onclick="closePermsModal()">Close</button></div>
+</div></div>
+<div class="modal" id="fileModal"><div class="modal-content wide">
+<h2 id="fileTitle">File</h2><p class="sub" id="fileMeta"></p>
+<pre class="file-pre" id="fileContent"></pre>
+<div class="modal-actions"><button class="modal-btn secondary" onclick="closeFilePreview()">Close</button><button class="modal-btn secondary" onclick="copyPreviewPath()">Copy path</button><button class="modal-btn primary" onclick="attachPreview()">Attach to prompt</button></div>
+</div></div>
+<button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">&#x2193;</button>
+<script>
+/* ================= STATE ================= */
+const BRIDGE_URL = 'ws://localhost:8765';
+const FALLBACK_MODELS = ['muse-spark-1.3', 'muse-spark-1.2', 'muse-wonder-1.0', 'muse-ember-1.0'];
+const EFFORTS = ['', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'];
+const terminal = document.getElementById('terminal');
+const input = document.getElementById('commandInput');
+const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+const scrollBtn = document.getElementById('scrollBtn');
+
+const MODES = {
+  build: { label: 'Build', desc: 'Full speed: no approvals, no sandbox. Trusts the workspace.', flags: { yolo: true, approvalMode: 'never', trustWorkspace: true, sandbox: false, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } },
+  supervised: { label: 'Supervised', desc: 'Agent acts freely but the OS sandbox stays on (network via proxy).', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } },
+  plan: { label: 'Plan', desc: 'Read-only exploration. The agent plans but cannot write files or run shell commands.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: false, shell: false, webTools: true } },
+  research: { label: 'Research', desc: 'Deep research with web tools. Answers come back with cited sources.', flags: { yolo: false, approvalMode: 'never', trustWorkspace: true, sandbox: true, sandboxNetwork: 'proxy-only', write: true, shell: true, webTools: true } }
+};
+const FLAG_DEFS = [
+  { key: 'yolo', label: 'YOLO mode', desc: 'Disables approval AND sandbox, trusts workspace. Overrides all other flags.', code: '--yolo', type: 'bool' },
+  { key: 'approvalMode', label: 'Approval mode', desc: 'Headless runs cannot answer prompts, so never is the practical default.', code: '--approval-mode', type: 'select', options: ['never', 'on-request', 'untrusted'] },
+  { key: 'trustWorkspace', label: 'Trust workspace', desc: 'Loads the project skills and rules for this run.', code: '--trust-workspace', type: 'bool' },
+  { key: 'sandbox', label: 'OS sandbox', desc: 'Sandboxed filesystem/network access for shell tools.', code: '--disable-sandbox (when off)', type: 'bool' },
+  { key: 'sandboxNetwork', label: 'Sandbox network', desc: 'Only applies when the sandbox is on.', code: '--sandbox-network', type: 'select', options: ['proxy-only', 'restricted', 'enabled'] },
+  { key: 'write', label: 'File writes', desc: 'Allow the agent to write and edit files. Off = read-only plan mode.', code: '--disable-write (when off)', type: 'bool' },
+  { key: 'shell', label: 'Shell execution', desc: 'Allow the agent to run shell commands.', code: '--disable-shell (when off)', type: 'bool' },
+  { key: 'webTools', label: 'Web tools', desc: 'Allow the agent to browse/search the web. Off adds --disable-web-tools.', code: '--disable-web-tools (when off)', type: 'bool' }
+];
+
+let ws = null, isConnected = false, typingEl = null, retryTimer = null;
+let reqSeq = 0;
+const pending = new Map();
+let projects = [];
+let selectedProjectId = null, selectedSessionId = null;
+let settings = null;
+let attached = [];
+let run = null; // active exec: {id, bubble, tools:Map, logPre, usage, stopped}
+let skillsCache = [], modelsCache = [], bridgeInfoCache = null;
+let fsCache = new Map();
+let previewFile = null;
+
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = String(t); return d.innerHTML; }
+function defaultSettings() {
+  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: Object.assign({}, MODES.build.flags) };
+}
+function loadState() {
+  try { projects = JSON.parse(localStorage.getItem('muse_projects') || '[]'); } catch (e) { projects = []; }
+  try { settings = JSON.parse(localStorage.getItem('muse_settings') || 'null') || defaultSettings(); } catch (e) { settings = defaultSettings(); }
+  if (!settings.flags) settings.flags = Object.assign({}, MODES.build.flags);
+  let dirty = false;
+  projects.forEach((p) => { (p.sessions || []).forEach((s) => { if (!s.sid) { s.sid = uuid(); dirty = true; } if (!Array.isArray(s.messages)) { s.messages = []; dirty = true; } }); });
+  if (dirty) saveProjects();
+  try {
+    const sel = JSON.parse(localStorage.getItem('muse_selected') || 'null');
+    if (sel && projects.some((p) => p.id === sel.p)) { selectedProjectId = sel.p; selectedSessionId = sel.s; }
+  } catch (e) {}
+}
+function saveProjects() { localStorage.setItem('muse_projects', JSON.stringify(projects)); }
+function saveSettings() { localStorage.setItem('muse_settings', JSON.stringify(settings)); }
+function saveSelection() { localStorage.setItem('muse_selected', JSON.stringify({ p: selectedProjectId, s: selectedSessionId })); }
+function currentProject() { return projects.find((p) => p.id === selectedProjectId) || null; }
+function currentSession() {
+  const p = currentProject();
+  return p ? (p.sessions.find((s) => s.id === selectedSessionId) || null) : null;
+}/* ================= CONNECTION + RPC ================= */
+function rpc(action, payload, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    if (!isConnected || !ws) { reject(new Error('Bridge not connected')); return; }
+    const id = 'q' + (++reqSeq);
+    const o = Object.assign({ id, action }, payload || {});
+    pending.set(id, { resolve, reject });
+    try { ws.send(JSON.stringify(o)); } catch (e) { pending.delete(id); reject(e); return; }
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error(action + ' timed out')); } }, timeoutMs || 30000);
+  });
+}
+function connectCLI() {
+  closeAllModals();
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+  try { if (ws) { ws.onclose = null; ws.close(); } } catch (e) {}
+  try {
+    ws = new WebSocket(BRIDGE_URL);
+    ws.onopen = () => { isConnected = true; updateStatus(true); setRunning(false); addSystem('Muse CLI bridge connected.'); afterConnect(); };
+    ws.onmessage = (e) => { handleWsMessage(e.data); };
+    ws.onclose = () => {
+      const was = isConnected;
+      isConnected = false; updateStatus(false); setRunning(false);
+      pending.forEach((p) => p.reject(new Error('Bridge disconnected')));
+      pending.clear();
+      if (was) addSystem('Bridge disconnected — retrying. Run start-bridge.cmd, or keep using Demo Mode.');
+      retryTimer = setTimeout(connectCLI, 3000);
+    };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  } catch (e) { enterDemo(); }
+}
+function handleWsMessage(d) {
+  let m;
+  try { m = JSON.parse(d); } catch (e) { addMuse(String(d)); return; }
+  if (m.type === 'result' && m.id && pending.has(m.id)) {
+    const p = pending.get(m.id); pending.delete(m.id);
+    if (m.ok) p.resolve(m.data); else p.reject(new Error(m.error || 'Request failed'));
+    return;
+  }
+  if (m.type === 'result' && m.action === 'exec' && m.ok === false && run && m.id === run.id) {
+    failRun(m.error || 'Run failed'); return;
+  }
+  if (m.type === 'output') { removeTyping(); addMuse(m.text || ''); return; }
+  if (m.type === 'error' && !m.id) { removeTyping(); addMuse('Error: ' + (m.text || '')); return; }
+  if (run && m.id === run.id) { handleExecEvent(m); return; }
+}
+function updateStatus(connected) {
+  connDot.className = 'conn-dot' + (connected ? ' connected' : '');
+  connText.textContent = connected ? 'Bridge: Connected' : 'Bridge: Disconnected — click to retry';
+}
+function enterDemo() {
+  isConnected = false; updateStatus(false);
+  addSystem('Demo Mode — connect the bridge for real CLI control.');
+}
+function afterConnect() {
+  refreshSkills(); refreshModels(); refreshUsage(); refreshMore();
+  const p = currentProject();
+  if (p) { renderFsRoot(p.path); updateStats(); }
+}
+function closeAllModals() {
+  ['addProjectModal', 'modelModal', 'permsModal', 'fileModal'].forEach((id) => { document.getElementById(id).style.display = 'none'; });
+}
+
+/* ================= MESSAGES ================= */
+function scrollToBottom() { terminal.scrollTop = terminal.scrollHeight; }
+terminal.addEventListener('scroll', () => { scrollBtn.classList.toggle('visible', terminal.scrollTop < terminal.scrollHeight - 120); });
+function saveMessage(msg) {
+  const p = currentProject(), s = currentSession();
+  if (!p || !s) return;
+  s.messages.push(Object.assign({ time: new Date().toISOString() }, msg));
+  saveProjects();
+}
+function addSystem(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar system">i</div><div class="bubble system">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d); scrollToBottom();
+  saveMessage({ type: 'system', text: t });
+}
+function addUser(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar user">You</div><div class="bubble user">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d); scrollToBottom();
+  saveMessage({ type: 'user', text: t });
+}
+function addMuse(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar muse">M</div><div class="bubble muse">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d); scrollToBottom();
+  saveMessage({ type: 'muse', text: t });
+}
+function startLiveBubble() {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar muse">M</div><div class="bubble muse live"></div>';
+  terminal.appendChild(d); scrollToBottom();
+  return d.querySelector('.bubble');
+}
+function finishLiveBubble(bubble, text) {
+  bubble.classList.remove('live');
+  bubble.textContent = text;
+  scrollToBottom();
+  saveMessage({ type: 'muse', text });
+}
+function removeTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+function showTyping() {
+  removeTyping();
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing';
+  typingEl.innerHTML = '<span>Muse is thinking</span><div class="typing-dots"><span></span><span></span><span></span></div>';
+  terminal.appendChild(typingEl); scrollToBottom();
+}
+function toolCard(runObj, taskId, name) {
+  if (runObj.tools.has(taskId)) return runObj.tools.get(taskId);
+  const d = document.createElement('div');
+  d.className = 'tool-call';
+  d.innerHTML = '<div class="tool-header"><div class="tool-badge"><span class="tool-name"></span></div><span class="tool-pill">running</span></div><div class="tool-raw"></div>';
+  d.querySelector('.tool-name').textContent = name || 'task';
+  d.querySelector('.tool-header').onclick = () => d.classList.toggle('open');
+  terminal.appendChild(d); scrollToBottom();
+  const card = { el: d, pill: d.querySelector('.tool-pill'), raw: d.querySelector('.tool-raw') };
+  runObj.tools.set(taskId, card);
+  return card;
+}
+function updateToolCard(runObj, m) {
+  const card = toolCard(runObj, m.taskId || ('t' + runObj.tools.size), m.name);
+  const ev = String(m.event || '').toLowerCase();
+  if (ev === 'completed' || ev === 'complete') { card.pill.textContent = 'complete'; card.pill.className = 'tool-pill done'; }
+  else if (ev === 'failed' || ev === 'error' || ev === 'cancelled') { card.pill.textContent = ev; card.pill.className = 'tool-pill fail'; }
+  else { card.pill.textContent = ev || 'running'; }
+  try { card.raw.textContent = JSON.stringify(m.raw || m, null, 1).slice(0, 3000); } catch (e) {}
+  scrollToBottom();
+}
+function startRunLog() {
+  const d = document.createElement('details');
+  d.className = 'runlog';
+  d.innerHTML = '<summary>Run log</summary><pre></pre>';
+  terminal.appendChild(d);
+  return d.querySelector('pre');
+}/* ================= EXEC FLOW ================= */
+input.addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 140) + 'px'; });
+input.addEventListener('keypress', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCommand(); } });
+function setRunning(on) {
+  sendBtn.disabled = on;
+  stopBtn.classList.toggle('show', !!on);
+}
+function buildHistory() {
+  const s = currentSession();
+  if (!s) return [];
+  return s.messages.filter((m) => m.type === 'user' || m.type === 'muse').slice(-10).map((m) => ({ role: m.type, text: m.text }));
+}
+function buildContext() {
+  if (!attached.length) return '';
+  return attached.map((a) => '--- ' + a.rel + ' ---\n' + a.content).join('\n\n');
+}
+function sendCommand() {
+  const t = input.value.trim();
+  if (!t || run) return;
+  addUser(t + (attached.length ? '\n[+' + attached.length + ' attached file(s)]' : ''));
+  input.value = ''; input.style.height = 'auto';
+  if (!isConnected || !ws) { simulateDemo(t); return; }
+  const p = currentProject(), s = currentSession();
+  const id = 'e' + (++reqSeq) + '-' + Date.now();
+  run = { id, bubble: null, tools: new Map(), logPre: null, usage: null, stopped: false, text: '' };
+  setRunning(true);
+  showTyping();
+  ws.send(JSON.stringify({
+    id, action: 'exec', command: t, cwd: p ? p.path : undefined,
+    mode: settings.mode === 'custom' ? 'build' : settings.mode,
+    model: settings.model || undefined, effort: settings.effort || undefined,
+    contributor: settings.contributor === 'on' ? 'on' : undefined,
+    sessionId: s ? s.sid : undefined, flags: settings.flags,
+    history: buildHistory(), context: buildContext() || undefined
+  }));
+  attached = []; renderChips();
+  run.watchdog = setTimeout(() => {
+    if (run && run.id === id && !run.bubble) addSystem('Still waiting for the bridge to start this run. If this persists, look at the black Muse Bridge window for error lines.');
+  }, 45000);
+}
+function handleExecEvent(m) {
+  if (!run) return;
+  if (m.type === 'exec-start') { removeTyping(); if (run.watchdog) clearTimeout(run.watchdog); run.bubble = startLiveBubble(); run.logPre = startRunLog(); }
+  else if (m.type === 'exec-delta' && run.bubble) { run.text += m.text; run.bubble.textContent = run.text; scrollToBottom(); }
+  else if (m.type === 'exec-tool') { removeTyping(); updateToolCard(run, m); }
+  else if (m.type === 'exec-log' && run.logPre) { run.logPre.textContent += m.text + '\n'; }
+  else if (m.type === 'exec-usage') { run.usage = m.usage; showUsage(m.usage); }
+  else if (m.type === 'exec-done') { finishRun(m); }
+}
+function showUsage(u) {
+  try {
+    const mods = (u && u.models) || [];
+    let inp = 0, out = 0;
+    mods.forEach((x) => { inp += x.input_tokens || 0; out += x.output_tokens || 0; });
+    document.getElementById('tokensValue').textContent = inp + ' in / ' + out + ' out';
+  } catch (e) {}
+}
+async function finishRun(m) {
+  const r = run; run = null;
+  if (r && r.watchdog) clearTimeout(r.watchdog);
+  setRunning(false); removeTyping();
+  const failed = m.terminal === 'failed' || (typeof m.exitCode === 'number' && m.exitCode !== 0 && !m.text);
+  let text = m.text || '(no output)';
+  if (r.stopped) text += '\n\n[Stopped by user]';
+  if (r.bubble) finishLiveBubble(r.bubble, text); else addMuse(text);
+  if (failed && m.reason) addSystem('Run failed: ' + m.reason);
+  if (m.usage) showUsage(m.usage);
+  const stats = m.stats ? (' · ' + (m.stats.deltas || 0) + ' deltas, ' + (m.stats.tools || 0) + ' tool events') : '';
+  addSystem('Run ' + (m.terminal || 'done') + ' (exit ' + (m.exitCode == null ? '?' : m.exitCode) + ')' + stats);
+  refreshUsage();
+  const p = currentProject();
+  if (p) {
+    try {
+      const g = await rpc('git-status', { cwd: p.path }, 20000);
+      if (g.repo && g.lines.length) addSystem('Changed files: ' + g.lines.slice(0, 8).join(', ') + (g.lines.length > 8 ? ' (+' + (g.lines.length - 8) + ' more)' : ''));
+    } catch (e) {}
+    refreshMore();
+  }
+}
+function failRun(err) {
+  if (run && run.watchdog) clearTimeout(run.watchdog);
+  run = null; setRunning(false); removeTyping();
+  addMuse('Error: ' + err);
+}
+async function stopRun() {
+  if (!run) return;
+  run.stopped = true;
+  try { await rpc('stop', {}, 10000); addSystem('Stop requested — waiting for the run to end.'); }
+  catch (e) { addSystem('Stop failed: ' + e.message); run.stopped = false; }
+}
+function simulateDemo(t) {
+  showTyping();
+  setTimeout(() => {
+    removeTyping();
+    const l = t.toLowerCase();
+    if (l.includes('hello') || l.includes('hi')) addMuse("Hello! I'm Muse Code (Demo Mode). Connect the bridge to control the real CLI with your subscription.");
+    else addMuse('Demo: "' + t + '". Run start-bridge.cmd and click the status bar to connect the real Muse CLI.');
+  }, 1200);
+}
+
+/* ================= PROJECTS + SESSIONS ================= */
+const projectsList = document.getElementById('projectsList');
+const emptyProjects = document.getElementById('emptyProjects');
+function renderProjects() {
+  projectsList.innerHTML = '';
+  emptyProjects.style.display = projects.length ? 'none' : 'block';
+  projects.forEach((p, pIdx) => {
+    const div = document.createElement('div');
+    div.className = 'project-item' + (selectedProjectId === p.id ? ' selected' : '');
+    const expanded = !!p.expanded;
+    const sessHtml = (p.sessions || []).map((s, sIdx) =>
+      '<div class="session-item' + (selectedSessionId === s.id ? ' active' : '') + '" data-p="' + pIdx + '" data-s="' + sIdx + '">' +
+      escapeHtml(s.name) + ' <span class="session-time">' + escapeHtml(s.time || '') + '</span>' +
+      '<span class="session-action" data-del-p="' + pIdx + '" data-del-s="' + sIdx + '" title="Delete session">&#x2715;</span></div>'
+    ).join('');
+    div.innerHTML = '<div class="project-header"><span class="project-arrow' + (expanded ? ' expanded' : '') + '">&#x25b8;</span>' +
+      '<div style="flex:1;min-width:0;"><div class="project-name">' + escapeHtml(p.name) + '</div><div class="project-path">' + escapeHtml(p.path) + '</div></div>' +
+      '<span class="project-del" data-delproj="' + pIdx + '" title="Delete project">&#x2715;</span></div>' +
+      '<div class="sessions-list' + (expanded ? ' expanded' : '') + '">' + sessHtml +
+      '<div class="session-item" data-new-sess="' + pIdx + '" style="color:var(--accent);">+ New Session</div></div>';
+    projectsList.appendChild(div);
+  });
+  projectsList.querySelectorAll('.project-header').forEach((h) => {
+    h.onclick = (e) => {
+      const del = e.target.getAttribute && e.target.getAttribute('data-delproj');
+      if (del != null) { deleteProject(Number(del)); return; }
+      const idx = Array.prototype.indexOf.call(projectsList.children, h.parentElement);
+      toggleProject(idx);
+    };
+  });
+  projectsList.querySelectorAll('.session-item[data-p]').forEach((el) => {
+    el.onclick = (e) => {
+      const dp = e.target.getAttribute && e.target.getAttribute('data-del-p');
+      if (dp != null) { deleteSession(Number(dp), Number(e.target.getAttribute('data-del-s'))); return; }
+      selectSession(Number(el.getAttribute('data-p')), Number(el.getAttribute('data-s')));
+    };
+  });
+  projectsList.querySelectorAll('[data-new-sess]').forEach((el) => { el.onclick = (e) => { e.stopPropagation(); addSession(Number(el.getAttribute('data-new-sess'))); }; });
+  updateStats();
+}
+function toggleProject(pIdx) {
+  projects[pIdx].expanded = !projects[pIdx].expanded;
+  if (projects[pIdx].expanded) selectProject(pIdx, true);
+  saveProjects(); renderProjects();
+}
+function selectProject(pIdx, silent) {
+  selectedProjectId = projects[pIdx].id;
+  if (!projects[pIdx].sessions.some((s) => s.id === selectedSessionId)) {
+    selectedSessionId = projects[pIdx].sessions.length ? projects[pIdx].sessions[0].id : null;
+  }
+  saveSelection(); saveProjects(); renderProjects();
+  renderFsRoot(projects[pIdx].path);
+  renderSessionMessages();
+  if (!silent) addSystem('Project selected: ' + projects[pIdx].name);
+  updateStats(); refreshMore();
+}
+function selectSession(pIdx, sIdx) {
+  selectedProjectId = projects[pIdx].id;
+  selectedSessionId = projects[pIdx].sessions[sIdx].id;
+  saveSelection(); saveProjects(); renderProjects();
+  renderSessionMessages();
+  addSystem('Session: ' + projects[pIdx].sessions[sIdx].name);
+}
+function renderSessionMessages() {
+  terminal.innerHTML = '';
+  const s = currentSession();
+  if (!s || !s.messages.length) { addSystemLocal('Ready. Type below to start working.'); return; }
+  s.messages.forEach((m) => {
+    if (m.type === 'user') addUserLocal(m.text);
+    else if (m.type === 'muse') addMuseLocal(m.text);
+    else addSystemLocal(m.text);
+  });
+  scrollToBottom();
+}
+function addSystemLocal(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar system">i</div><div class="bubble system">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d);
+}
+function addUserLocal(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar user">You</div><div class="bubble user">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d);
+}
+function addMuseLocal(t) {
+  const d = document.createElement('div');
+  d.className = 'message';
+  d.innerHTML = '<div class="avatar muse">M</div><div class="bubble muse">' + escapeHtml(t) + '</div>';
+  terminal.appendChild(d);
+}
+function addSession(pIdx) {
+  const now = new Date();
+  const s = { id: Date.now() + Math.random(), sid: uuid(), name: 'Session ' + (projects[pIdx].sessions.length + 1), time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] };
+  projects[pIdx].sessions.push(s);
+  selectedProjectId = projects[pIdx].id; selectedSessionId = s.id;
+  saveProjects(); saveSelection(); renderProjects(); renderSessionMessages();
+  addSystem('New session created');
+}
+function deleteSession(pIdx, sIdx) {
+  if (projects[pIdx].sessions.length <= 1) { addSystem('Cannot delete the last session — create a new one first.'); return; }
+  const was = projects[pIdx].sessions[sIdx].id === selectedSessionId;
+  projects[pIdx].sessions.splice(sIdx, 1);
+  if (was) selectedSessionId = projects[pIdx].sessions[0].id;
+  saveProjects(); saveSelection(); renderProjects(); renderSessionMessages();
+}
+function deleteProject(pIdx) {
+  const name = projects[pIdx].name;
+  if (projects[pIdx].id === selectedProjectId) { selectedProjectId = null; selectedSessionId = null; }
+  projects.splice(pIdx, 1);
+  saveProjects(); saveSelection(); renderProjects(); renderSessionMessages();
+  document.getElementById('currentFolderDisplay').textContent = 'No project selected';
+  document.getElementById('fileTree').innerHTML = '';
+  addSystem('Project deleted: ' + name);
+}
+function openAddProjectModal() {
+  document.getElementById('projName').value = '';
+  document.getElementById('projPath').value = '';
+  document.getElementById('addProjectModal').style.display = 'flex';
+  document.getElementById('projName').focus();
+}
+function closeAddProjectModal() { document.getElementById('addProjectModal').style.display = 'none'; }
+function saveProject() {
+  const name = document.getElementById('projName').value.trim();
+  const path = document.getElementById('projPath').value.trim();
+  if (!name || !path) { addSystem('Please fill in both project name and folder path.'); return; }
+  const now = new Date();
+  const p = { id: Date.now() + Math.random(), name, path, expanded: true, sessions: [{ id: Date.now(), sid: uuid(), name: 'Session 1', time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] }] };
+  projects.push(p);
+  selectedProjectId = p.id; selectedSessionId = p.sessions[0].id;
+  saveProjects(); saveSelection(); closeAddProjectModal(); renderProjects(); renderSessionMessages();
+  renderFsRoot(path);
+  addSystem('Project added: ' + name + ' at ' + path);
+  updateStats(); refreshMore();
+}/* ================= SKILLS (live from CLI) ================= */
+const skillsList = document.getElementById('skillsList');
+const skillsMeta = document.getElementById('skillsMeta');
+async function refreshSkills() {
+  if (!isConnected) { skillsList.innerHTML = '<div class="empty-state"><p>Bridge offline — skills unavailable</p></div>'; skillsMeta.textContent = ''; return; }
+  skillsList.innerHTML = '<div class="empty-state"><p>Loading skills from CLI...</p></div>';
+  try {
+    const data = await rpc('skills-list', {}, 120000);
+    skillsCache = data.skills || [];
+    renderSkills();
+    skillsMeta.textContent = (data.count != null ? data.count : skillsCache.length) + ' skills (click to toggle)';
+  } catch (e) { skillsList.innerHTML = '<div class="empty-state"><p>Skills failed: ' + escapeHtml(e.message) + '</p></div>'; }
+}
+function renderSkills() {
+  skillsList.innerHTML = '';
+  skillsCache.forEach((s) => {
+    const on = s.activation !== 'off';
+    const div = document.createElement('div');
+    div.className = 'skill-item ' + (on ? 'enabled' : 'disabled');
+    div.title = s.desc || s.id;
+    div.innerHTML = '<span class="skill-name">' + escapeHtml(s.name || s.id) + '</span>' +
+      (s.warnings ? '<span class="skill-warn">!' + s.warnings + '</span>' : '') +
+      '<span class="skill-scope">' + escapeHtml(s.scope || '') + '</span>' +
+      '<span class="skill-status ' + (on ? 'enabled' : 'disabled') + '">' + (on ? 'ON' : 'OFF') + '</span>';
+    div.onclick = () => toggleSkill(s);
+    skillsList.appendChild(div);
+  });
+}
+async function toggleSkill(s) {
+  const to = !(s.activation !== 'off');
+  addSystem((to ? 'Enabling' : 'Disabling') + ' skill: ' + s.id + ' ...');
+  try {
+    await rpc('skills-set', { skillId: s.id, enabled: to, scope: s.scope || 'user' }, 60000);
+    s.activation = to ? 'on' : 'off';
+    renderSkills();
+    addSystem('Skill ' + s.id + ' is now ' + (to ? 'ON' : 'OFF'));
+  } catch (e) { addSystem('Skill toggle failed: ' + e.message); }
+}
+
+/* ================= MODELS ================= */
+async function refreshModels() {
+  if (!isConnected) { modelsCache = FALLBACK_MODELS.slice(); return; }
+  try {
+    const data = await rpc('models-list', {}, 90000);
+    if (data.models && data.models.length) modelsCache = data.models;
+    else modelsCache = FALLBACK_MODELS.slice();
+  } catch (e) { modelsCache = FALLBACK_MODELS.slice(); }
+  updateStats();
+}
+function openModelModal() {
+  const list = document.getElementById('modelList');
+  const models = modelsCache.length ? modelsCache : FALLBACK_MODELS;
+  let html = '<div class="model-row' + (!settings.model ? ' selected' : '') + '" data-model=""><div class="m-name">auto (CLI default)</div>' + (!settings.model ? '<span class="m-tag">Active</span>' : '') + '</div>';
+  html += models.map((m) => '<div class="model-row' + (settings.model === m ? ' selected' : '') + '" data-model="' + escapeHtml(m) + '"><div class="m-name">' + escapeHtml(m) + '</div>' + (settings.model === m ? '<span class="m-tag">Active</span>' : '') + '</div>').join('');
+  list.innerHTML = html;
+  list.querySelectorAll('.model-row').forEach((row) => { row.onclick = () => selectModel(row.getAttribute('data-model')); });
+  const eff = document.getElementById('effortSelect');
+  eff.innerHTML = EFFORTS.map((e) => '<option value="' + e + '"' + (settings.effort === e ? ' selected' : '') + '>' + (e || 'default') + '</option>').join('');
+  eff.onchange = () => { settings.effort = eff.value; saveSettings(); updateStats(); addSystem('Reasoning effort: ' + (eff.value || 'default')); };
+  const cs = document.getElementById('contribSelect');
+  cs.value = settings.contributor || 'off';
+  cs.onchange = () => { settings.contributor = cs.value; saveSettings(); updateStats(); addSystem('Contributor mode: ' + cs.value); };
+  document.getElementById('modelModal').style.display = 'flex';
+}
+function closeModelModal() { document.getElementById('modelModal').style.display = 'none'; }
+function selectModel(id) {
+  settings.model = id;
+  saveSettings(); updateStats(); closeModelModal();
+  addSystem('Model: ' + (id || 'auto (CLI default)'));
+}
+
+/* ================= PERMISSIONS ================= */
+function setModeTab(mode) {
+  settings.mode = mode;
+  settings.flags = Object.assign({}, MODES[mode].flags);
+  saveSettings(); renderModeTabs(); updateStats();
+  addSystem('Mode: ' + MODES[mode].label + ' — ' + MODES[mode].desc);
+}
+function renderModeTabs() {
+  const custom = settings.mode === 'custom';
+  document.querySelectorAll('#modeToolbar .mode-tab').forEach((b) => {
+    b.classList.toggle('active', !custom && b.getAttribute('data-mode') === settings.mode);
+  });
+  document.getElementById('modeCustom').classList.toggle('show', custom);
+}
+function openPermsModal() {
+  renderPermsModes(); renderPermsFlags(); renderPermsPreview();
+  document.getElementById('permsModal').style.display = 'flex';
+}
+function closePermsModal() { document.getElementById('permsModal').style.display = 'none'; }
+function renderPermsModes() {
+  const wrap = document.getElementById('permsModes');
+  wrap.innerHTML = '';
+  Object.keys(MODES).forEach((key) => {
+    const m = MODES[key];
+    const div = document.createElement('div');
+    div.className = 'mode-card' + (settings.mode === key ? ' selected' : '');
+    div.innerHTML = '<h4>' + escapeHtml(m.label) + '</h4><p>' + escapeHtml(m.desc) + '</p>';
+    div.onclick = () => { settings.mode = key; settings.flags = Object.assign({}, m.flags); saveSettings(); renderPermsModes(); renderPermsFlags(); renderPermsPreview(); renderModeTabs(); updateStats(); };
+    wrap.appendChild(div);
+  });
+}
+function renderPermsFlags() {
+  const wrap = document.getElementById('flagsWrap');
+  wrap.innerHTML = '';
+  FLAG_DEFS.forEach((d) => {
+    const row = document.createElement('div');
+    row.className = 'flag-row';
+    if (d.type === 'bool') {
+      row.innerHTML = '<input type="checkbox"' + (settings.flags[d.key] ? ' checked' : '') + '><div class="flag-info"><b>' + escapeHtml(d.label) + '</b><span>' + escapeHtml(d.desc) + '</span><span><code>' + escapeHtml(d.code) + '</code></span></div>';
+      row.querySelector('input').onchange = (e) => { settings.flags[d.key] = e.target.checked; markCustom(); renderPermsPreview(); };
+    } else {
+      row.innerHTML = '<div class="flag-info"><b>' + escapeHtml(d.label) + '</b><span>' + escapeHtml(d.desc) + '</span><span><code>' + escapeHtml(d.code) + '</code></span></div><select>' + d.options.map((o) => '<option' + (settings.flags[d.key] === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>').join('') + '</select>';
+      row.querySelector('select').onchange = (e) => { settings.flags[d.key] = e.target.value; markCustom(); renderPermsPreview(); };
+    }
+    wrap.appendChild(row);
+  });
+}
+function markCustom() {
+  settings.mode = 'custom';
+  saveSettings(); renderPermsModes(); renderModeTabs(); updateStats();
+}
+function renderPermsPreview() {
+  document.getElementById('permsPreview').textContent = permsPreview();
+}
+function permsPreview() {
+  const f = settings.flags, a = ['muse', 'exec', '--json'];
+  if (settings.model) { a.push('--model', settings.model); }
+  if (settings.effort) { a.push('--reasoning-effort', settings.effort); }
+  if (f.yolo) { a.push('--yolo'); }
+  else {
+    a.push('--approval-mode', f.approvalMode || 'never');
+    if (f.trustWorkspace) a.push('--trust-workspace');
+    if (f.sandbox === false) a.push('--disable-sandbox');
+    else if (f.sandboxNetwork) { a.push('--sandbox-network', f.sandboxNetwork); }
+    if (f.write === false) a.push('--disable-write');
+    if (f.shell === false) a.push('--disable-shell');
+  }
+  if (f.webTools === false) a.push('--disable-web-tools');
+  return a.join(' ');
+}
+function permsSummary() {
+  if (settings.mode !== 'custom') return MODES[settings.mode].label;
+  const f = settings.flags;
+  if (f.yolo) return 'Custom (yolo)';
+  const bits = [];
+  if (f.write === false) bits.push('read-only');
+  if (f.shell === false) bits.push('no-shell');
+  if (f.sandbox === false) bits.push('no-sandbox');
+  return 'Custom' + (bits.length ? ' (' + bits.join(', ') + ')' : '');
+}
+
+/* ================= USAGE ================= */
+async function refreshUsage() {
+  if (!isConnected) return;
+  try {
+    const u = await rpc('usage', {}, 60000);
+    document.getElementById('usageTier').textContent = u.tier || '—';
+    document.getElementById('usageWindowText').textContent = u.window ? 'Window: ' + u.window : '—';
+    document.getElementById('usageWeekly').textContent = u.weekly ? 'Weekly: ' + u.weekly : '—';
+    const m = (u.window || '').match(/(\d+)%/);
+    document.getElementById('usageWindowBar').style.width = m ? m[1] + '%' : '0%';
+    document.getElementById('usageValue').textContent = m ? m[1] + '%' : '—';
+  } catch (e) {}
+}/* ================= FILES TAB (real filesystem) ================= */
+const fileTree = document.getElementById('fileTree');
+const currentFolderDisplay = document.getElementById('currentFolderDisplay');
+function setRightTab(name) {
+  document.querySelectorAll('.right-tab').forEach((b) => b.classList.toggle('active', b.getAttribute('data-rtab') === name));
+  document.querySelectorAll('.right-body').forEach((p) => p.classList.remove('active'));
+  document.getElementById(name === 'files' ? 'paneFiles' : (name === 'browser' ? 'paneBrowser' : 'paneMore')).classList.add('active');
+}
+function renderFsRoot(folderPath) {
+  fsCache.clear();
+  currentFolderDisplay.textContent = folderPath || 'No project selected';
+  fileTree.innerHTML = '';
+  if (!folderPath) { fileTree.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center;">Select a project to browse real files</div>'; return; }
+  loadFsDir('', fileTree);
+}
+function reloadFs() { const p = currentProject(); if (p) renderFsRoot(p.path); }
+function joinRel(base, name) { return base ? base + '\\' + name : name; }
+async function loadFsDir(rel, container) {
+  container.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:11px;">Loading...</div>';
+  const p = currentProject();
+  if (!p) { container.innerHTML = ''; return; }
+  try {
+    const data = await rpc('fs-list', { root: p.path, rel }, 30000);
+    fsCache.set(rel, data.entries);
+    container.innerHTML = '';
+    if (!data.entries.length) { container.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:11px;">(empty)</div>'; return; }
+    data.entries.forEach((e) => {
+      const row = document.createElement('div');
+      row.className = 'file-node ' + (e.type === 'dir' ? 'folder' : 'file');
+      const size = e.type === 'file' && e.size != null ? '<span class="file-meta">' + fmtSize(e.size) + '</span>' : '';
+      row.innerHTML = '<span>' + (e.type === 'dir' ? '&#x25b8;' : '&#x1f4c4;') + '</span><span class="fname">' + escapeHtml(e.name) + '</span>' + size;
+      container.appendChild(row);
+      if (e.type === 'dir') {
+        const kids = document.createElement('div');
+        kids.className = 'file-children'; kids.style.display = 'none';
+        container.appendChild(kids);
+        row.onclick = () => {
+          const open = kids.style.display !== 'none';
+          if (open) { kids.style.display = 'none'; row.querySelector('span').innerHTML = '&#x25b8;'; }
+          else { kids.style.display = 'block'; row.querySelector('span').innerHTML = '&#x25be;'; loadFsDir(joinRel(rel, e.name), kids); }
+        };
+      } else if (e.type === 'file') {
+        row.onclick = () => openFilePreview(joinRel(rel, e.name));
+      }
+    });
+  } catch (err) { container.innerHTML = '<div style="padding:8px;color:var(--error);font-size:11px;">' + escapeHtml(err.message) + '</div>'; }
+}
+function fmtSize(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+async function openFilePreview(rel) {
+  const p = currentProject();
+  if (!p) return;
+  previewFile = { rel, content: null };
+  document.getElementById('fileTitle').textContent = rel.split('\\').pop();
+  document.getElementById('fileMeta').textContent = rel;
+  document.getElementById('fileContent').textContent = 'Loading...';
+  document.getElementById('fileModal').style.display = 'flex';
+  try {
+    const data = await rpc('fs-read', { root: p.path, rel }, 30000);
+    previewFile.content = data.content;
+    document.getElementById('fileMeta').textContent = rel + ' · ' + fmtSize(data.size);
+    document.getElementById('fileContent').textContent = data.content;
+  } catch (err) {
+    previewFile.content = null;
+    document.getElementById('fileContent').textContent = 'Error: ' + err.message;
+  }
+}
+function closeFilePreview() { document.getElementById('fileModal').style.display = 'none'; previewFile = null; }
+function copyPreviewPath() {
+  if (!previewFile) return;
+  const p = currentProject();
+  const full = p ? p.path + '\\' + previewFile.rel : previewFile.rel;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(() => addSystem('Path copied.'), () => addSystem('Copy failed.'));
+    else addSystem('Clipboard unavailable: ' + full);
+  } catch (e) { addSystem('Copy unavailable: ' + full); }
+}
+function attachPreview() {
+  if (!previewFile || previewFile.content == null) { addSystem('Nothing to attach.'); return; }
+  const rel = previewFile.rel;
+  if (attached.length >= 5) { addSystem('Attach limit reached (5 files).'); return; }
+  if (attached.some((a) => a.rel === rel)) { addSystem('Already attached: ' + rel); return; }
+  attached.push({ rel, content: previewFile.content.slice(0, 15000) });
+  renderChips();
+  closeFilePreview();
+  addSystem('Attached: ' + rel + ' (sent with your next prompt)');
+  input.focus();
+}
+function renderChips() {
+  const row = document.getElementById('attachChips');
+  row.innerHTML = '';
+  row.classList.toggle('show', attached.length > 0);
+  attached.forEach((a, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = '<span>' + escapeHtml(a.rel) + '</span><button title="Remove">&times;</button>';
+    chip.querySelector('button').onclick = () => { attached.splice(i, 1); renderChips(); };
+    row.appendChild(chip);
+  });
+}
+
+/* ================= BROWSER TAB ================= */
+function currentBrowserUrl() {
+  let u = document.getElementById('browserUrl').value.trim();
+  if (u && !/^[a-z]+:\/\//i.test(u)) u = 'https://' + u;
+  return u;
+}
+function goBrowser() {
+  const u = currentBrowserUrl();
+  if (!u) return;
+  document.getElementById('browserUrl').value = u;
+  document.getElementById('browserFrame').src = u;
+}
+function openBrowserExternal() {
+  const u = currentBrowserUrl();
+  if (u) window.open(u, '_blank');
+}
+function researchPage() {
+  const u = currentBrowserUrl();
+  if (!u) { addSystem('Enter a URL first.'); return; }
+  const prev = settings.mode;
+  settings.mode = 'research';
+  settings.flags = Object.assign({}, MODES.research.flags);
+  saveSettings(); renderModeTabs(); updateStats();
+  input.value = 'Research this page thoroughly and summarize the key facts with cited sources: ' + u;
+  addSystem('Research mode on (was ' + prev + '). Review the prompt, then Send.');
+  input.focus();
+}
+
+/* ================= MORE TAB ================= */
+async function refreshMore() {
+  if (!isConnected) return;
+  try { const m = await rpc('mcp-list', {}, 60000); renderKv('mcpList', mcpRows(m)); } catch (e) { renderKv('mcpList', [{ h: 'Error', t: e.message }]); }
+  try { const s = await rpc('sessions-list', {}, 60000); renderKv('sessList', sessionRows(s)); } catch (e) { renderKv('sessList', [{ h: 'Error', t: e.message }]); }
+  const p = currentProject();
+  if (p) {
+    try {
+      const g = await rpc('git-status', { cwd: p.path }, 20000);
+      renderKv('gitList', !g.repo ? [{ h: 'Not a git repo', t: p.path }] : (g.lines.length ? g.lines.map((l) => ({ h: '', t: l })) : [{ h: 'Clean', t: 'no changes' }]));
+    } catch (e) { renderKv('gitList', [{ h: 'Error', t: e.message }]); }
+  } else renderKv('gitList', [{ h: 'No project', t: 'select a project first' }]);
+  try {
+    const info = await rpc('ping', {}, 15000);
+    bridgeInfoCache = info;
+    renderKv('bridgeInfo', [{ h: 'bridge', t: 'v' + info.version }, { h: 'muse', t: info.muse }]);
+  } catch (e) {}
+}
+function renderKv(id, rows) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  if (!rows.length) { el.innerHTML = '<div class="kv-row">None</div>'; return; }
+  rows.forEach((r) => {
+    const div = document.createElement('div');
+    div.className = 'kv-row';
+    div.innerHTML = (r.h ? '<b>' + escapeHtml(r.h) + '</b> ' : '') + escapeHtml(r.t || '');
+    el.appendChild(div);
+  });
+}
+function mcpRows(m) {
+  const servers = (m && m.servers) || [];
+  if (!servers.length) return [{ h: 'None', t: 'no MCP servers configured' }];
+  return servers.map((s) => ({ h: s.name || '?', t: s.url || s.command || '' }));
+}
+function sessionRows(s) {
+  const list = (s && s.sessions) || [];
+  if (!list.length) return [{ h: 'None', t: 'no running sessions' }];
+  return list.map((x) => ({ h: x.name || x.sessionId || '?', t: (x.workspaceLabel || '') + ' ' + (x.binaryVersion || '') }));
+}
+function exportSession() {
+  const s = currentSession(), p = currentProject();
+  if (!s) { addSystem('No session selected.'); return; }
+  let md = '# ' + (p ? p.name : 'Session') + ' — ' + s.name + '\n\n';
+  (s.messages || []).forEach((m) => {
+    md += m.type === 'user' ? '## You\n' + m.text + '\n\n' : (m.type === 'muse' ? '## Muse\n' + m.text + '\n\n' : '> ' + m.text + '\n\n');
+  });
+  try {
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') { addSystem('Export not supported in this browser.'); return; }
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'muse-session-' + Date.now() + '.md';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    addSystem('Session exported.');
+  } catch (e) { addSystem('Export failed: ' + e.message); }
+}
+
+/* ================= STATS + INIT ================= */
+function updateStats() {
+  document.getElementById('projectValue').textContent = currentProject() ? currentProject().name : 'None';
+  document.getElementById('modelValue').textContent = settings.model || 'auto';
+  document.getElementById('modeValue').textContent = settings.mode === 'custom' ? permsSummary() : MODES[settings.mode].label;
+}
+window.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  renderProjects();
+  renderModeTabs();
+  renderSkills();
+  renderSessionMessages();
+  renderChips();
+  updateStats();
+  document.getElementById('modelStat').onclick = (e) => { e.stopPropagation(); openModelModal(); };
+  document.getElementById('modeStat').onclick = (e) => { e.stopPropagation(); openPermsModal(); };
+  document.getElementById('connBar').onclick = () => { if (!isConnected) connectCLI(); };
+  const p = currentProject();
+  if (p) renderFsRoot(p.path);
+  connectCLI();
+  setTimeout(() => { if (!isConnected) addSystem('Bridge not detected — Demo Mode active. Run start-bridge.cmd, then click the status bar to connect.'); }, 2500);
+  input.focus();
+});
+window.addEventListener('beforeunload', () => { if (ws) { try { ws.close(); } catch (e) {} } });
+
+window.connectCLI = connectCLI;
+window.openAddProjectModal = openAddProjectModal;
+window.closeAddProjectModal = closeAddProjectModal;
+window.saveProject = saveProject;
+window.refreshSkills = refreshSkills;
+window.sendCommand = sendCommand;
+window.stopRun = stopRun;
+window.setModeTab = setModeTab;
+window.openModelModal = openModelModal;
+window.closeModelModal = closeModelModal;
+window.openPermsModal = openPermsModal;
+window.closePermsModal = closePermsModal;
+window.setRightTab = setRightTab;
+window.reloadFs = reloadFs;
+window.openFilePreview = openFilePreview;
+window.closeFilePreview = closeFilePreview;
+window.copyPreviewPath = copyPreviewPath;
+window.attachPreview = attachPreview;
+window.goBrowser = goBrowser;
+window.openBrowserExternal = openBrowserExternal;
+window.researchPage = researchPage;
+window.refreshMore = refreshMore;
+window.exportSession = exportSession;
+window.scrollToBottom = scrollToBottom;
+</script>
+</body>
+</html>
