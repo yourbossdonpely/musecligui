@@ -1,11 +1,12 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useApp } from '../../state/store';
 import { MODES } from '../../lib/modes';
 import { ToggleGroup } from '../ui/overlay';
 
 export function Composer() {
-  const { settings, setMode, send, stop, run, attached, removeAttach, openModal } = useApp();
-  const [value, setValue] = useState('');
+  const { settings, setMode, send, stop, run, attached, removeAttach, openModal, draft, setDraft } = useApp();
+  const value = draft;
+  const setValue = setDraft;
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   function autosize() {

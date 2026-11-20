@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import type { IBridge } from './lib/bridge';
 import { AppProvider, useApp } from './state/store';
 import { Sidebar } from './components/sidebar';
+import { Inspector } from './components/inspector/Inspector';
 import { MessageList } from './components/chat/MessageList';
 import { Composer } from './components/composer/Composer';
 import { Footer } from './components/footer';
 import { ToastStack } from './components/toasts';
 import { ProjectModal } from './components/modals/project';
+import { FileModal } from './components/modals/FileModal';
 
 function OutdatedBanner() {
   const { bridgeOutdated } = useApp();
@@ -19,9 +22,15 @@ function OutdatedBanner() {
 
 function Shell() {
   const { modal } = useApp();
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
   return (
     <div data-testid="app-root" className="flex h-screen w-screen overflow-hidden bg-base0 text-ink">
-      <Sidebar />
+      {leftOpen ? (
+        <Sidebar onCollapse={() => setLeftOpen(false)} />
+      ) : (
+        <button data-testid="expand-left" onClick={() => setLeftOpen(true)} aria-label="Expand sidebar" className="w-9 shrink-0 border-r border-edge bg-base1 text-[16px] text-faint hover:text-flare">›</button>
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <OutdatedBanner />
         <div data-testid="main-view" className="flex min-h-0 flex-1 flex-col">
@@ -30,7 +39,13 @@ function Shell() {
         </div>
         <Footer />
       </div>
+      {rightOpen ? (
+        <Inspector onCollapse={() => setRightOpen(false)} />
+      ) : (
+        <button data-testid="expand-right" onClick={() => setRightOpen(true)} aria-label="Expand panel" className="w-9 shrink-0 border-l border-edge bg-base1 text-[16px] text-faint hover:text-flare">‹</button>
+      )}
       {modal.kind === 'project' ? <ProjectModal /> : null}
+      {modal.kind === 'file' ? <FileModal /> : null}
       <ToastStack />
     </div>
   );
