@@ -28,6 +28,11 @@ All existing element IDs, CSS hook classes (`.tool-call`, `.bubble.muse`, `.typi
 
 ## Work log
 - [x] 2026-11-20: research done, this file created.
-- [ ] Bridge: `fs-drives` action.
-- [ ] GUI v3 rewrite (theme, thinking, tool cards, markdown, checkpoints, picker, bars, hero).
-- [ ] Verify: v2 E2E regression + new v3 UI tests.
+- [x] Bridge: `fs-drives` action (drives B:-G: + Home verified live).
+- [x] GUI v3 rewrite (theme, thinking, tool cards, markdown, checkpoints, picker, bars, hero).
+- [x] Verify: 29 protocol + 21 v2-E2E regression + 4 refusal + 19 v3 UI tests, all green.
+
+## Verification (2026-11-20)
+- Old 21-test E2E suite passes UNCHANGED against the redesign (hook contract held).
+- New v3 suite: markdown renderer (head/bold/code/fence/list/link/XSS-escape), hero, picker drives+select, project save, edit modal, skill filter, weekly bar, thinking block, typed tool card, thought summary, tool done pill, checkpoint divider.
+- Two test-harness bugs found and fixed along the way (async save race, md prelude); no app bugs in v3.
