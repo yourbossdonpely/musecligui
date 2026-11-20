@@ -329,6 +329,19 @@ async function handleBuffered(socket, msg, action) {
       if (r.code !== 0) throw new Error('sessions failed: ' + ((r.stderr || r.stdout) || ('exit ' + r.code)).slice(0, 500));
       try { return ok(JSON.parse(r.stdout)); } catch (e) { return ok({ raw: r.stdout.slice(0, 2000) }); }
     }
+    if (action === 'fs-drives') {
+      const drives = [];
+      if (process.platform === 'win32') {
+        for (let c = 65; c <= 90; c++) {
+          const d = String.fromCharCode(c) + ':\\';
+          try { if (fs.existsSync(d)) drives.push({ path: d, label: 'Drive ' + String.fromCharCode(c) }); } catch (e) {}
+        }
+        drives.push({ path: os.homedir(), label: 'Home' });
+      } else {
+        drives.push({ path: '/', label: 'Root' });
+      }
+      return ok({ drives });
+    }
     if (action === 'fs-list') {
       const root = msg.root;
       const rel = msg.rel || '';
