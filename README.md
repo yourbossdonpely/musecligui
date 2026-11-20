@@ -69,6 +69,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 - **Node.js** on PATH (or use the release zip, which bundles it).
 - **The official `muse` CLI** installed and logged in.
 - Models are discovered live via `--list-models` (Spark, Wonder, Ember families); contributor variants via `--contributor-mode`. Usage allowances depend on your plan — watch the Subscription panel.
+
 ## Important Notes
 
 1. **Subscription keys only work in the official `muse` CLI** (`client_attestation_denied` elsewhere). This GUI works by driving that CLI — nothing bypasses Meta's client check.
