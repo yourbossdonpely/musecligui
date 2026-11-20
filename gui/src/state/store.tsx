@@ -7,7 +7,7 @@ import { cmpVersions, uuid } from '../lib/protocol';
 import { useRunEngine, type RunState } from './run';
 
 export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
-export const MIN_BRIDGE = '2.1.0';
+export const MIN_BRIDGE = '2.2.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
 export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | null;
