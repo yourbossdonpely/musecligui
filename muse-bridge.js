@@ -1,4 +1,4 @@
-// muse-bridge.js v2.5.1 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.5.2 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.5.1';
+const VERSION = '2.5.2';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -567,6 +567,7 @@ function ensureApiKey() {
 }
 const API_KEY = ensureApiKey();
 const API_ROOT = process.env.MUSE_API_ROOT || process.cwd();
+const API_SCRATCH_ROOT = path.join(__dirname, 'api-runs');
 let apiActiveRuns = 0;
 const API_MAX_RUNS = 3;
 
@@ -629,11 +630,16 @@ async function handleApi(req, res) {
       res.setHeader('Retry-After', '30');
       return apiErr(res, 429, 'Too many concurrent agent runs (max ' + API_MAX_RUNS + ')', 'rate_limit');
     }
-    let cwd = API_ROOT;
+    let cwd = null;
+    let scratch = false;
     const metaCwd = body.metadata && body.metadata.cwd;
     if (typeof metaCwd === 'string' && metaCwd) {
       if (!path.isAbsolute(metaCwd)) return apiErr(res, 400, 'metadata.cwd must be an absolute path', 'invalid_request');
       cwd = metaCwd;
+    } else {
+      scratch = true;
+      try { fs.mkdirSync(API_SCRATCH_ROOT, { recursive: true }); } catch (e) { return apiErr(res, 500, 'Cannot create API scratch dir', 'server_error'); }
+      try { cwd = fs.mkdtempSync(path.join(API_SCRATCH_ROOT, 'run-')); } catch (e) { return apiErr(res, 500, 'Cannot create API run dir', 'server_error'); }
     }
     if (tempInside(cwd)) return apiErr(res, 400, 'Refusing cwd: the OS temp folder is inside it (the Muse runtime fails there)', 'invalid_request');
     const prompt = promptFromMessages(messages);
@@ -645,6 +651,7 @@ async function handleApi(req, res) {
     apiActiveRuns++;
     const finish = () => {
       apiActiveRuns = Math.max(0, apiActiveRuns - 1);
+      if (scratch && cwd) { try { fs.rmSync(cwd, { recursive: true, force: true }); } catch (e) {} }
     };
     if (body.stream) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
@@ -680,6 +687,7 @@ async function handleApi(req, res) {
           clearInterval(hb);
           const su = sumUsage(end.usage);
           const sUsage = (su.inp + su.out) > 0 ? { prompt_tokens: su.inp, completion_tokens: su.out, total_tokens: su.inp + su.out } : null;
+          if (end.terminal === 'failed') sendChunk({ content: '(agent run failed: ' + (end.reason || 'unknown error').slice(0, 300) + ')' });
           sendChunk({}, 'stop', sUsage);
           if (!res.writableEnded && !res.destroyed) res.write('data: [DONE]\n\n');
           res.end();

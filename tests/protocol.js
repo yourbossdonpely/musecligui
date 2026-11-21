@@ -112,7 +112,7 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.5.1', JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.5.2', JSON.stringify(ping));
   const pick = await rpc('pick-folder', {});
   check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
@@ -218,6 +218,8 @@ async function runTests(proj) {
   check('api-stream', sse.status === 200 && sseText === 'Hello from stub!' && sse.raw.includes('[DONE]'), sse.raw.slice(0, 200));
   check('api-stream-finish', sse.raw.indexOf('"finish_reason":"stop"') >= 0, sse.raw.slice(-250));
   check('api-stream-usage', sse.raw.indexOf('"prompt_tokens"') >= 0, sse.raw.slice(-250));
+  const leftovers = fs.readdirSync(path.join(ROOT, 'api-runs'));
+  check('api-scratch-clean', leftovers.length === 0, JSON.stringify(leftovers));
   const bad1 = await httpReq('POST', '/v1/chat/completions', { messages: [] }, KEY);
   check('api-400-empty', bad1.status === 400, bad1.raw.slice(0, 120));
   const bad2 = await httpReq('POST', '/v1/chat/completions', { model: 'x', messages: [{ role: 'user', content: 'hi' }], metadata: { cwd: 'relative/path' } }, KEY);
