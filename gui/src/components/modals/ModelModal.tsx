@@ -58,8 +58,8 @@ export function ModelModal() {
       </div>
       <div className="mb-1 mt-4">
         <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-dim" htmlFor="ctx-input">Context window (tokens) — {settings.model || 'default'}</label>
-        <input id="ctx-input" data-testid="context-input" type="number" min="0" step="1000" value={settings.contextWindows?.[settings.model] ?? ''} onChange={(e) => { const n = Math.max(0, parseInt(e.target.value || '0', 10) || 0); updateSettings({ contextWindows: { ...(settings.contextWindows ?? {}), [settings.model]: n } }); }} placeholder="e.g. 200000" className="w-full rounded-lg border border-edge bg-base0 px-3 py-2.5 font-mono text-[13px] outline-none placeholder:text-faint focus:border-flare" />
-        <p className="mt-1 text-[11px] text-faint">Used for the context meter in the composer. Find your model's window in its docs.</p>
+        <input id="ctx-input" data-testid="context-input" type="number" min="0" step="1000" value={settings.contextWindows?.[settings.model] ?? ''} onChange={(e) => { const n = Math.max(0, parseInt(e.target.value || '0', 10) || 0); updateSettings({ contextWindows: { ...(settings.contextWindows ?? {}), [settings.model]: n } }); }} placeholder="e.g. 1048576" className="w-full rounded-lg border border-edge bg-base0 px-3 py-2.5 font-mono text-[13px] outline-none placeholder:text-faint focus:border-flare" />
+        <p className="mt-1 text-[11px] text-faint">Used for the context meter in the composer. Known Muse windows (1,048,576) are prefilled; override here if yours differs.</p>
       </div>
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={closeModal} className="rounded-lg px-5 py-2 text-[13px] font-bold text-dim hover:bg-base2 hover:text-ink">Close</button>

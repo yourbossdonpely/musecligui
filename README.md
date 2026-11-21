@@ -64,6 +64,7 @@ The bridge doubles as an OpenAI-compatible server, so your Muse subscription wor
 - **Endpoint:** `http://127.0.0.1:8766/v1` (localhost only, never exposed to the network)
 - **API key:** GUI Inspector -> More -> API access (copy button), or the `.muse-api-key` file next to `muse-bridge.js` (auto-created on first run, never committed to git)
 - **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
+- **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); real per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context
 - **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
 
 OpenCode provider block for `~/.config/opencode/opencode.json`:
@@ -139,6 +140,12 @@ Cost note: every API call spends subscription prompts (one agent run per call), 
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.5.1] - 2026-11-21
+
+- **Context reporting for OpenCode**: SSE streams now attach real token usage to the final chunk (buffered mode already did), so OpenCode accumulates used context - live-verified (input 42398 / output 21 on a test call, previously 0/0). All four Muse models confirmed at a 1,048,576-token window (Meta docs): OpenCode limit.context set for each, and the GUI prefills the same windows with user override still winning.
+- Full suites green: 41/41 protocol, 76/76 GUI.
+
 
 ## [v2.5.0] - 2026-11-21
 

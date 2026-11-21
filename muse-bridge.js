@@ -1,4 +1,4 @@
-// muse-bridge.js v2.5.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.5.1 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.5.0';
+const VERSION = '2.5.1';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -650,8 +650,8 @@ async function handleApi(req, res) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
       const id = 'chatcmpl-' + crypto.randomBytes(8).toString('hex');
       const created = Math.floor(Date.now() / 1000);
-      const sendChunk = (delta, finish) => {
-        if (!res.writableEnded && !res.destroyed) res.write('data: ' + JSON.stringify({ id, object: 'chat.completion.chunk', created, model: model || 'muse-default', choices: [{ index: 0, delta, finish_reason: finish || null }] }) + '\n\n');
+      const sendChunk = (delta, finish, usage) => {
+        if (!res.writableEnded && !res.destroyed) res.write('data: ' + JSON.stringify({ id, object: 'chat.completion.chunk', created, model: model || 'muse-default', choices: [{ index: 0, delta, finish_reason: finish || null }], ...(usage ? { usage } : {}) }) + '\n\n');
       };
       let settled = false;
       const hb = setInterval(() => {
@@ -678,7 +678,9 @@ async function handleApi(req, res) {
         if (!settled) {
           settled = true;
           clearInterval(hb);
-          sendChunk({}, 'stop');
+          const su = sumUsage(end.usage);
+          const sUsage = (su.inp + su.out) > 0 ? { prompt_tokens: su.inp, completion_tokens: su.out, total_tokens: su.inp + su.out } : null;
+          sendChunk({}, 'stop', sUsage);
           if (!res.writableEnded && !res.destroyed) res.write('data: [DONE]\n\n');
           res.end();
           const u = sumUsage(end.usage);
