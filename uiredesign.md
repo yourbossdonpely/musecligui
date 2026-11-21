@@ -123,3 +123,9 @@ incremental-implementation (slices + commits).
 - Old 21-test E2E suite passes UNCHANGED against the redesign (hook contract held).
 - New v3 suite: markdown renderer (head/bold/code/fence/list/link/XSS-escape), hero, picker drives+select, project save, edit modal, skill filter, weekly bar, thinking block, typed tool card, thought summary, tool done pill, checkpoint divider.
 - Two test-harness bugs found and fixed along the way (async save race, md prelude); no app bugs in v3.
+## Phase 2 completion (2026-11-20)
+- Slices S0–S7 all landed, each verified (vitest + tsc + build + E2E) and committed separately.
+- Final tally: 68 unit/component tests, 5 E2E (stub bridge), 30 protocol tests, 6 dist-bundle execution checks — all green.
+- Deferred verdicts kept: in-GUI editor + full browser tab excluded (user chose agent-edits / preview+research earlier); checkpoint restore excluded (destructive, needs explicit ask); parallel runs replaced by send queue.
+- Skills applied: brainstorming (design record), 21st-ui-explore (direction contract), frontend-design (amber token system + wireframe), frontend-ui-engineering (composition, semantic tokens, a11y floor, states), beautiful-ui (thinking/tool/composer patterns), shadcn (gap/cn/Badge/Empty/Skeleton/ToggleGroup/dialog rules, chat composition), tdd (seams + red-green), verification-before-completion (gates), incremental-implementation (slices + commits).
+- Full skill library cataloged (136 entries); task-relevant skills deep-read and applied.

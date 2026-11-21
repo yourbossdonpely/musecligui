@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("Muse CLI GUI")]
 [assembly: System.Reflection.AssemblyDescription("One-click launcher for the Muse CLI GUI")]
-[assembly: System.Reflection.AssemblyVersion("2.0.1.0")]
+[assembly: System.Reflection.AssemblyVersion("3.0.0.0")]
 
 static class Launcher
 {
@@ -21,7 +21,8 @@ static class Launcher
         catch (Exception ex) { Fail("Cannot find application folder: " + ex.Message); return 1; }
         string node = File.Exists(Path.Combine(dir, "node.exe")) ? Path.Combine(dir, "node.exe") : "node";
         string bridge = Path.Combine(dir, "muse-bridge.js");
-        string gui = Path.Combine(dir, "muse-gui.html");
+        string gui = Path.Combine(dir, "gui", "dist", "index.html");
+        if (!File.Exists(gui)) gui = Path.Combine(dir, "muse-gui.html");
         if (!File.Exists(bridge)) { Fail("Missing file: " + bridge); return 1; }
         if (!File.Exists(gui)) { Fail("Missing file: " + gui); return 1; }
         if (!PortOpen()) {
