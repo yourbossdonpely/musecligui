@@ -8,7 +8,7 @@ const EXTCOLORS: Array<[RegExp, string]> = [
   [/\.(html?|vue|jsx|tsx)$/, '#f472b6'],
   [/\.blade\.php$/, '#f472b6'],
   [/\.(css|scss|less)$/, '#a78bfa'],
-  [/\.(json|ya?ml|xml|toml|ini)$/, '#e8a33d'],
+  [/\.(json|ya?ml|xml|toml|ini)$/, '#a2bcff'],
   [/\.(md|mdx|txt|rst)$/, '#a8a29a'],
   [/\.(png|jpe?g|gif|svg|webp|ico)$/, '#4ade80'],
 ];

@@ -4,7 +4,7 @@ type BtnVariant = 'primary' | 'ghost' | 'danger' | 'subtle';
 export function Button({ variant = 'primary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant }) {
   const base = 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ';
   const v = variant === 'primary'
-    ? 'bg-flare text-black hover:brightness-110'
+    ? 'bg-accent text-white hover:brightness-110'
     : variant === 'danger'
       ? 'bg-rose/15 text-rose hover:bg-rose/25'
       : variant === 'ghost'
@@ -37,7 +37,7 @@ export function Select({ className = '', children, ...props }: SelectHTMLAttribu
 
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <button role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className={'relative h-5 w-9 shrink-0 rounded-full transition-colors ' + (checked ? 'bg-flare' : 'bg-base2 border border-edge')}>
+    <button role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)} className={'relative h-5 w-9 shrink-0 rounded-full transition-colors ' + (checked ? 'bg-accent' : 'bg-base2 border border-edge')}>
       <span className={'absolute top-0.5 size-4 rounded-full bg-white transition-all ' + (checked ? 'left-[18px]' : 'left-0.5 bg-dim')} />
     </button>
   );
@@ -55,7 +55,7 @@ export function Separator({ className = '' }: { className?: string }) {
 export function Progress({ pct, tone = 'flare' }: { pct: number; tone?: 'flare' | 'mint' }) {
   return (
     <div className="h-1.5 overflow-hidden rounded-full bg-base2" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-      <div className={'h-full rounded-full transition-all ' + (tone === 'mint' ? 'bg-gradient-to-r from-mint to-skye' : 'bg-gradient-to-r from-flare to-amber-300')} style={{ width: Math.max(0, Math.min(100, pct)) + '%' }} />
+      <div className={'h-full rounded-full transition-all ' + (tone === 'mint' ? 'bg-gradient-to-r from-mint to-skye' : 'bg-gradient-to-r from-accent to-flare')} style={{ width: Math.max(0, Math.min(100, pct)) + '%' }} />
     </div>
   );
 }

@@ -56,7 +56,7 @@ export function PickerBody({ onPick }: { onPick: (p: string) => void }) {
         )}
       </div>
       <div className="mt-3 flex justify-end">
-        <button onClick={() => { if (path) onPick(path); }} disabled={!path} className="rounded-lg bg-flare px-5 py-2 text-[13px] font-bold text-black disabled:opacity-40">Select</button>
+        <button onClick={() => { if (path) onPick(path); }} disabled={!path} className="rounded-lg bg-accent px-5 py-2 text-[13px] font-bold text-white disabled:opacity-40">Select</button>
       </div>
     </div>
   );

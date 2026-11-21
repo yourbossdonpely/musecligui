@@ -4,7 +4,7 @@ export function WelcomeHero() {
   const { openModal, setInspectorTab } = useApp();
   return (
     <div data-testid="welcome-hero" className="px-5 py-14 text-center">
-      <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-[conic-gradient(from_200deg,#e8a33d,#f87171,#7dd3fc,#e8a33d)] text-[26px] font-extrabold text-black">M</div>
+      <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-[conic-gradient(from_200deg,#3b5cf6,#f87171,#7dd3fc,#3b5cf6)] text-[26px] font-extrabold text-white">M</div>
       <h1 className="text-[24px] font-extrabold tracking-tight">Welcome to <span className="text-flare">Muse CLI GUI</span></h1>
       <p className="mx-auto mb-6 mt-2 max-w-md text-[13.5px] text-dim">Your subscription-powered coding agent. Add a project to begin.</p>
       <div className="flex flex-wrap justify-center gap-2.5">

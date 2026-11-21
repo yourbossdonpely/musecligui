@@ -129,3 +129,10 @@ incremental-implementation (slices + commits).
 - Deferred verdicts kept: in-GUI editor + full browser tab excluded (user chose agent-edits / preview+research earlier); checkpoint restore excluded (destructive, needs explicit ask); parallel runs replaced by send queue.
 - Skills applied: brainstorming (design record), 21st-ui-explore (direction contract), frontend-design (amber token system + wireframe), frontend-ui-engineering (composition, semantic tokens, a11y floor, states), beautiful-ui (thinking/tool/composer patterns), shadcn (gap/cn/Badge/Empty/Skeleton/ToggleGroup/dialog rules, chat composition), tdd (seams + red-green), verification-before-completion (gates), incremental-implementation (slices + commits).
 - Full skill library cataloged (136 entries); task-relevant skills deep-read and applied.
+
+## OpenCode-look restyle (2026-11-21)
+- Extracted REAL dark tokens from the installed OpenCode desktop bundle (app.asar main-*.css): bg #101010/#161616/#242424, border #282828, text #fafafa/#aeaeae/#808080, accent blue #3b5cf6 / #a2bcff, Inter + IBM Plex Mono, 8px scrollbar.
+- Remapped gui/src/index.css @theme to those tokens (token names kept, so every component inherits); converted all solid amber fills to the blue accent (send, primary buttons, switch, progress/usage bars, logos, thinking orb); zero amber left in src.
+- Added the missing rendered-markdown CSS (.md-code blocks with lang header + copy, inline code, links, live cursor) and live-run keyframes (orb-spin, shimmer, pulse-dot) with reduced-motion guards.
+- Fixed the dangling Sub % row (folded into the composer status bar) found during screenshot review.
+- Verified: tsc clean, 75/75 vitest, dist rebuilt, real-Chrome screenshots reviewed (welcome + composer states, live bridge connected). No DOM/testid/behavior changes.

@@ -58,7 +58,7 @@ export function Composer() {
           {run ? (
             <button data-testid="stop-btn" onClick={() => stop()} title="Stop" aria-label="Stop run" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-rose text-[13px] font-bold text-white">■</button>
           ) : null}
-          <button data-testid="send-btn" onClick={submit} disabled={!value.trim()} title="Send" aria-label="Send message" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-flare text-[16px] font-bold text-black transition-shadow hover:shadow-[0_0_20px_rgba(232,163,61,0.4)] disabled:opacity-40">↑</button>
+          <button data-testid="send-btn" onClick={submit} disabled={!value.trim()} title="Send" aria-label="Send message" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-accent text-[16px] font-bold text-white transition-shadow hover:shadow-[0_0_20px_rgba(59,92,246,0.45)] disabled:opacity-40">↑</button>
         </div>
         <div className="flex items-center gap-3 border-t border-edge bg-black/20 px-3.5 py-1.5 text-[11px]">
           <button data-testid="model-chip" onClick={() => openModal({ kind: 'model' })} title="Select model" className="truncate rounded-md px-1.5 py-0.5 font-mono font-bold text-dim hover:bg-base2 hover:text-flare">
@@ -67,6 +67,7 @@ export function Composer() {
           <button data-testid="mode-value" onClick={() => openModal({ kind: 'perms' })} title="Permissions" className="rounded-md px-1.5 py-0.5 font-bold text-dim hover:bg-base2 hover:text-flare">
             {settings.mode === 'custom' ? permsSummary(settings.mode, settings.flags) : (MODES[settings.mode]?.label ?? settings.mode)}
           </button>
+          <span className="font-mono text-faint">Sub <span data-testid="usage-value" className="font-bold text-dim">{usageParts(usage?.window).pct != null ? usageParts(usage?.window).pct + '%' : '—'}</span></span>
           <span className="ml-auto font-mono text-faint">Tokens <span data-testid="tokens-value" className="font-bold text-dim">{lastTokens ? lastTokens.inp + ' in / ' + lastTokens.out + ' out' : '—'}</span></span>
           <button data-testid="context-status" onClick={() => { if (!win) openModal({ kind: 'model' }); }} title={win ? 'Session context used' : 'Set the context window for this model'} className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-faint hover:bg-base2">
             {win ? (
@@ -76,7 +77,6 @@ export function Composer() {
             )}
           </button>
         </div>
-          <span className="font-mono text-faint">Sub <span data-testid="usage-value" className="font-bold text-dim">{usageParts(usage?.window).pct != null ? usageParts(usage?.window).pct + '%' : '—'}</span></span>
       </div>
     </div>
   );
