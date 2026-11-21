@@ -1,6 +1,6 @@
 # Muse CLI GUI
 
-**Muse Code CLI · AI Coding Agent GUI (v2.5.3)**
+**Muse Code CLI · AI Coding Agent GUI (v2.5.4)**
 
 ## Overview
 
@@ -67,7 +67,7 @@ The bridge doubles as an OpenAI-compatible server, so your Muse subscription wor
 - **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
 - **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); real per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context
 - **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
-- **Isolation:** without `metadata.cwd`, each API call runs in a fresh empty scratch dir (auto-deleted afterwards) - no shared files, no cross-talk between clients or sessions. For real projects, pin the folder per OpenCode project with a project-level `opencode.json` body merge: `{"muse": {"body": {"metadata": {"cwd": "C:\\path\\to\\project"}}}}`
+- **Isolation:** without `metadata.cwd`, each API call runs in a fresh empty scratch dir (auto-deleted afterwards) - no shared files, no cross-talk between clients or sessions. For real projects the setup auto-wires every known OpenCode project folder (project-level `opencode.json` body merge, re-synced each launch): `{"muse": {"body": {"metadata": {"cwd": "C:\\path\\to\\project"}}}}`
 
 OpenCode provider block for `~/.config/opencode/opencode.json`:
 
@@ -142,6 +142,11 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.5.4] - 2026-11-21
+
+- **Automatic per-project directories**: new wire-opencode-projects.js reads OpenCode's project list and drops the cwd wiring into every project folder (merge-safe, backed up, home/temp skipped). Runs on each exe launch, so new projects are picked up automatically.
+
 
 ## [v2.5.3] - 2026-11-21
 
