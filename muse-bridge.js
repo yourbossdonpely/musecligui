@@ -1,4 +1,4 @@
-// muse-bridge.js v2.4.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.5.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.4.1';
+const VERSION = '2.5.0';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).

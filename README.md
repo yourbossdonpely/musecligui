@@ -1,10 +1,10 @@
 # Muse CLI GUI
 
-**Muse Code CLI · AI Coding Agent GUI (v2)**
+**Muse Code CLI · AI Coding Agent GUI (v2.5)**
 
 ## Overview
 
-A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control.
+A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
 
 **Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location (`%~dp0`); no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
 
@@ -13,17 +13,18 @@ A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) throug
 | Area | What it does |
 |------|--------------|
 | **Agent chat** | Live streaming replies, live tool-call cards, run log, Stop button, multi-turn memory (transcript sent with each run), stable session id per GUI session |
-| **Modes** | Build (full speed), Supervised (sandbox on), Plan (read-only), Research (web + citations) |
+| **Modes** | Build (full speed), Supervised (sandbox on), Plan (read-only), Research (web + citations), Debug (reproduce/diagnose/fix) |
 | **Permissions** | Mode presets plus every flag individually: yolo, approval mode, trust workspace, sandbox, sandbox network, file writes, shell, web tools — with a live CLI preview |
 | **Models** | Real list from `muse exec --list-models`, reasoning effort, contributor mode |
 | **Projects** | Add/select/delete projects, sub-sessions per project, messages persisted per session, session export to Markdown |
 | **Skills** | Real list from `muse skills list`, enable/disable in the real CLI config |
 | **File browser** | Real filesystem tree for the selected project, file preview, attach files to prompts (up to 5) |
 | **Browser tab** | URL preview + open externally + one-click "Research this page" |
-| **More tab** | MCP servers, running sessions (`muse sessions`), git status / changed files, bridge info |
+| **More tab** | MCP servers, running sessions (`muse sessions`), git status / changed files, bridge info, API access (endpoint + key) |
 | **Subscription** | Live tier + window/weekly allowance from `muse usage`, refreshed after every run |
 | **Token counts** | Real input/output tokens per run from the CLI event stream |
 | **Demo Mode** | GUI stays usable with scripted replies when the bridge is down |
+| **Proxy API** | OpenAI-compatible `POST /v1/chat/completions` (+ `/v1/models`, `/health`) on localhost:8766 — use the subscription from OpenCode or FreeBuff |
 
 ## How It Works
 
@@ -55,6 +56,33 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 3. Pick a mode in the toolbar (Build / Supervised / Plan / Research) or open **Permissions** to tune flags.
 4. Click the model stat to pick a model/effort; type below and Send. Stop interrupts a run.
 5. Browse real files on the right; click a file to preview and **Attach to prompt**; use the Browser tab for page previews and one-click research.
+
+## Use with OpenCode / FreeBuff (OpenAI-compatible API)
+
+The bridge doubles as an OpenAI-compatible server, so your Muse subscription works two ways: the built-in GUI, or any external client that supports custom OpenAI endpoints (verified live with OpenCode 2026-11-21).
+
+- **Endpoint:** `http://127.0.0.1:8766/v1` (localhost only, never exposed to the network)
+- **API key:** GUI Inspector -> More -> API access (copy button), or the `.muse-api-key` file next to `muse-bridge.js` (auto-created on first run, never committed to git)
+- **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
+- **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
+
+OpenCode provider block for `~/.config/opencode/opencode.json`:
+
+```json
+"muse": {
+  "name": "Muse CLI GUI",
+  "env": ["MUSE_BRIDGE_API_KEY"],
+  "package": "@opencode/ai/providers/openai-compatible",
+  "settings": { "baseURL": "http://127.0.0.1:8766/v1" },
+  "models": { "muse-spark-1.3": { "name": "muse-spark-1.3" } }
+}
+```
+
+Set the `MUSE_BRIDGE_API_KEY` env var to the key, then fully restart OpenCode (desktop app AND its background service predate the key otherwise) and pick a `muse/...` model. Gotcha we hit: the background service inherits env at launch, so a stale service says Invalid API key until restarted.
+
+FreeBuff / other clients: add a custom OpenAI-compatible provider with the endpoint + key above. (FreeBuff custom-provider support is unconfirmed - your client runs locally, so the localhost endpoint is reachable; try it and see.)
+
+Cost note: every API call spends subscription prompts (one agent run per call), and runs execute in the bridge folder unless `metadata.cwd` is set.
 
 ## Development (GUI source + tests)
 
@@ -112,6 +140,12 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Changelog
 
+## [v2.5.0] - 2026-11-21
+
+- **OpenCode verified end-to-end**: the proxy API drives a real Muse subscription inside OpenCode - standalone GUI or external client, your choice. README documents setup for OpenCode + FreeBuff.
+- Version bump: bridge 2.5.0, GUI requires bridge >= 2.5.0. Full suites green: 40/40 protocol, 75/75 GUI.
+
+
 ## [GUI restyle] - 2026-11-21
 
 - **OpenCode-look restyle** from real tokens extracted from the OpenCode desktop bundle: layered dark greys, blue accent, Inter/IBM Plex Mono. Styled code blocks, live cursor, thinking/shimmer/pulse animations added (all were unstyled); Sub % folded into the composer status bar. All functionality and tests unchanged (75/75).
@@ -119,7 +153,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## [v2.4.1] - 2026-11-21
 
-- **Proxy stream fix**: SSE now ends with a inish_reason: 'stop' chunk before [DONE]. Without it OpenCode treated every reply as truncated and retried (live-test finding). New pi-stream-finish protocol check; suite 40/40 green.
+- **Proxy stream fix**: SSE now ends with a finish_reason stop chunk before [DONE]. Without it OpenCode treated every reply as truncated and retried (live-test finding). New api-stream-finish protocol check; suite 40/40 green.
 - OpenCode wiring validated live: clean opencode.json (corrupt concat fixed, muse provider added), old muse-code plugin retired, opencode run --model muse/muse-spark-1.3 returns step-finish reason=stop with zero retries.
 
 
