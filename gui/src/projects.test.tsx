@@ -81,3 +81,16 @@ test('picker fills path from drives', async () => {
   fireEvent.click(screen.getByText('Select'));
   expect(screen.getByTestId('proj-path')).toHaveValue('C:\\sub');
 });
+test('browse uses native picker first', async () => {
+  localStorage.clear();
+  const mock = new MockBridge();
+  mock.rpcImpl['pick-folder'] = () => ({ path: 'C:\\native' });
+  const { default: App2 } = await import('./app');
+  const { render: render2, screen: screen2, fireEvent: fe2, waitFor: wf2, act: act2 } = await import('@testing-library/react');
+  render2(<App2 client={mock} />);
+  act2(() => { mock.open(); });
+  fe2.click(screen2.getByText('+ New Project'));
+  fe2.click(screen2.getByText('Browse...'));
+  await wf2(() => expect(screen2.getByTestId('proj-path')).toHaveValue('C:\\native'));
+  expect(screen2.queryByTestId('picker-path')).not.toBeInTheDocument();
+});

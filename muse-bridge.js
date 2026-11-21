@@ -9,7 +9,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -87,7 +87,7 @@ function runMuse(args, opts = {}) {
 function runCmd(file, args, opts = {}) {
   return new Promise((resolve) => {
     let child;
-    try { child = spawn(file, args, { shell: false, cwd: opts.cwd || process.cwd(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { resolve({ code: -1, stdout: '', stderr: String((e && e.message) || e) }); return; }
+    try { child = spawn(file, args, { shell: !!opts.shell, cwd: opts.cwd || process.cwd(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { resolve({ code: -1, stdout: '', stderr: String((e && e.message) || e) }); return; }
     let stdout = '', stderr = '';
     const t = setTimeout(() => { try { child.kill(); } catch (e) {} }, opts.timeout || 15000);
     child.stdout.on('data', (d) => { stdout += d; });
@@ -372,6 +372,35 @@ async function handleBuffered(socket, msg, action) {
       const r = await runMuse(['sessions', '--json'], { cwd: __dirname, timeout: 60000 });
       if (r.code !== 0) throw new Error('sessions failed: ' + ((r.stderr || r.stdout) || ('exit ' + r.code)).slice(0, 500));
       try { return ok(JSON.parse(r.stdout)); } catch (e) { return ok({ raw: r.stdout.slice(0, 2000) }); }
+    }
+    if (action === 'pick-folder') {
+      const startIn = typeof msg.startIn === 'string' && msg.startIn ? msg.startIn : os.homedir();
+      if (process.env.MUSE_PICKER_CMD) {
+        const sh = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+        const shArgs = process.platform === 'win32' ? ['/d', '/s', '/c', process.env.MUSE_PICKER_CMD] : ['-c', process.env.MUSE_PICKER_CMD];
+        const r = await runCmd(sh, shArgs, { timeout: 15000 });
+        const out = (r.stdout || '').trim().split(/\r?\n/)[0] || '';
+        if (!out) return ok({ cancelled: true });
+        return ok({ path: out });
+      }
+      if (process.platform === 'win32') {
+        const ps = "Add-Type -AssemblyName System.Windows.Forms; $d = New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description = 'Select project folder'; $d.SelectedPath = '" + startIn.replace(/'/g, "''") + "'; $d.ShowNewFolderButton = $true; if ($d.ShowDialog() -eq 'OK') { $d.SelectedPath }";
+        const r = await runCmd('powershell.exe', ['-NoProfile', '-STA', '-Command', ps], { timeout: 150000 });
+        const out = (r.stdout || '').trim();
+        if (!out) return ok({ cancelled: true });
+        return ok({ path: out });
+      }
+      if (process.platform === 'darwin') {
+        const r = await runCmd('osascript', ['-e', 'POSIX path of (choose folder default location "' + startIn.replace(/"/g, '') + '")'], { timeout: 150000 });
+        const out = (r.stdout || '').trim();
+        if (r.code !== 0 || !out) return ok({ cancelled: true });
+        return ok({ path: out });
+      }
+      let r = await runCmd('zenity', ['--file-selection', '--directory', '--title=Select project folder'], { timeout: 150000 });
+      if (r.code !== 0 && /ENOENT|not found/i.test(r.stderr || '')) r = await runCmd('kdialog', ['--getexistingdirectory', '.'], { timeout: 150000 });
+      const out = (r.stdout || '').trim();
+      if (r.code !== 0 || !out) return ok({ cancelled: true });
+      return ok({ path: out });
     }
     if (action === 'fs-drives') {
       const drives = [];
