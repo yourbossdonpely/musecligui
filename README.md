@@ -1,6 +1,6 @@
 # Muse CLI GUI
 
-**Muse Code CLI · AI Coding Agent GUI (v2.5.4)**
+**Muse Code CLI · AI Coding Agent GUI (v2.5.5)**
 
 ## Overview
 
@@ -48,7 +48,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 - `start-bridge.cmd` — Runs the bridge server (installs `ws` dependency on first run)
 - `muse-full.cmd` — Launches Muse CLI directly with all permission flags disabled
 - `opencode.cmd` — Shim for the OpenCode desktop CLI
-- `setup.ps1` — First-run setup brain (run by the exe): downloads Node.js if missing, installs the ws dependency, checks the muse CLI, persists the API key, wires the OpenCode provider
+- `setup.ps1` — First-run setup brain (run by the exe): downloads Node.js if missing, installs the ws dependency, checks the muse CLI, persists the API key, wires the OpenCode provider and offers to restart OpenCode when wiring changes
 
 ## How to Use
 
@@ -142,6 +142,11 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.5.5] - 2026-11-21
+
+- **No more manual OpenCode restarts**: when setup wires a new project (or the global provider), the launcher offers to restart OpenCode itself with one click. Launcher 3.2.0.
+
 
 ## [v2.5.4] - 2026-11-21
 

@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("Muse CLI GUI")]
 [assembly: System.Reflection.AssemblyDescription("One-click launcher + first-run setup for the Muse CLI GUI")]
-[assembly: System.Reflection.AssemblyVersion("3.1.0.0")]
+[assembly: System.Reflection.AssemblyVersion("3.2.0.0")]
 [assembly: System.Reflection.AssemblyCopyright("Copyright (c) 2026 yourbossdonpely")]
 
 static class Launcher
@@ -42,6 +42,7 @@ static class Launcher
         }
         if (File.Exists(setup) && !RunSetup(setup, dir, 2)) return 1;
         ShowWarnings(dir);
+        OfferOpenCodeRestart(dir);
         try {
             var open = new ProcessStartInfo(gui);
             open.UseShellExecute = true;
@@ -82,6 +83,52 @@ static class Launcher
             if (w.Length > 2000) w = w.Substring(0, 2000);
             MessageBox.Show(w, "Muse CLI GUI - Setup notes", MessageBoxButtons.OK, MessageBoxIcon.Information);
         } catch {}
+    }
+
+    static void OfferOpenCodeRestart(string dir) {
+        string mf = Path.Combine(dir, ".setup-opencode-restart");
+        string changed;
+        try {
+            if (!File.Exists(mf)) return;
+            changed = File.ReadAllText(mf).Trim();
+            try { File.Delete(mf); } catch {}
+            if (changed.Length == 0) return;
+        } catch { return; }
+        if (changed.Length > 800) changed = changed.Substring(0, 800) + "\n...";
+        var pick = MessageBox.Show(
+            "OpenCode wiring changed:\n" + changed + "\n\nOpenCode only reads config at startup. Restart it now so the changes take effect? (Your sessions are saved.)",
+            "Muse CLI GUI - Restart OpenCode?",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (pick == DialogResult.Yes) RestartOpenCode();
+    }
+
+    static void RestartOpenCode() {
+        try {
+            string exe = null;
+            try {
+                var procs = Process.GetProcessesByName("OpenCode");
+                if (procs.Length > 0) exe = procs[0].MainModule.FileName;
+            } catch {}
+            if (exe == null) {
+                string std = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Programs", "ai.opencode.desktop", "OpenCode.exe");
+                if (File.Exists(std)) exe = std;
+            }
+            foreach (var n in new string[] { "opencode-cli", "OpenCode" }) {
+                try {
+                    foreach (var p in Process.GetProcessesByName(n)) {
+                        try { p.Kill(); } catch {}
+                    }
+                } catch {}
+            }
+            Thread.Sleep(3000);
+            if (exe == null) { Fail("OpenCode was stopped, but I could not find OpenCode.exe to relaunch it. Please start it yourself."); return; }
+            try {
+                var psi = new ProcessStartInfo(exe);
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+            } catch (Exception ex) { Fail("OpenCode was stopped, but relaunch failed: " + ex.Message); }
+        } catch (Exception ex) { Fail("Could not restart OpenCode: " + ex.Message); }
     }
 
     static bool PortOpen() {

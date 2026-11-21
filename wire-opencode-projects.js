@@ -59,9 +59,11 @@ function writeCfg(dir, mode) {
 }
 
 (function main() {
+  const appDir = process.argv[2] || null;
   const home = os.homedir().toLowerCase();
   const tmp = os.tmpdir().toLowerCase();
   let wired = 0, skipped = 0;
+  const wiredDirs = [];
   for (const raw of discover()) {
     const dir = path.normalize(raw);
     const low = dir.toLowerCase();
@@ -70,7 +72,10 @@ function writeCfg(dir, mode) {
     const st = needsWire(dir);
     if (st === 'ok') { log('skip (wired): ' + raw); skipped++; continue; }
     if (st === 'broken') { log('skip (broken json, left alone): ' + raw); skipped++; continue; }
-    try { writeCfg(dir, st); wired++; } catch (e) { log('FAIL ' + raw + ': ' + e.message); }
+    try { writeCfg(dir, st); wired++; wiredDirs.push(raw); } catch (e) { log('FAIL ' + raw + ': ' + e.message); }
   }
   log('done wired=' + wired + ' skipped=' + skipped);
+  if (wired > 0 && appDir) {
+    try { fs.appendFileSync(path.join(appDir, '.setup-opencode-restart'), wiredDirs.join('\n') + '\n'); } catch (e) {}
+  }
 })()

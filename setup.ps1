@@ -122,6 +122,8 @@ function Stage1 {
 
 function Stage2 {
   Log 'stage2 start'
+  $rmfile = Join-Path $AppDir '.setup-opencode-restart'
+  if (Test-Path $rmfile) { Remove-Item $rmfile -Force }
   $keyFile = Join-Path $AppDir '.muse-api-key'
   $key = $null
   for ($i = 0; $i -lt 30; $i++) {
@@ -201,8 +203,8 @@ function Wire-Projects {
   $script = Join-Path $AppDir 'wire-opencode-projects.js'
   if (-not (Test-Path $script)) { Log 'wire: script missing'; return }
   try {
-    $o = & $node --no-warnings $script 2>&1
-    foreach ( in @($o)) { Log ('wire: ' + $line) }
+    $o = & $node --no-warnings $script $AppDir 2>&1
+    foreach ($line in @($o)) { Log ('wire: ' + $line) }
   } catch { Log ('wire failed: ' + $_.Exception.Message) }
 }
 function Write-Config($cfg, $c) {
@@ -210,6 +212,7 @@ function Write-Config($cfg, $c) {
   try { Copy-Item $cfg $bak } catch { Warn 'Could not back up OpenCode config.' }
   $json = $c | ConvertTo-Json -Depth 12
   [System.IO.File]::WriteAllText($cfg, $json, (New-Object System.Text.UTF8Encoding($false)))
+  try { Add-Content -Path (Join-Path $AppDir '.setup-opencode-restart') -Value 'global config' } catch {}
   Log ('opencode config written, backup ' + $bak)
 }
 
