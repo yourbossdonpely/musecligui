@@ -112,7 +112,7 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.6.0' && ping.data.paused === false, JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.6.1' && ping.data.paused === false, JSON.stringify(ping));
   const pick = await rpc('pick-folder', {});
   check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
@@ -203,7 +203,7 @@ async function runTests(proj) {
   check('api-models', amod.status === 200 && amodj.object === 'list' && amodj.data.length === 2 && amodj.data[0].id === 'muse-spark-1.3', amod.raw.slice(0, 200));
   const chat = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'system', content: 'be brief' }, { role: 'user', content: 'hi' }] }, KEY);
   const chatj = JSON.parse(chat.raw);
-  check('api-chat', chat.status === 200 && chatj.choices[0].message.content === 'Hello from stub!' && chatj.usage.total_tokens === 15, chat.raw.slice(0, 300));
+  check('api-chat', chat.status === 200 && chatj.choices[0].message.content === 'Hello from stub!' && chatj.usage.prompt_tokens === 14 && chatj.usage.completion_tokens === 4 && chatj.usage.total_tokens === 18, chat.raw.slice(0, 300));
   const sse = await new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port: 18766, path: '/v1/chat/completions', method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, timeout: 60000 }, (res) => {
       let raw = '';

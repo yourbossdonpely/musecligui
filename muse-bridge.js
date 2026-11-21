@@ -1,4 +1,4 @@
-// muse-bridge.js v2.6.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.6.1 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.6.0';
+const VERSION = '2.6.1';
 // Name the console window so it is obvious what it is and that closing it stops the bridge.
 try { process.title = 'Muse Bridge :' + PORT + ' (close this window to stop)'; } catch (e) {}
 // Paused from the GUI footer (bridge-stop): runs are refused, process stays up for bridge-start.
@@ -287,6 +287,20 @@ function sumUsage(u) {
     out += x.output_tokens || 0;
   });
   return { inp, out };
+}
+// Tokens as seen from the API client's own context window, estimated at the
+// standard ~4 chars/token. The CLI's internal input total is deliberately NOT
+// reported: it carries ~38k of invisible baseline (its own system/tools) on
+// every call, which corrupts the client's context meter and accumulates
+// phantom tokens turn after turn (measured live: 38,066 in / 192 out for a
+// one-word reply to a 10-word prompt). CLI reals stay in the bridge log.
+function estTokens(s) {
+  return Math.max(1, Math.ceil(String(s || '').length / 4));
+}
+function apiUsage(promptText, replyText) {
+  const prompt_tokens = estTokens(promptText);
+  const completion_tokens = estTokens(replyText);
+  return { prompt_tokens, completion_tokens, total_tokens: prompt_tokens + completion_tokens };
 }// ---------------- exec (streaming, over WebSocket) ----------------
 const running = new Map(); // socket -> { id, legacy, kill }
 
@@ -718,6 +732,12 @@ async function handleApi(req, res) {
     if (tempInside(cwd)) return apiErr(res, 400, 'Refusing cwd: the OS temp folder is inside it (the Muse runtime fails there)', 'invalid_request');
     const prompt = promptFromMessages(messages);
     if (!prompt.trim()) return apiErr(res, 400, 'messages contain no text', 'invalid_request');
+    if (process.env.MUSE_DEBUG_API === '1') {
+      let toolsBytes = 0;
+      try { toolsBytes = Array.isArray(body.tools) ? JSON.stringify(body.tools).length : 0; } catch (e) {}
+      const comp = messages.map((m) => (m.role || '?') + ':' + textOfContent(m.content).length).join(' ');
+      console.log('api debug: body=' + (req.headers['content-length'] || '?') + ' msgs=' + messages.length + ' [' + comp + '] tools=' + (Array.isArray(body.tools) ? body.tools.length : 0) + 'x' + toolsBytes + 'B promptChars=' + prompt.length);
+    }
     const rest = ['--yolo', '--trust-workspace'];
     if (model) rest.push('--model', model);
     const t0 = Date.now();
@@ -759,14 +779,13 @@ async function handleApi(req, res) {
         if (!settled) {
           settled = true;
           clearInterval(hb);
-          const su = sumUsage(end.usage);
-          const sUsage = (su.inp + su.out) > 0 ? { prompt_tokens: su.inp, completion_tokens: su.out, total_tokens: su.inp + su.out } : null;
+          const sUsage = apiUsage(prompt, end.text);
           if (end.terminal === 'failed') sendChunk({ content: '(agent run failed: ' + (end.reason || 'unknown error').slice(0, 300) + ')' });
           sendChunk({}, 'stop', sUsage);
           if (!res.writableEnded && !res.destroyed) res.write('data: [DONE]\n\n');
           res.end();
           const u = sumUsage(end.usage);
-          console.log('api chat done: terminal=' + end.terminal + ' ms=' + (Date.now() - t0) + ' in=' + u.inp + ' out=' + u.out);
+          console.log('api chat done: terminal=' + end.terminal + ' ms=' + (Date.now() - t0) + ' cliIn=' + u.inp + ' cliOut=' + u.out + ' repIn=' + sUsage.prompt_tokens + ' repOut=' + sUsage.completion_tokens);
         }
       } catch (e) {
         if (!settled) {
@@ -793,7 +812,8 @@ async function handleApi(req, res) {
       finish();
       if (res.writableEnded || res.destroyed) return;
       const u = sumUsage(end.usage);
-      console.log('api chat done: terminal=' + end.terminal + ' ms=' + (Date.now() - t0) + ' in=' + u.inp + ' out=' + u.out);
+      const rep = apiUsage(prompt, end.text);
+      console.log('api chat done: terminal=' + end.terminal + ' ms=' + (Date.now() - t0) + ' cliIn=' + u.inp + ' cliOut=' + u.out + ' repIn=' + rep.prompt_tokens + ' repOut=' + rep.completion_tokens);
       if (end.terminal === 'failed') return apiErr(res, 500, end.reason || 'Agent run failed', 'server_error');
       return apiJson(res, 200, {
         id: 'chatcmpl-' + crypto.randomBytes(8).toString('hex'),
@@ -801,7 +821,7 @@ async function handleApi(req, res) {
         created: Math.floor(Date.now() / 1000),
         model: model || 'muse-default',
         choices: [{ index: 0, message: { role: 'assistant', content: end.text }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: u.inp, completion_tokens: u.out, total_tokens: u.inp + u.out },
+        usage: rep,
       });
     } catch (e) {
       settled = true;

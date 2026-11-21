@@ -1,6 +1,6 @@
 # Muse CLI GUI
 
-**Muse Code CLI · AI Coding Agent GUI (v2.6.0)**
+**Muse Code CLI · AI Coding Agent GUI (v2.6.1)**
 
 ## Overview
 
@@ -67,7 +67,7 @@ The bridge doubles as an OpenAI-compatible server, so your Muse subscription wor
 - **Endpoint:** `http://127.0.0.1:8766/v1` (localhost only, never exposed to the network)
 - **API key:** GUI Inspector -> More -> API access (copy button), or the `.muse-api-key` file next to `muse-bridge.js` (auto-created on first run, never committed to git)
 - **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
-- **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); real per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context
+- **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context. Reported input/output is metered from the client's own request/response size (the CLI's internal ~38k baseline is kept in the bridge log only, not billed to the client's meter)
 - **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
 - **Isolation:** without `metadata.cwd`, each API call runs in a fresh empty scratch dir (auto-deleted afterwards) - no shared files, no cross-talk between clients or sessions. For real projects the setup installs a global `muse-cwd` OpenCode plugin that sends the live session directory as an `x-muse-cwd` header on every request, so **every** folder you open runs in its own directory with no per-project file and no restart. As a fallback the setup also auto-wires every known OpenCode project folder (project-level `opencode.json` body merge, re-synced each launch): `{"muse": {"body": {"metadata": {"cwd": "C:\\path\\to\\project"}}}}`, and the GUI (More tab → OpenCode) can wire any folder on demand
 
@@ -146,6 +146,11 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.6.1] - 2026-11-21
+
+- **Token-count fix for OpenCode**: the bridge used to report the CLI's internal input total (~38k invisible baseline on every call) as the request's `prompt_tokens`, so a 12-word prompt showed ~87k and OpenCode's meter accumulated phantom tokens every turn. API usage is now metered from the client's own request/response size (~4 chars/token): the same 10-word prompt reports 19 in / 1 out. CLI reals stay visible in the bridge log (`cliIn`/`cliOut` vs `repIn`/`repOut`), and `MUSE_DEBUG_API=1` logs per-request composition for future diagnosis.
+- Full suites green: 56/56 protocol, 81/81 GUI unit, 5/5 GUI e2e (unchanged).
 
 ## [v2.6.0] - 2026-11-21
 
