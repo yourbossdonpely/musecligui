@@ -9,7 +9,7 @@ import { parseSessionFile } from '../lib/import-session';
 import { useRunEngine, type RunState } from './run';
 
 export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
-export const MIN_BRIDGE = '2.3.0';
+export const MIN_BRIDGE = '2.4.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
 export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | 'mcp' | null;
