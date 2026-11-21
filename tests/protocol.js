@@ -47,7 +47,7 @@ function waitBridge(ms) {
 async function main() {
   const proj = makeProj();
   const proc = spawn(process.execPath, [path.join(ROOT, 'muse-bridge.js')], {
-    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js'), MUSE_PICKER_CMD: 'echo C:\\\\picked' },
+    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js'), MUSE_PICKER_CMD: 'echo C:\\\\picked', MUSE_API_PORT: '18766', MUSE_API_KEY: 'test-key-123' },
     cwd: ROOT, stdio: 'ignore',
   });
   try {
@@ -112,7 +112,7 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.3.0', JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.4.0', JSON.stringify(ping));
   const pick = await rpc('pick-folder', {});
   check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
@@ -174,6 +174,54 @@ async function runTests(proj) {
   check('stop-busy', st1.ok && st1.data.stopped === true, JSON.stringify(st1));
   const sevs = await slowP;
   check('stop-exec-done-arrives', sevs[sevs.length - 1].type === 'exec-done', sevs.map((e) => e.type).join(','));
+  const http = require('http');
+  function httpReq(method, pth, body, key) {
+    return new Promise((resolve, reject) => {
+      const data = body != null ? JSON.stringify(body) : null;
+      const headers = {};
+      if (key) headers['Authorization'] = 'Bearer ' + key;
+      if (data) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(data); }
+      const req = http.request({ host: '127.0.0.1', port: 18766, path: pth, method, headers, timeout: 60000 }, (res) => {
+        let raw = '';
+        res.on('data', (c) => { raw += c; });
+        res.on('end', () => resolve({ status: res.statusCode, raw }));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(new Error('http timeout')); });
+      if (data) req.write(data);
+      req.end();
+    });
+  }
+  const KEY = 'test-key-123';
+  const health = await httpReq('GET', '/health');
+  check('api-health', health.status === 200 && health.raw.includes('"ok"'), health.raw.slice(0, 100));
+  const noauth = await httpReq('GET', '/v1/models');
+  check('api-401', noauth.status === 401, noauth.raw.slice(0, 100));
+  const amod = await httpReq('GET', '/v1/models', null, KEY);
+  const amodj = JSON.parse(amod.raw);
+  check('api-models', amod.status === 200 && amodj.object === 'list' && amodj.data.length === 2 && amodj.data[0].id === 'muse-spark-1.3', amod.raw.slice(0, 200));
+  const chat = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'system', content: 'be brief' }, { role: 'user', content: 'hi' }] }, KEY);
+  const chatj = JSON.parse(chat.raw);
+  check('api-chat', chat.status === 200 && chatj.choices[0].message.content === 'Hello from stub!' && chatj.usage.total_tokens === 15, chat.raw.slice(0, 300));
+  const sse = await new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port: 18766, path: '/v1/chat/completions', method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, timeout: 60000 }, (res) => {
+      let raw = '';
+      res.on('data', (c) => { raw += c; });
+      res.on('end', () => resolve({ status: res.statusCode, raw }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify({ model: 'muse-spark-1.3', stream: true, messages: [{ role: 'user', content: 'hi' }] }));
+    req.end();
+  });
+  const sseText = sse.raw.split('\n').filter((l) => l.startsWith('data: ') && l.indexOf('[DONE]') < 0).map((l) => { try { return JSON.parse(l.slice(6)).choices[0].delta.content || ''; } catch (e) { return ''; } }).join('');
+  check('api-stream', sse.status === 200 && sseText === 'Hello from stub!' && sse.raw.includes('[DONE]'), sse.raw.slice(0, 200));
+  const bad1 = await httpReq('POST', '/v1/chat/completions', { messages: [] }, KEY);
+  check('api-400-empty', bad1.status === 400, bad1.raw.slice(0, 120));
+  const bad2 = await httpReq('POST', '/v1/chat/completions', { model: 'x', messages: [{ role: 'user', content: 'hi' }], metadata: { cwd: 'relative/path' } }, KEY);
+  check('api-400-relcwd', bad2.status === 400, bad2.raw.slice(0, 120));
+  const nf = await httpReq('GET', '/nope', null, KEY);
+  check('api-404', nf.status === 404, nf.raw.slice(0, 120));
   const leg = await new Promise((resolve) => { legacyHandler = resolve; ws.send(JSON.stringify({ command: 'legacy hi' })); setTimeout(() => resolve({ timeout: true }), 15000); });
   check('legacy-output', leg.type === 'output' && leg.text === 'Hello from stub!', JSON.stringify(leg).slice(0, 200));
   legacyHandler = null;

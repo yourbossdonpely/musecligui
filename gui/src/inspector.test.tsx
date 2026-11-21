@@ -16,6 +16,7 @@ function setup() {
   mock.rpcImpl['mcp-list'] = () => ({ servers: [{ name: 'demo', url: 'http://x' }] });
   mock.rpcImpl['sessions-list'] = () => ({ sessions: [] });
   mock.rpcImpl['git-status'] = () => ({ repo: false });
+  mock.rpcImpl['api-info'] = () => ({ enabled: true, url: 'http://127.0.0.1:8766/v1', key: 'mk-test' });
   render(<App client={mock} />);
   act(() => { mock.open(); });
   return mock;
@@ -84,4 +85,14 @@ test('export falls back without object URLs', async () => {
   } finally {
     U['createObjectURL'] = orig;
   }
+});
+test('api section shows endpoint and copies key', async () => {
+  setup();
+  const written: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t: string) => { written.push(t); return Promise.resolve(); } }, configurable: true });
+  fireEvent.click(screen.getByText('More'));
+  await waitFor(() => expect(screen.getByTestId('api-url')).toHaveTextContent('8766'));
+  expect(screen.getByTestId('api-key')).toHaveTextContent('mk-test');
+  fireEvent.click(screen.getByTestId('api-copy'));
+  await waitFor(() => expect(written).toEqual(['mk-test']));
 });
