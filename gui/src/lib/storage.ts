@@ -34,6 +34,7 @@ function backfillSession(s: Partial<Session> & { messages?: ChatMsg[] }): Sessio
     name: typeof s.name === 'string' ? s.name : 'Session',
     time: typeof s.time === 'string' ? s.time : '',
     messages: Array.isArray(s.messages) ? (s.messages as ChatMsg[]) : [],
+    tokensUsed: typeof s.tokensUsed === 'number' ? s.tokensUsed : 0,
   };
 }
 export function loadProjects(store?: KV): Project[] {
@@ -53,7 +54,7 @@ export function saveProjects(store: KV | undefined, projects: Project[]): void {
 export function loadSettings(store?: KV): Settings {
   const d = defaultSettings();
   const raw = read<Partial<Settings>>(store, 'muse_settings', {});
-  return { ...d, ...raw, flags: { ...d.flags, ...(raw.flags ?? {}) } };
+  return { ...d, ...raw, flags: { ...d.flags, ...(raw.flags ?? {}) }, contextWindows: { ...d.contextWindows, ...(raw.contextWindows ?? {}) } };
 }
 export function saveSettings(store: KV | undefined, settings: Settings): void {
   write(store, 'muse_settings', settings);

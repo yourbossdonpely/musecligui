@@ -20,7 +20,7 @@ export const FLAG_DEFS: FlagDef[] = [
   { key: 'webTools', label: 'Web tools', desc: 'Allow the agent to browse/search the web. Off adds --disable-web-tools.', code: '--disable-web-tools (when off)', type: 'bool' },
 ];
 export function defaultSettings(): Settings {
-  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags } };
+  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags }, contextWindows: {} };
 }
 export function permsPreview(s: Settings): string {
   const f = s.flags;

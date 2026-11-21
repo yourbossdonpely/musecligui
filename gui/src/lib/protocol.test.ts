@@ -50,3 +50,10 @@ test('buildContext joins attachments', () => {
   expect(buildContext([])).toBe('');
   expect(buildContext([{ rel: 'a.txt', content: 'hi' }])).toBe('--- a.txt ---\nhi');
 });
+test('fmtTokens formats token counts', async () => {
+  const { fmtTokens } = await import('./protocol');
+  expect(fmtTokens(999)).toBe('999');
+  expect(fmtTokens(1500)).toBe('1.5k');
+  expect(fmtTokens(38060)).toBe('38.1k');
+  expect(fmtTokens(2500000)).toBe('2.5M');
+});
