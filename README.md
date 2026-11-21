@@ -1,12 +1,24 @@
+<div align="center">
+
+<img src="assets/logo.png" alt="Muse CLI GUI logo" width="128" />
+
 # Muse CLI GUI
 
-**Muse Code CLI · AI Coding Agent GUI (v2.6.1)**
+**The AI coding agent GUI for Meta Muse Code — drive your subscription at full speed, no permission prompts.**
 
-## Overview
+[![Latest release](https://img.shields.io/github/v/release/yourbossdonpely/musecligui)](https://github.com/yourbossdonpely/musecligui/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecligui)](LICENSE)
+[![Windows](https://img.shields.io/badge/platform-Windows-blue)](https://github.com/yourbossdonpely/musecligui/releases/latest)
 
-A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
+[Download the latest release](https://github.com/yourbossdonpely/musecligui/releases/latest) · [Quick start](#-quick-start) · [Screenshots](#-screenshots) · [OpenCode / FreeBuff setup](#use-with-opencode--freebuff-openai-compatible-api)
 
-**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location (`%~dp0`); no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
+</div>
+
+![Muse CLI GUI — agent chat, file browser, skills and subscription](docs/screenshots/chat.png)
+
+A custom GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
+
+**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
 
 ## Features
 
@@ -27,21 +39,38 @@ A custom HTML GUI that drives **Meta Muse Code** (your paid subscription) throug
 | **Demo Mode** | GUI stays usable with scripted replies when the bridge is down |
 | **Proxy API** | OpenAI-compatible `POST /v1/chat/completions` (+ `/v1/models`, `/health`) on localhost:8766 — use the subscription from OpenCode or FreeBuff |
 
+## 📸 Screenshots
+
+**Agent chat** — streaming replies, live tool cards, real file tree, skills, and subscription meters:
+
+![Agent chat](docs/screenshots/chat.png)
+
+**Browser tab** — preview any page beside your chat, research it with one click:
+
+![Browser tab](docs/screenshots/browser.png)
+
+**More tab** — MCP servers, sessions, git changes, bridge status, OpenCode wiring, and API access:
+
+![More tab](docs/screenshots/more.png)
+
 ## How It Works
 
-- `muse-gui.html` (single file, no build step) talks WebSocket to `muse-bridge.js` on `ws://localhost:8765`.
+- The GUI (React, single-file `gui/dist` build) talks WebSocket to `muse-bridge.js` on `ws://localhost:8765`. Legacy single-file `muse-gui.html` is kept as a fallback.
 - The bridge spawns the real `muse` binary directly (`muse-bin-*.exe`, newest wins — falls back to `muse.cmd`, then `muse` on PATH) and streams `muse exec --json` events: text deltas, tool/task lifecycle, token usage, terminal result.
 - Prompts travel via `--prompt-file`, so any text (quotes, symbols, newlines) is passed safely with zero shell-quoting risk.
 - Each run executes inside the selected project's folder. The bridge refuses to run when the OS temp folder is inside the project folder (the Muse runtime fails there — e.g. never pick your home folder as a project).
 - Old `{command}`-only messages still work (legacy `{type:'output'|'error'}` reply).
 
-### Bridge protocol (for hackers)
+<details>
+<summary><b>Bridge protocol (for hackers)</b></summary>
 
 Client sends `{id, action, ...}`. Requests get `{id, type:'result', ok, data|error}`; `exec` streams `exec-start / exec-delta / exec-tool / exec-log / exec-usage / exec-done`.
 
 Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxSteps, flags, history, context, provider), `stop`, `ping` (now reports `paused`), `bridge-stop`, `bridge-start`, `bridge-shutdown`, `opencode-wire`, `opencode-status`, `skills-list`, `skills-set`, `models-list`, `usage`, `mcp-list`, `sessions-list`, `fs-list`, `fs-read`, `git-status`.
 
 `MUSE_CMD` may point at a `.js` stub (run with node) — the test suite uses this. `MUSE_BRIDGE_PORT` overrides the port.
+
+</details>
 
 ## Launchers (all portable)
 
@@ -52,7 +81,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 - `opencode.cmd` — Shim for the OpenCode desktop CLI
 - `setup.ps1` — First-run setup brain (run by the exe): downloads Node.js if missing, installs the ws dependency, checks the muse CLI, persists the API key, wires the OpenCode provider and offers to restart OpenCode when wiring changes
 
-## How to Use
+## 🚀 Quick Start
 
 1. Double-click **`MuseCLIGUI.exe`** (or `launch-muse-gui.bat`). If Windows SmartScreen asks, choose More info > Run anyway. First run sets up everything automatically: Node.js (downloaded if missing), dependencies, API key, and OpenCode wiring.
 2. Click **+ Add Project**, enter a name and a real project folder (not your home folder).
@@ -94,7 +123,7 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - GUI source lives in `gui/` (React + TypeScript + Vite + Tailwind, single-file `dist/` build).
 - `cd gui && npm install`, then `npm run dev` (dev server), `npm test` (unit + component), `npm run test:e2e` (needs stub bridge — see below), `npm run build` (rebuilds committed `gui/dist`).
 - Bridge protocol suite: `npm install` at root once, then `npm run test:bridge` (self-contained: spawns stub-backed bridge, 30 checks).
-- Rebuilding the exe after `Launcher.cs` changes: `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /out:MuseCLIGUI.exe /reference:System.Windows.Forms.dll Launcher.cs`.
+- Rebuilding the exe after `Launcher.cs` changes: `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /win32icon:assets\app.ico /out:MuseCLIGUI.exe /reference:System.Windows.Forms.dll Launcher.cs`, then re-sign it with `signtool` before release.
 - The exe/launcher open `gui/dist/index.html`, falling back to legacy `muse-gui.html` if dist is absent.
 
 ## Environment Overrides (optional)
@@ -146,6 +175,11 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.6.2] - 2026-11-21
+
+- **Brand + presentation**: new application logo (amber M terminal mark) embedded in `MuseCLIGUI.exe` (launcher 3.3.0, still signed), shown in the README header, and a revamped README with badges, hero screenshot, and Browser/More tab walkthrough shots.
+- Full suites green (unchanged): 56/56 protocol, 81/81 GUI unit, 5/5 GUI e2e.
 
 ## [v2.6.1] - 2026-11-21
 
@@ -223,7 +257,7 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 
 ## Git
 
-- Repo initialized 2026-11-20. `node_modules/`, `*.log`, and the pre-existing `browse.exe*` files are ignored (see `.gitignore`) - they stay on disk, just untracked.
+- Repo initialized 2026-11-20. `node_modules/`, `*.log`, `generated_images/`, and the pre-existing `browse.exe*` files are ignored (see `.gitignore`) - they stay on disk, just untracked.
 - Workflow: every change is committed as I work and pushed to the remote below.
 - Remote: https://github.com/yourbossdonpely/musecligui (public)
 

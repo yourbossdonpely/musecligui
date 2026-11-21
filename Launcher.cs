@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("Muse CLI GUI")]
 [assembly: System.Reflection.AssemblyDescription("One-click launcher + first-run setup for the Muse CLI GUI")]
-[assembly: System.Reflection.AssemblyVersion("3.2.0.0")]
+[assembly: System.Reflection.AssemblyVersion("3.3.0.0")]
 [assembly: System.Reflection.AssemblyCopyright("Copyright (c) 2026 yourbossdonpely")]
 
 static class Launcher

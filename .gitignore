@@ -9,3 +9,4 @@ setup.log
 .setup-error.txt
 .setup-warned-node
 .setup-opencode-restart
+generated_images/
