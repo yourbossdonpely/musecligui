@@ -19,8 +19,15 @@ export const FLAG_DEFS: FlagDef[] = [
   { key: 'shell', label: 'Shell execution', desc: 'Allow the agent to run shell commands.', code: '--disable-shell (when off)', type: 'bool' },
   { key: 'webTools', label: 'Web tools', desc: 'Allow the agent to browse/search the web. Off adds --disable-web-tools.', code: '--disable-web-tools (when off)', type: 'bool' },
 ];
+/* Known Muse model context windows (tokens), per Meta's Model API docs. User-set values override these. */
+export const DEFAULT_CONTEXT_WINDOWS: Record<string, number> = {
+  'muse-spark-1.3': 1048576,
+  'muse-spark-1.2': 1048576,
+  'muse-wonder-1.0': 1048576,
+  'muse-ember-1.0': 1048576,
+};
 export function defaultSettings(): Settings {
-  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags }, contextWindows: {} };
+  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags }, contextWindows: { ...DEFAULT_CONTEXT_WINDOWS } };
 }
 export function permsPreview(s: Settings): string {
   const f = s.flags;

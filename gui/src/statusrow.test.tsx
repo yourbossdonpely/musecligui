@@ -58,3 +58,14 @@ test('footer stays slim with bridge and project', async () => {
   expect(screen.getByTestId('project-value')).toHaveTextContent('P');
   expect(within(screen.getByTestId('conn-bar')).queryByTestId('tokens-value')).not.toBeInTheDocument();
 });
+test('known Muse windows prefilled without manual setting', async () => {
+  const mock = setup({ model: 'muse-spark-1.3' });
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-usage', usage: { models: [{ input_tokens: 10, output_tokens: 5 }] } });
+    mock.emitExec(id, { type: 'exec-done', text: 'ok', exitCode: 0, terminal: 'completed' });
+  };
+  send('hi');
+  await waitFor(() => expect(screen.getByTestId('context-status')).toHaveTextContent('%'));
+  expect(screen.getByTestId('context-status')).not.toHaveTextContent('set window');
+});
