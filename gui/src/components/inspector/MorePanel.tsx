@@ -27,7 +27,7 @@ function Section({ title, onReload, children }: { title: string; onReload?: () =
 }
 
 export function MorePanel() {
-  const { client, status, project, session, runsDone, toast } = useApp();
+  const { client, status, project, runsDone, exportCurrentSession, openModal } = useApp();
   const [mcp, setMcp] = useState<Row[]>([]);
   const [sess, setSess] = useState<Row[]>([]);
   const [git, setGit] = useState<Row[]>([]);
@@ -72,44 +72,16 @@ export function MorePanel() {
     void refresh();
   }, [refresh]);
 
-  function exportSession() {
-    if (!session) {
-      toast('No session selected.');
-      return;
-    }
-    let md = '# ' + (project ? project.name : 'Session') + ' — ' + session.name + '\n\n';
-    for (const m of session.messages) {
-      md += m.type === 'user' ? '## You\n' + m.text + '\n\n' : m.type === 'muse' ? '## Muse\n' + m.text + '\n\n' : '> ' + m.text + '\n\n';
-    }
-    try {
-      const u = URL as unknown as { createObjectURL?: (b: Blob) => string; revokeObjectURL?: (u: string) => void };
-      if (typeof u.createObjectURL !== 'function') {
-        toast('Export not supported in this browser.');
-        return;
-      }
-      const blob = new Blob([md], { type: 'text/markdown' });
-      const a = document.createElement('a');
-      a.href = u.createObjectURL(blob);
-      a.download = 'muse-session-' + Date.now() + '.md';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        if (u.revokeObjectURL) u.revokeObjectURL(a.href);
-        a.remove();
-      }, 1000);
-      toast('Session exported.');
-    } catch (e) {
-      toast('Export failed: ' + (e instanceof Error ? e.message : String(e)));
-    }
-  }
-
   return (
     <div data-testid="more-pane">
-      <Section title="MCP servers" onReload={() => void refresh()}><KvList rows={mcp} /></Section>
+      <Section title="MCP servers" onReload={() => void refresh()}>
+        <KvList rows={mcp} />
+        <button onClick={() => openModal({ kind: 'mcp' })} className="mt-1.5 w-full rounded-lg border border-edge px-2 py-1.5 text-[11px] font-bold text-dim hover:border-flare hover:text-flare">Manage MCP</button>
+      </Section>
       <Section title="Running sessions"><KvList rows={sess} /></Section>
       <Section title="Git changes"><KvList rows={git} /></Section>
       <Section title="Bridge"><KvList rows={bridge} /></Section>
-      <button onClick={exportSession} className="w-full rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] font-semibold text-dim hover:border-flare hover:text-flare">
+      <button onClick={exportCurrentSession} className="w-full rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] font-semibold text-dim hover:border-flare hover:text-flare">
         Export current session (.md)
       </button>
     </div>
