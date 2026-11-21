@@ -54,5 +54,11 @@ key, model `muse-spark-1.3`. Then OpenCode treats the subscription as a model ba
 CLI flags: `--api` / `MUSE_API_PORT` (default off), `MUSE_API_KEY` (required to enable).
 
 ## Decision log
-- [ ] Try CLIProxyAPI Muse channel first? (user decision)
-- [ ] Build our own proxy? (user decision after A)
+- [x] Try CLIProxyAPI Muse channel first? — SKIPPED: subscription keys fail outside the official CLI (client_attestation_denied), so the Meta channel would hit the same wall. Went straight to Path B.
+- [x] Build our own proxy? — APPROVED by user 2026-11-21 (wire it to open code, bring out the API settings). Shipped in bridge v2.4.0.
+
+## Shipped (bridge v2.4.0, 2026-11-21)
+- GET /health, GET /v1/models (from muse exec --list-models), POST /v1/chat/completions (buffered + SSE stream: true), metadata.cwd per call. Localhost-only 127.0.0.1:8766, bearer key auto-generated and persisted in gitignored .muse-api-key (or MUSE_API_KEY env), max 3 concurrent runs.
+- Deliberate deviations from the proposal: no workspace allowlist (any absolute metadata.cwd allowed — same trust level as the GUI itself) and no per-hour prompt budget yet; usage budgeting is still GUI-side only.
+- GUI: Inspector More tab API access section shows endpoint + key with copy button (api-info WS action).
+- Tests: 9 HTTP protocol checks green (health/401/models/chat/stream/400s/404); GUI API-panel test green.
