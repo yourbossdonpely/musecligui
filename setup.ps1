@@ -172,6 +172,7 @@ function Stage2 {
     }
     if ($fixed) { Write-Config $cfg $c; Warn 'Added 1M-token context limits to the OpenCode muse models; restart OpenCode.' }
     else { Log 'opencode: already wired' }
+    Wire-Projects
     Log 'stage2 done'; return
   }
   $models = New-Object PSCustomObject
@@ -190,9 +191,20 @@ function Stage2 {
   $c.providers | Add-Member -NotePropertyName 'muse' -NotePropertyValue $entry
   Write-Config $cfg $c
   Warn 'Wired the muse provider into OpenCode; restart the OpenCode app to use it.'
+  Wire-Projects
   Log 'stage2 done'
 }
 
+function Wire-Projects {
+  $node = Join-Path $AppDir 'node.exe'
+  try { if (-not (Test-Path $node)) { $node = (Get-Command node -ErrorAction Stop).Source } } catch { Log 'wire: no node'; return }
+  $script = Join-Path $AppDir 'wire-opencode-projects.js'
+  if (-not (Test-Path $script)) { Log 'wire: script missing'; return }
+  try {
+    $o = & $node --no-warnings $script 2>&1
+    foreach ( in @($o)) { Log ('wire: ' + $line) }
+  } catch { Log ('wire failed: ' + $_.Exception.Message) }
+}
 function Write-Config($cfg, $c) {
   $bak = $cfg + '.bak-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
   try { Copy-Item $cfg $bak } catch { Warn 'Could not back up OpenCode config.' }

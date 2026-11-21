@@ -1,4 +1,4 @@
-Muse CLI GUI v2.5.3 (Windows)
+Muse CLI GUI v2.5.4 (Windows)
 =============================
 1. Unzip this folder anywhere.
 2. Double-click MuseCLIGUI.exe.
