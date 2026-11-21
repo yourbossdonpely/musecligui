@@ -18,6 +18,8 @@ ping -n 2 127.0.0.1 >nul 2>nul
 goto :waitloop
 :opengui
 echo Opening GUI...
+if exist "%~dp0gui\dist\index.html" start "" "%~dp0gui\dist\index.html"
+if exist "%~dp0gui\dist\index.html" exit /b 0
 start "" "%~dp0muse-gui.html"
 exit /b 0
 :bridgefail

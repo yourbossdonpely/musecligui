@@ -56,6 +56,14 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 4. Click the model stat to pick a model/effort; type below and Send. Stop interrupts a run.
 5. Browse real files on the right; click a file to preview and **Attach to prompt**; use the Browser tab for page previews and one-click research.
 
+## Development (GUI source + tests)
+
+- GUI source lives in `gui/` (React + TypeScript + Vite + Tailwind, single-file `dist/` build).
+- `cd gui && npm install`, then `npm run dev` (dev server), `npm test` (unit + component), `npm run test:e2e` (needs stub bridge — see below), `npm run build` (rebuilds committed `gui/dist`).
+- Bridge protocol suite: `npm install` at root once, then `npm run test:bridge` (self-contained: spawns stub-backed bridge, 30 checks).
+- Rebuilding the exe after `Launcher.cs` changes: `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /out:MuseCLIGUI.exe /reference:System.Windows.Forms.dll Launcher.cs`.
+- The exe/launcher open `gui/dist/index.html`, falling back to legacy `muse-gui.html` if dist is absent.
+
 ## Environment Overrides (optional)
 
 | Variable | Default | Purpose |
@@ -104,6 +112,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Changelog (updated as I work)
 
+- **2026-11-20, v3.0.0 React GUI:** complete rebuild in React + Vite + Tailwind (new amber agent-console design, thinking narration, typed tool cards, markdown answers, checkpoints, folder picker, dual usage bars, welcome hero, session import/export, MCP dialog, slash commands, send queue, checkpoint diffs). 68 unit + 5 E2E + 30 protocol tests green. Legacy single-file `muse-gui.html` kept as fallback.
 - **2026-11-20, modes+compat:** new Debug mode (reproduce/diagnose/fix/verify); bridge/GUI version handshake with an outdated-bridge banner (kills the "Unknown action" class of confusion); proxy research in `apidesign.md`.
 - **2026-11-20, v2.0.1:** `MuseCLIGUI.exe` one-click launcher, ready-to-run zip with bundled Node.js, bridge prefers bundled node, consistent Muse CLI GUI naming.
 - **2026-11-20, release v2.0.0:** published on GitHub Releases (https://github.com/yourbossdonpely/musecligui/releases/tag/v2.0.0).
