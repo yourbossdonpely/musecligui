@@ -21,7 +21,7 @@ export function PermsModal() {
         {FLAG_DEFS.map((d) => (
           <div key={d.key} className="flex items-start gap-2.5 border-b border-edge py-2.5 last:border-none">
             {d.type === 'bool' ? (
-              <input type="checkbox" aria-label={d.label} checked={!!settings.flags[d.key]} onChange={(e) => setFlag(d.key, e.target.checked)} className="mt-1 size-[15px] shrink-0 cursor-pointer accent-[#e8a33d]" />
+              <input type="checkbox" aria-label={d.label} checked={!!settings.flags[d.key]} onChange={(e) => setFlag(d.key, e.target.checked)} className="mt-1 size-[15px] shrink-0 cursor-pointer accent-[#3b5cf6]" />
             ) : null}
             <div className="min-w-0 flex-1">
               <b className="block text-[12.5px]">{d.label}</b>

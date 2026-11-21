@@ -104,7 +104,7 @@ export function McpModal() {
         ) : (
           <input data-testid="mcp-command" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="node server.js --stdio" aria-label="Server command" className="rounded-lg border border-edge bg-base1 px-3 py-2 font-mono text-[12px] outline-none placeholder:text-faint focus:border-flare" />
         )}
-        <button onClick={() => void add()} className="rounded-lg bg-flare px-4 py-2 text-[13px] font-bold text-black hover:brightness-110">Add server</button>
+        <button onClick={() => void add()} className="rounded-lg bg-accent px-4 py-2 text-[13px] font-bold text-white hover:brightness-110">Add server</button>
       </div>
       <div className="flex flex-col gap-1.5">
         {servers.map((s) => (

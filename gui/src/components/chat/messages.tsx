@@ -30,7 +30,7 @@ export function UserMessage({ text }: { text: string }) {
 export function AssistantMessage({ text, live }: { text: string; live?: boolean }) {
   return (
     <div className="flex gap-3">
-      <div className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-[conic-gradient(from_200deg,#e8a33d,#f87171,#7dd3fc,#e8a33d)] text-[12px] font-extrabold text-black">M</div>
+      <div className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-[conic-gradient(from_200deg,#3b5cf6,#f87171,#7dd3fc,#3b5cf6)] text-[12px] font-extrabold text-white">M</div>
       <div onClick={onCopyClick} className={'min-w-0 flex-1 text-[13.5px] leading-[1.65] [&_h1]:mb-2 [&_h1]:mt-3 [&_h1]:text-[19px] [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-[17px] [&_h2]:font-bold [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-[15px] [&_h3]:font-bold [&_li]:mb-1 [&_p]:mb-2 [&_strong]:text-white [&_ul]:mb-2 [&_ul]:ml-5 [&_ul]:list-disc ' + (live ? 'md-live' : '')} dangerouslySetInnerHTML={{ __html: renderMarkdown(text) + (live ? '<span class="md-cursor"></span>' : '') }} />
     </div>
   );

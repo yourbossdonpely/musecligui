@@ -112,6 +112,11 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Changelog
 
+## [GUI restyle] - 2026-11-21
+
+- **OpenCode-look restyle** from real tokens extracted from the OpenCode desktop bundle: layered dark greys, blue accent, Inter/IBM Plex Mono. Styled code blocks, live cursor, thinking/shimmer/pulse animations added (all were unstyled); Sub % folded into the composer status bar. All functionality and tests unchanged (75/75).
+
+
 ## [v2.4.1] - 2026-11-21
 
 - **Proxy stream fix**: SSE now ends with a inish_reason: 'stop' chunk before [DONE]. Without it OpenCode treated every reply as truncated and retried (live-test finding). New pi-stream-finish protocol check; suite 40/40 green.

@@ -8,7 +8,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   return (
     <aside data-testid="sidebar" className="z-10 flex w-[278px] shrink-0 flex-col border-r border-edge bg-base1">
       <div className="flex shrink-0 items-center gap-3 px-5 pb-3 pt-4">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-flare via-amber-500 to-rose text-[15px] font-extrabold text-black">M</div>
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-skye text-[15px] font-extrabold text-white">M</div>
         <div>
           <h2 className="text-[14px] font-bold tracking-tight">Muse <span className="text-flare">CLI GUI</span></h2>
           <small className="text-[9px] font-semibold tracking-widest text-faint">AI CODING AGENT</small>
