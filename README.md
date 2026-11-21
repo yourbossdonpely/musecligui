@@ -112,6 +112,12 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Changelog
 
+## [v2.4.1] - 2026-11-21
+
+- **Proxy stream fix**: SSE now ends with a inish_reason: 'stop' chunk before [DONE]. Without it OpenCode treated every reply as truncated and retried (live-test finding). New pi-stream-finish protocol check; suite 40/40 green.
+- OpenCode wiring validated live: clean opencode.json (corrupt concat fixed, muse provider added), old muse-code plugin retired, opencode run --model muse/muse-spark-1.3 returns step-finish reason=stop with zero retries.
+
+
 ## [v2.4.0] - 2026-11-21
 
 - **OpenAI-compatible proxy API** on the bridge (`http://127.0.0.1:8766/v1`, localhost-only, bearer key persisted in gitignored `.muse-api-key`): `GET /health`, `GET /v1/models`, `POST /v1/chat/completions` (buffered + SSE `stream: true`), `metadata.cwd` per call, max 3 concurrent agent runs. Powers OpenCode/FreeBuff wiring; spend comes from the user's own Muse subscription.
