@@ -4,3 +4,7 @@ browse.exe
 browse.exe.old-b9011d62
 .muse-api-key
 api-runs/
+setup.log
+.setup-warnings.txt
+.setup-error.txt
+.setup-warned-node
