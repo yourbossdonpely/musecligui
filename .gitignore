@@ -8,3 +8,4 @@ setup.log
 .setup-warnings.txt
 .setup-error.txt
 .setup-warned-node
+.setup-opencode-restart
