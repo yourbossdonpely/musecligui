@@ -14,6 +14,11 @@ export function fmtSize(n: number): string {
   if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
   return (n / 1048576).toFixed(1) + ' MB';
 }
+export function fmtTokens(n: number): string {
+  if (n < 1000) return String(Math.floor(n));
+  if (n < 1000000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+}
 export function cmpVersions(a: string, b: string): number {
   const pa = String(a).split('.').map(Number);
   const pb = String(b).split('.').map(Number);

@@ -12,6 +12,7 @@ interface Deps {
   appendMessage: (m: ChatMsg) => void;
   toast: (t: string) => void;
   bumpRuns: () => void;
+  addSessionTokens: (n: number) => void;
   setLastTokens: (t: { inp: number; out: number }) => void;
   clearAttached: () => void;
 }
@@ -112,6 +113,7 @@ export function useRunEngine(deps: Deps) {
         let inp = 0; let out = 0;
         mods.forEach((x) => { inp += x.input_tokens ?? 0; out += x.output_tokens ?? 0; });
         depsRef.current.setLastTokens({ inp, out });
+        depsRef.current.addSessionTokens(inp + out);
       } catch {
         /* usage optional */
       }

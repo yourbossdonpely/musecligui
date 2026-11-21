@@ -126,7 +126,12 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const setTokens = useCallback((t: { inp: number; out: number }) => setLastTokens(t), []);
   const clearAttached = useCallback(() => setAttached([]), []);
   const getSnap = useCallback(() => snap.current, []);
-  const { run, send: engineSend, stop, isLive } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens });
+  const addSessionTokens = useCallback((n: number) => {
+    const sid = snap.current.sel.s;
+    if (sid == null) return;
+    setProjects((prev) => prev.map((p) => ({ ...p, sessions: p.sessions.map((s) => (s.id === sid ? { ...s, tokensUsed: (s.tokensUsed ?? 0) + n } : s)) })));
+  }, []);
+  const { run, send: engineSend, stop, isLive } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens, addSessionTokens });
 
   const reconnect = useCallback(() => {
     setStatus('connecting');
@@ -216,7 +221,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     const now = new Date();
     const np: Project = {
       id: Date.now() + Math.random(), name: name.trim(), path: path.trim(), expanded: true,
-      sessions: [{ id: Date.now(), sid: '', name: 'Session 1', time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] }],
+      sessions: [{ id: Date.now(), sid: '', name: 'Session 1', tokensUsed: 0, time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] }],
     };
     np.sessions[0].sid = uuid();
     setProjects((prev) => [...prev, np]);
@@ -251,7 +256,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     setProjects((prev) => {
       const p = prev[pIdx];
       if (!p) return prev;
-      const s: Session = { id: Date.now() + Math.random(), sid, name: 'Session ' + (p.sessions.length + 1), time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] };
+      const s: Session = { id: Date.now() + Math.random(), sid, name: 'Session ' + (p.sessions.length + 1), tokensUsed: 0, time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: [] };
       setSel({ p: p.id, s: s.id });
       return prev.map((x, i) => (i === pIdx ? { ...x, sessions: [...x.sessions, s] } : x));
     });
@@ -343,7 +348,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     setProjects((prev) => {
       const p = prev[pIdx];
       if (!p) return prev;
-      const s = { id: Date.now() + Math.random(), sid: uuid(), name: parsed.name, time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: parsed.messages.map((m) => ({ ...m, time: now.toISOString() })) };
+      const s = { id: Date.now() + Math.random(), sid: uuid(), name: parsed.name, tokensUsed: 0, time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: parsed.messages.map((m) => ({ ...m, time: now.toISOString() })) };
       setSel({ p: p.id, s: s.id });
       return prev.map((x, i) => (i === pIdx ? { ...x, sessions: [...x.sessions, s] } : x));
     });
