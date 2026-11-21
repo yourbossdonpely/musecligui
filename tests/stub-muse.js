@@ -10,16 +10,18 @@ async function main() {
     if (!prompt) { console.error('stub: empty prompt'); process.exitCode = 3; return; }
     const slow = prompt.includes('[SLOW]');
     const fail = prompt.includes('[FAIL]');
+    const cwdMode = prompt.includes('[CWD]');
+    const finalText = cwdMode ? 'CWD:' + process.cwd() : 'Hello from stub!';
     let seq = 0;
     const send = (pt, p) => console.log(JSON.stringify({ schema_version: 1, sequence: ++seq, payload_type: pt, payload: p }));
     send('runtime.command.accepted', { kind: 'command_accepted' });
     send('task.lifecycle.proposed', { kind: 'task_lifecycle', task_id: 't1', event: { kind: 'proposed', task_kind: 'tool.read_file' } });
     send('task.lifecycle.started', { kind: 'task_lifecycle', task_id: 't1', event: { kind: 'started', operation: 'read_file' } });
-    for (const c of ['Hello ', 'from ', 'stub!']) { send('run.output.delta', { kind: 'run_output_delta', text: c }); if (slow) await sleep(1500); }
+    for (const c of (cwdMode ? [finalText] : ['Hello ', 'from ', 'stub!'])) { send('run.output.delta', { kind: 'run_output_delta', text: c }); if (slow) await sleep(1500); }
     send('task.lifecycle.completed', { kind: 'task_lifecycle', task_id: 't1', event: { kind: 'completed' } });
     send('run.usage', { kind: 'run_usage', models: [{ model: 'stub', input_tokens: 10, output_tokens: 5, calls: 1 }], calls: 1 });
     if (fail) { send('run.terminal.failed', { kind: 'run_terminal', terminal: 'failed', text: '', reason: 'stub failure' }); process.exitCode = 1; return; }
-    send('run.terminal.completed', { kind: 'run_terminal', terminal: 'completed', text: 'Hello from stub!', reason: null });
+    send('run.terminal.completed', { kind: 'run_terminal', terminal: 'completed', text: finalText, reason: null });
     return;
   }
   if (args[0] === 'usage') { console.log('Tier: Stub Plan\nWindow: 12% used, resets in 1h\nWeekly: 3% used, resets in 2d'); return; }

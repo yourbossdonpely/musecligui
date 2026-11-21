@@ -33,6 +33,7 @@ export function MorePanel() {
   const [git, setGit] = useState<Row[]>([]);
   const [bridge, setBridge] = useState<Row[]>([]);
   const [api, setApi] = useState<{ enabled: boolean; url?: string; key?: string } | null>(null);
+  const [ocode, setOcode] = useState<{ pluginInstalled: boolean; pluginCurrent: boolean; pluginPath?: string } | null>(null);
 
   const refresh = useCallback(async () => {
     if (status !== 'open') return;
@@ -68,10 +69,20 @@ export function MorePanel() {
       setApi({ enabled: false });
     }
     try {
-      const info = (await client.rpc('ping', {}, 15000)) as { version?: string; muse?: string };
-      setBridge([{ h: 'bridge', t: 'v' + (info.version ?? '?') }, { h: 'muse', t: info.muse ?? '?' }]);
+      const info = (await client.rpc('ping', {}, 15000)) as { version?: string; muse?: string; paused?: boolean };
+      setBridge([
+        { h: 'bridge', t: 'v' + (info.version ?? '?') },
+        { h: 'muse', t: info.muse ?? '?' },
+        { h: 'status', t: info.paused === true ? 'Stopped (paused) — Start it in the footer' : 'Running' },
+      ]);
     } catch {
       /* ignore */
+    }
+    try {
+      const o = (await client.rpc('opencode-status', {}, 15000)) as { pluginInstalled?: boolean; pluginCurrent?: boolean; pluginPath?: string };
+      setOcode({ pluginInstalled: !!o.pluginInstalled, pluginCurrent: !!o.pluginCurrent, pluginPath: o.pluginPath });
+    } catch {
+      setOcode({ pluginInstalled: false, pluginCurrent: false });
     }
   }, [client, status, project, runsDone]);
 
@@ -89,6 +100,14 @@ export function MorePanel() {
   }
   function okCopy() { toast('API key copied.'); }
   function badCopy() { toast('Copy failed.'); }
+  async function wireProject() {
+    if (!project) { toast('Select a project first.'); return; }
+    try {
+      const r = (await client.rpc('opencode-wire', { path: project.path }, 15000)) as { path?: string; status?: string };
+      if (r.status === 'already-wired') toast('Already wired: ' + (r.path ?? project.path));
+      else toast('Wrote OpenCode wiring: ' + (r.path ?? project.path) + ' — restart OpenCode to pick it up.');
+    } catch (e) { toast('Wire failed: ' + (e instanceof Error ? e.message : String(e))); }
+  }
   return (
     <div data-testid="more-pane">
       <Section title="MCP servers" onReload={() => void refresh()}>
@@ -98,6 +117,15 @@ export function MorePanel() {
       <Section title="Running sessions"><KvList rows={sess} /></Section>
       <Section title="Git changes"><KvList rows={git} /></Section>
       <Section title="Bridge"><KvList rows={bridge} /></Section>
+      <Section title="OpenCode" onReload={() => void refresh()}>
+        {!ocode ? <p className="text-[11px] text-faint">Loading...</p> : (
+          <div data-testid="opencode-section">
+            <KvList rows={[{ h: 'cwd plugin', t: ocode.pluginInstalled ? (ocode.pluginCurrent ? 'installed, current — every folder runs in its own directory' : 'installed but outdated — relaunch the exe') : 'missing — relaunch the exe to install it' }]} />
+            <button data-testid="opencode-wire-btn" onClick={() => void wireProject()} className="mt-1.5 w-full rounded-lg border border-edge px-2 py-1.5 text-[11px] font-bold text-dim hover:border-flare hover:text-flare">Wire current project (opencode.json)</button>
+            <p className="mt-1.5 text-[10.5px] leading-relaxed text-faint">The button drops a fallback opencode.json into the selected project folder. The plugin already covers every folder automatically.</p>
+          </div>
+        )}
+      </Section>
       <Section title="API access">
         {!api ? <p className="text-[11px] text-faint">Loading...</p> : !api.enabled ? <p className="text-[11px] text-faint">API disabled on this bridge.</p> : (
           <div data-testid="api-section">

@@ -1,6 +1,6 @@
 # setup.ps1 - first-run setup brain for Muse CLI GUI. Called by MuseCLIGUI.exe.
 # Stage 1 (before bridge): ensure node + ws dependency, check muse CLI.
-# Stage 2 (bridge running): persist API key env, wire OpenCode provider.
+# Stage 2 (bridge running): persist API key env, install cwd plugin, wire OpenCode provider.
 # Idempotent: every step is a no-op when already satisfied. Exit 0 = ok
 # (warnings in .setup-warnings.txt), exit 1 = fatal (.setup-error.txt).
 # Windows PowerShell 5.1 compatible (ships with Windows 10/11).
@@ -124,6 +124,7 @@ function Stage2 {
   Log 'stage2 start'
   $rmfile = Join-Path $AppDir '.setup-opencode-restart'
   if (Test-Path $rmfile) { Remove-Item $rmfile -Force }
+  Install-CwdPlugin
   $keyFile = Join-Path $AppDir '.muse-api-key'
   $key = $null
   for ($i = 0; $i -lt 30; $i++) {
@@ -197,6 +198,22 @@ function Stage2 {
   Log 'stage2 done'
 }
 
+function Install-CwdPlugin {
+  $src = Join-Path $AppDir 'opencode-plugin-muse-cwd\index.js'
+  if (-not (Test-Path $src)) { Log 'cwd-plugin: source missing, skip'; return }
+  $dest = Join-Path $env:USERPROFILE '.config\opencode\plugins\muse-cwd\index.js'
+  try {
+    $dd = Split-Path $dest -Parent
+    if (-not (Test-Path $dd)) { New-Item -ItemType Directory $dd -Force | Out-Null }
+    $cur = $null
+    if (Test-Path $dest) { try { $cur = [System.IO.File]::ReadAllText($dest) } catch {} }
+    $want = [System.IO.File]::ReadAllText($src)
+    if ($cur -ceq $want) { Log 'cwd-plugin: current'; return }
+    [System.IO.File]::WriteAllText($dest, $want, (New-Object System.Text.UTF8Encoding($false)))
+    try { Add-Content -Path (Join-Path $AppDir '.setup-opencode-restart') -Value 'cwd plugin' } catch {}
+    Log 'cwd-plugin: installed'
+  } catch { Warn ('Could not install the OpenCode cwd plugin: ' + $_.Exception.Message) }
+}
 function Wire-Projects {
   $node = Join-Path $AppDir 'node.exe'
   try { if (-not (Test-Path $node)) { $node = (Get-Command node -ErrorAction Stop).Source } } catch { Log 'wire: no node'; return }

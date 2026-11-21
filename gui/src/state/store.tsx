@@ -9,7 +9,7 @@ import { parseSessionFile } from '../lib/import-session';
 import { useRunEngine, type RunState } from './run';
 
 export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
-export const MIN_BRIDGE = '2.5.0';
+export const MIN_BRIDGE = '2.6.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
 export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | 'mcp' | null;
@@ -60,6 +60,10 @@ interface AppValue {
   removeAttach: (i: number) => void;
   send: (text: string) => void;
   stop: () => void;
+  bridgePaused: boolean;
+  stopBridge: () => void;
+  startBridge: () => void;
+  quitBridge: () => void;
 }
 
 const AppCtx = createContext<AppValue | null>(null);
@@ -75,6 +79,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const [client] = useState<IBridge>(() => injected ?? new BridgeClient());
   const [status, setStatus] = useState<ConnStatus>('connecting');
   const [bridgeOutdated, setBridgeOutdated] = useState<string | null>(null);
+  const [bridgePaused, setBridgePaused] = useState(false);
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
   const [sel, setSel] = useState<Selection>(() => loadSelection() ?? { p: null, s: null });
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
@@ -133,6 +138,24 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   }, []);
   const { run, send: engineSend, stop, isLive } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens, addSessionTokens });
 
+  const stopBridge = useCallback(() => {
+    client.rpc('bridge-stop', {}, 15000).then(
+      () => { setBridgePaused(true); toast('Bridge stopped — runs paused. Click Start to resume.'); },
+      (e) => toast('Stop failed: ' + (e instanceof Error ? e.message : String(e))),
+    );
+  }, [client, toast]);
+  const startBridge = useCallback(() => {
+    client.rpc('bridge-start', {}, 15000).then(
+      () => { setBridgePaused(false); toast('Bridge started.'); },
+      (e) => toast('Start failed: ' + (e instanceof Error ? e.message : String(e))),
+    );
+  }, [client, toast]);
+  const quitBridge = useCallback(() => {
+    client.rpc('bridge-shutdown', {}, 15000).then(
+      () => toast('Bridge shutting down — re-run MuseCLIGUI.exe to restart. This window reconnects automatically.'),
+      (e) => toast('Shutdown failed: ' + (e instanceof Error ? e.message : String(e))),
+    );
+  }, [client, toast]);
   const reconnect = useCallback(() => {
     setStatus('connecting');
     setBridgeOutdated(null);
@@ -148,7 +171,8 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
       client.rpc('ping', {}, 10000).then(
         (info) => {
           if (!alive) return;
-          const cur = String((info as { version?: string } | null)?.version ?? '0');
+          const cur = String((info as { version?: string; paused?: boolean } | null)?.version ?? '0');
+          setBridgePaused((info as { paused?: boolean } | null)?.paused === true);
           setBridgeOutdated(cmpVersions(cur, MIN_BRIDGE) < 0 ? cur : null);
         },
         () => { if (alive) setBridgeOutdated('?'); },
@@ -415,7 +439,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, queue, clearQueue, importSession, exportCurrentSession, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
-    removeAttach, send, stop,
+    removeAttach, send, stop, bridgePaused, stopBridge, startBridge, quitBridge,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

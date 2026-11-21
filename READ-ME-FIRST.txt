@@ -1,9 +1,11 @@
-Muse CLI GUI v2.5.5 (Windows)
+Muse CLI GUI v2.6.0 (Windows)
 =============================
 1. Unzip this folder anywhere.
 2. Double-click MuseCLIGUI.exe.
-   First launch: Windows SmartScreen may ask - choose More info > Run anyway.
+   First launch: Windows SmartScreen may still ask - choose More info > Run anyway.
+   (The exe is signed with the author's certificate, but it is not EV-fleet trusted yet.)
 3. First run sets up Node.js (if missing) and OpenCode wiring automatically.
-4. The bridge starts, then the GUI opens in your browser. Keep the bridge window open while you use the app.
+4. The bridge starts, then the GUI opens in your browser. Keep the bridge window open while you use the app -
+   use the Stop / Start / Quit buttons in the GUI footer to control it.
 Bonus: the bridge also serves an OpenAI-compatible API for OpenCode
 at http://127.0.0.1:8766/v1 (key in Inspector -> More -> API access).

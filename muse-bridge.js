@@ -1,4 +1,4 @@
-// muse-bridge.js v2.5.2 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.6.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,11 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.5.2';
+const VERSION = '2.6.0';
+// Name the console window so it is obvious what it is and that closing it stops the bridge.
+try { process.title = 'Muse Bridge :' + PORT + ' (close this window to stop)'; } catch (e) {}
+// Paused from the GUI footer (bridge-stop): runs are refused, process stays up for bridge-start.
+let bridgePaused = false;
 
 // ---------------- muse executable ----------------
 // Prefer the versioned native exe directly (clean argv, no shell quoting issues).
@@ -299,6 +303,11 @@ function finishExec(socket, rec, end) {
 async function handleExec(socket, msg) {
   const id = msg.id || null;
   const legacy = !msg.action;
+  if (bridgePaused) {
+    const err = 'Bridge is stopped. Click Start in the GUI footer to resume.';
+    legacy ? send(socket, { type: 'error', text: err }) : fail(socket, msg, 'exec', err);
+    return;
+  }
   if (running.has(socket)) {
     if (legacy) send(socket, { type: 'error', text: 'An agent run is already in progress. Stop it first.' });
     else send(socket, { id, type: 'result', action: 'exec', ok: false, error: 'An agent run is already in progress. Stop it first.' });
@@ -383,7 +392,62 @@ async function handleBuffered(socket, msg, action) {
   const ok = (data) => send(socket, { id, type: 'result', action, ok: true, data });
   const bad = (error) => send(socket, { id, type: 'result', action, ok: false, error: String(error) });
   try {
-    if (action === 'ping') return ok({ version: VERSION, muse: MUSE.label });
+    if (action === 'ping') return ok({ version: VERSION, muse: MUSE.label, paused: bridgePaused });
+    if (action === 'bridge-stop') {
+      bridgePaused = true;
+      let stopped = 0;
+      for (const entry of running) { try { entry[1].kill(); stopped++; } catch (e) {} }
+      console.log('bridge stopped from GUI (paused, killed ' + stopped + ' run(s))');
+      return ok({ paused: true, stoppedRuns: stopped });
+    }
+    if (action === 'bridge-start') {
+      bridgePaused = false;
+      console.log('bridge started from GUI (resumed)');
+      return ok({ paused: false });
+    }
+    if (action === 'bridge-shutdown') {
+      send(socket, { id, type: 'result', action, ok: true, data: { shutdown: true } });
+      console.log('bridge shutdown from GUI');
+      setTimeout(() => { try { process.exit(0); } catch (e) {} }, 300);
+      return;
+    }
+    if (action === 'opencode-wire') {
+      const dir = typeof msg.path === 'string' ? msg.path.trim() : '';
+      if (!dir || !path.isAbsolute(dir)) throw new Error('Provide an absolute folder path');
+      let st;
+      try { st = fs.statSync(dir); } catch (e) { throw new Error('Folder not found: ' + dir); }
+      if (!st.isDirectory()) throw new Error('Not a folder: ' + dir);
+      if (tempInside(dir)) throw new Error('Refusing: the OS temp folder is inside "' + dir + '"');
+      const cfg = path.join(dir, 'opencode.json');
+      const body = { metadata: { cwd: dir } };
+      if (fs.existsSync(cfg)) {
+        let c;
+        try { c = JSON.parse(fs.readFileSync(cfg, 'utf8')); } catch (e) { throw new Error('opencode.json exists but is not valid JSON — fix or delete it first'); }
+        const have = c && c.providers && c.providers.muse && c.providers.muse.body && c.providers.muse.body.metadata && c.providers.muse.body.metadata.cwd;
+        if (typeof have === 'string' && have) return ok({ path: cfg, status: 'already-wired' });
+        const bak = cfg + '.bak-' + new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+        fs.copyFileSync(cfg, bak);
+        c.providers = c.providers || {};
+        c.providers.muse = c.providers.muse || {};
+        c.providers.muse.body = body;
+        if (!c.$schema) c.$schema = 'https://opencode.ai/config.json';
+        fs.writeFileSync(cfg, JSON.stringify(c, null, 2));
+        return ok({ path: cfg, status: 'merged', backup: bak });
+      }
+      const c = { $schema: 'https://opencode.ai/config.json', providers: { muse: { body } } };
+      fs.writeFileSync(cfg, JSON.stringify(c, null, 2));
+      return ok({ path: cfg, status: 'wrote' });
+    }
+    if (action === 'opencode-status') {
+      const plugFile = path.join(os.homedir(), '.config', 'opencode', 'plugins', 'muse-cwd', 'index.js');
+      let installed = false, current = false;
+      try {
+        const src = fs.readFileSync(path.join(__dirname, 'opencode-plugin-muse-cwd', 'index.js'), 'utf8');
+        installed = fs.existsSync(plugFile);
+        if (installed) current = fs.readFileSync(plugFile, 'utf8') === src;
+      } catch (e) { try { installed = fs.existsSync(plugFile); } catch (x) {} }
+      return ok({ pluginInstalled: installed, pluginCurrent: current, pluginPath: plugFile });
+    }
     if (action === 'api-info') {
       if (!apiEnabled) return ok({ enabled: false, url: null, key: null });
       return ok({ enabled: true, url: 'http://127.0.0.1:' + apiPort + '/v1', key: API_KEY });
@@ -616,6 +680,7 @@ async function handleApi(req, res) {
     }
   }
   if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
+    if (bridgePaused) return apiErr(res, 503, 'Bridge is stopped (paused from the GUI). Click Start to resume.', 'paused');
     let body;
     try {
       body = JSON.parse(await readBody(req, 1024 * 1024));
@@ -633,9 +698,18 @@ async function handleApi(req, res) {
     let cwd = null;
     let scratch = false;
     const metaCwd = body.metadata && body.metadata.cwd;
+    const hdrCwd = typeof req.headers['x-muse-cwd'] === 'string' ? req.headers['x-muse-cwd'] : null;
+    let cwdSrc = 'scratch';
     if (typeof metaCwd === 'string' && metaCwd) {
       if (!path.isAbsolute(metaCwd)) return apiErr(res, 400, 'metadata.cwd must be an absolute path', 'invalid_request');
       cwd = metaCwd;
+      cwdSrc = 'metadata';
+    } else if (hdrCwd) {
+      // Set by the muse-cwd OpenCode plugin from the live session directory,
+      // so every OpenCode project runs in its own folder with no per-project file.
+      if (!path.isAbsolute(hdrCwd)) return apiErr(res, 400, 'x-muse-cwd must be an absolute path', 'invalid_request');
+      cwd = hdrCwd;
+      cwdSrc = 'header';
     } else {
       scratch = true;
       try { fs.mkdirSync(API_SCRATCH_ROOT, { recursive: true }); } catch (e) { return apiErr(res, 500, 'Cannot create API scratch dir', 'server_error'); }
@@ -647,7 +721,7 @@ async function handleApi(req, res) {
     const rest = ['--yolo', '--trust-workspace'];
     if (model) rest.push('--model', model);
     const t0 = Date.now();
-    console.log('api chat: model=' + (model || 'default') + ' msgs=' + messages.length + ' stream=' + (!!body.stream) + ' cwd=' + cwd);
+    console.log('api chat: model=' + (model || 'default') + ' msgs=' + messages.length + ' stream=' + (!!body.stream) + ' cwd=' + cwd + ' src=' + cwdSrc);
     apiActiveRuns++;
     const finish = () => {
       apiActiveRuns = Math.max(0, apiActiveRuns - 1);

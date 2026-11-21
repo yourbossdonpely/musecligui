@@ -96,3 +96,12 @@ test('api section shows endpoint and copies key', async () => {
   fireEvent.click(screen.getByTestId('api-copy'));
   await waitFor(() => expect(written).toEqual(['mk-test']));
 });
+test('opencode section shows plugin status and wires project', async () => {
+  const mock = setup();
+  mock.rpcImpl['opencode-status'] = () => ({ pluginInstalled: true, pluginCurrent: true, pluginPath: 'C:\\plug' });
+  mock.rpcImpl['opencode-wire'] = () => ({ path: 'C:\\p\\opencode.json', status: 'wrote' });
+  fireEvent.click(screen.getByText('More'));
+  await waitFor(() => expect(screen.getByTestId('opencode-section')).toHaveTextContent('installed, current'));
+  fireEvent.click(screen.getByTestId('opencode-wire-btn'));
+  await waitFor(() => expect(screen.getByTestId('toast-stack')).toHaveTextContent('Wrote OpenCode wiring'));
+});

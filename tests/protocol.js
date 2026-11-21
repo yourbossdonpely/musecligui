@@ -112,7 +112,7 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.5.2', JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.6.0' && ping.data.paused === false, JSON.stringify(ping));
   const pick = await rpc('pick-folder', {});
   check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
@@ -175,11 +175,12 @@ async function runTests(proj) {
   const sevs = await slowP;
   check('stop-exec-done-arrives', sevs[sevs.length - 1].type === 'exec-done', sevs.map((e) => e.type).join(','));
   const http = require('http');
-  function httpReq(method, pth, body, key) {
+  function httpReq(method, pth, body, key, extraHeaders) {
     return new Promise((resolve, reject) => {
       const data = body != null ? JSON.stringify(body) : null;
       const headers = {};
       if (key) headers['Authorization'] = 'Bearer ' + key;
+      if (extraHeaders) for (const k in extraHeaders) headers[k] = extraHeaders[k];
       if (data) { headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(data); }
       const req = http.request({ host: '127.0.0.1', port: 18766, path: pth, method, headers, timeout: 60000 }, (res) => {
         let raw = '';
@@ -229,6 +230,40 @@ async function runTests(proj) {
   const leg = await new Promise((resolve) => { legacyHandler = resolve; ws.send(JSON.stringify({ command: 'legacy hi' })); setTimeout(() => resolve({ timeout: true }), 15000); });
   check('legacy-output', leg.type === 'output' && leg.text === 'Hello from stub!', JSON.stringify(leg).slice(0, 200));
   legacyHandler = null;
+  const hdrChat = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: '[CWD] where am i' }] }, KEY, { 'x-muse-cwd': proj });
+  let hdrChatOk = false;
+  try { hdrChatOk = hdrChat.status === 200 && JSON.parse(hdrChat.raw).choices[0].message.content.toLowerCase() === ('CWD:' + proj).toLowerCase(); } catch (e) {}
+  check('api-header-cwd', hdrChatOk, hdrChat.raw.slice(0, 200));
+  const hdrBad = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }] }, KEY, { 'x-muse-cwd': 'relative/path' });
+  check('api-400-relheader', hdrBad.status === 400, hdrBad.raw.slice(0, 120));
+  const wireDir = fs.mkdtempSync(path.join(os.tmpdir(), 'muse-wire-'));
+  const wire1 = await rpc('opencode-wire', { path: wireDir });
+  let wire1Ok = wire1.ok && wire1.data.status === 'wrote';
+  try { wire1Ok = wire1Ok && JSON.parse(fs.readFileSync(path.join(wireDir, 'opencode.json'), 'utf8')).providers.muse.body.metadata.cwd === wireDir; } catch (e) { wire1Ok = false; }
+  check('opencode-wire-wrote', wire1Ok, JSON.stringify(wire1).slice(0, 200));
+  const wire2 = await rpc('opencode-wire', { path: wireDir });
+  check('opencode-wire-again', wire2.ok && wire2.data.status === 'already-wired', JSON.stringify(wire2).slice(0, 200));
+  const wireBad = await rpc('opencode-wire', { path: 'relative/path' });
+  check('opencode-wire-badpath', wireBad.ok === false, JSON.stringify(wireBad).slice(0, 200));
+  const ostat = await rpc('opencode-status');
+  check('opencode-status', ostat.ok && typeof ostat.data.pluginInstalled === 'boolean', JSON.stringify(ostat).slice(0, 200));
+  try { fs.rmSync(wireDir, { recursive: true, force: true }); } catch (e) {}
+  const bst = await rpc('bridge-stop');
+  check('bridge-stop', bst.ok && bst.data.paused === true, JSON.stringify(bst));
+  const pingP = await rpc('ping');
+  check('bridge-stop-ping', pingP.ok && pingP.data.paused === true, JSON.stringify(pingP));
+  const execP = await rpc('exec', { command: 'hi', cwd: proj });
+  check('bridge-stop-exec-refused', execP.ok === false && /stopped/i.test(execP.error || ''), JSON.stringify(execP).slice(0, 200));
+  const chatP = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }] }, KEY);
+  check('bridge-stop-chat-503', chatP.status === 503, chatP.raw.slice(0, 120));
+  const brt = await rpc('bridge-start');
+  check('bridge-start', brt.ok && brt.data.paused === false, JSON.stringify(brt));
+  const evs2 = await execStream({ command: 'hi again', cwd: proj, flags: { yolo: true } });
+  check('bridge-start-exec-works', evs2[evs2.length - 1].type === 'exec-done', evs2.map((e) => e.type).join(','));
+  const shut = await rpc('bridge-shutdown');
+  check('bridge-shutdown-ack', shut.ok && shut.data.shutdown === true, JSON.stringify(shut));
+  const closed = await new Promise((resolve) => { ws.on('close', () => resolve(true)); setTimeout(() => resolve(false), 8000); });
+  check('bridge-shutdown-exits', closed === true, 'bridge did not exit');
   ws.close();
 }
 
