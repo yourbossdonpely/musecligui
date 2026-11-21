@@ -5,7 +5,7 @@ import { Button } from '../ui/core';
 import { PickerBody } from './picker';
 
 export function ProjectModal() {
-  const { modal, projects, addProject, updateProject, closeModal } = useApp();
+  const { modal, projects, addProject, updateProject, closeModal, client, toast } = useApp();
   const editIdx = modal.editProject ?? null;
   const existing = editIdx != null ? projects[editIdx] : null;
   const [name, setName] = useState(existing?.name ?? '');
@@ -13,6 +13,17 @@ export function ProjectModal() {
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  async function browseNative() {
+    try {
+      const r = (await client.rpc('pick-folder', {}, 120000)) as { path?: string; cancelled?: boolean };
+      if (r && r.path) { setPath(r.path); return; }
+      if (r && (r as { cancelled?: boolean }).cancelled) return;
+      setPicking(true);
+    } catch {
+      setPicking(true);
+      toast('Native picker unavailable — pick from the list instead.');
+    }
+  }
   async function save() {
     setSaving(true);
     try {
@@ -37,7 +48,7 @@ export function ProjectModal() {
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-dim">Folder Path</label>
             <div className="flex gap-2">
               <input data-testid="proj-path" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\\path\\to\\project" className="min-w-0 flex-1 rounded-lg border border-edge bg-base0 px-3 py-2.5 font-mono text-[12px] outline-none placeholder:text-faint focus:border-flare" />
-              <Button variant="subtle" onClick={() => setPicking(true)}>Browse...</Button>
+              <Button variant="subtle" onClick={() => void browseNative()}>Browse...</Button>
             </div>
           </div>
           <div className="mt-5 flex justify-end gap-2">

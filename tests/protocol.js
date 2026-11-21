@@ -47,7 +47,7 @@ function waitBridge(ms) {
 async function main() {
   const proj = makeProj();
   const proc = spawn(process.execPath, [path.join(ROOT, 'muse-bridge.js')], {
-    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js') },
+    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js'), MUSE_PICKER_CMD: 'echo C:\\\\picked' },
     cwd: ROOT, stdio: 'ignore',
   });
   try {
@@ -112,7 +112,9 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.2.0', JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.3.0', JSON.stringify(ping));
+  const pick = await rpc('pick-folder', {});
+  check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
   check('fs-drives', drives.ok && drives.data.drives.length > 0, JSON.stringify(drives).slice(0, 200));
   const models = await rpc('models-list');
