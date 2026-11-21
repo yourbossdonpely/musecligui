@@ -66,6 +66,7 @@ The bridge doubles as an OpenAI-compatible server, so your Muse subscription wor
 - **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
 - **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); real per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context
 - **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
+- **Isolation:** without `metadata.cwd`, each API call runs in a fresh empty scratch dir (auto-deleted afterwards) - no shared files, no cross-talk between clients or sessions. For real projects, pin the folder per OpenCode project with a project-level `opencode.json` body merge: `{"muse": {"body": {"metadata": {"cwd": "C:\\path\\to\\project"}}}}`
 
 OpenCode provider block for `~/.config/opencode/opencode.json`:
 
@@ -83,7 +84,7 @@ Set the `MUSE_BRIDGE_API_KEY` env var to the key, then fully restart OpenCode (d
 
 FreeBuff / other clients: add a custom OpenAI-compatible provider with the endpoint + key above. (FreeBuff custom-provider support is unconfirmed - your client runs locally, so the localhost endpoint is reachable; try it and see.)
 
-Cost note: every API call spends subscription prompts (one agent run per call), and runs execute in the bridge folder unless `metadata.cwd` is set.
+Cost note: every API call spends subscription prompts (one agent run per call).
 
 ## Development (GUI source + tests)
 
@@ -140,6 +141,12 @@ Cost note: every API call spends subscription prompts (one agent run per call), 
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.5.2] - 2026-11-21
+
+- **API run isolation fix**: calls without metadata.cwd used to run in the bridge folder, so OpenCode agents rummaged our repo and answered from our files. Each call now gets a fresh empty scratch dir (auto-cleaned), verified live (agent reports api-runs/run-XXX, empty). Stream failures now surface their reason as a final chunk instead of silent empty-stop.
+- Full suites green: 42/42 protocol (new api-scratch-clean check), 76/76 GUI.
+
 
 ## [v2.5.1] - 2026-11-21
 
