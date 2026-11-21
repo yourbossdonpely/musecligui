@@ -4,7 +4,7 @@ import { MODES } from '../../lib/modes';
 import { ToggleGroup } from '../ui/overlay';
 
 export function Composer() {
-  const { settings, setMode, send, stop, run, attached, removeAttach, openModal, draft, setDraft } = useApp();
+  const { settings, setMode, send, stop, run, attached, removeAttach, openModal, draft, setDraft, queue, clearQueue } = useApp();
   const value = draft;
   const setValue = setDraft;
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -16,7 +16,7 @@ export function Composer() {
     el.style.height = Math.min(el.scrollHeight, 150) + 'px';
   }
   function submit() {
-    if (!value.trim() || run) return;
+    if (!value.trim()) return;
     send(value);
     setValue('');
     requestAnimationFrame(() => {
@@ -47,6 +47,7 @@ export function Composer() {
             ))}
           </div>
         ) : null}
+        {queue.length ? <button data-testid="queued-chip" onClick={clearQueue} title="Click to clear queue" className="mx-3.5 mb-1 rounded-lg border border-flare/40 bg-flare/10 px-3 py-1 text-left text-[11.5px] font-semibold text-flare">{queue.length} queued — click to clear</button> : null}
         <div className="flex items-end gap-2.5 p-3.5">
           <textarea ref={taRef} data-testid="composer-input" rows={1} value={value} placeholder="Ask Muse to plan, build, edit, or research..." aria-label="Message Muse"
             onChange={(e) => { setValue(e.target.value); autosize(); }}
@@ -54,9 +55,8 @@ export function Composer() {
             className="max-h-[150px] min-h-[26px] flex-1 resize-none bg-transparent px-1 py-1 text-[13.5px] leading-relaxed outline-none placeholder:text-faint" />
           {run ? (
             <button data-testid="stop-btn" onClick={() => stop()} title="Stop" aria-label="Stop run" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-rose text-[13px] font-bold text-white">■</button>
-          ) : (
-            <button data-testid="send-btn" onClick={submit} disabled={!value.trim()} title="Send" aria-label="Send message" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-flare text-[16px] font-bold text-black transition-shadow hover:shadow-[0_0_20px_rgba(232,163,61,0.4)] disabled:opacity-40">↑</button>
-          )}
+          ) : null}
+          <button data-testid="send-btn" onClick={submit} disabled={!value.trim()} title="Send" aria-label="Send message" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-flare text-[16px] font-bold text-black transition-shadow hover:shadow-[0_0_20px_rgba(232,163,61,0.4)] disabled:opacity-40">↑</button>
         </div>
       </div>
     </div>

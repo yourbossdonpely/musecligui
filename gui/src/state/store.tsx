@@ -4,13 +4,15 @@ import type { AttachedFile, ChatMsg, Project, Session, Settings } from '../lib/t
 import { loadProjects, saveProjects, loadSettings, saveSettings, loadSelection, saveSelection, type Selection } from '../lib/storage';
 import { MODES, defaultSettings } from '../lib/modes';
 import { cmpVersions, uuid } from '../lib/protocol';
+import { buildSessionMarkdown } from '../lib/export-session';
+import { parseSessionFile } from '../lib/import-session';
 import { useRunEngine, type RunState } from './run';
 
 export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
 export const MIN_BRIDGE = '2.2.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
-export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | null;
+export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | 'mcp' | null;
 export interface ModalState { kind: ModalKind; editProject?: number | null; onPick?: ((p: string) => void) | null; previewRel?: string | null }
 
 interface AppValue {
@@ -51,6 +53,10 @@ interface AppValue {
   updateSettings: (patch: Partial<Settings>) => void;
   setMode: (mode: string) => void;
   attachFile: (rel: string, content: string) => boolean;
+  queue: string[];
+  clearQueue: () => void;
+  importSession: (pIdx: number, fileName: string, text: string) => void;
+  exportCurrentSession: () => void;
   removeAttach: (i: number) => void;
   send: (text: string) => void;
   stop: () => void;
@@ -77,6 +83,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const [ephemeral, setEphemeral] = useState<ChatMsg[]>([]);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [modal, setModal] = useState<ModalState>({ kind: null });
+  const [queue, setQueue] = useState<string[]>([]);
   const [runsDone, setRunsDone] = useState(0);
   const [usage, setUsage] = useState<{ tier: string; window: string; weekly: string } | null>(null);
   const [lastTokens, setLastTokens] = useState<{ inp: number; out: number } | null>(null);
@@ -119,7 +126,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const setTokens = useCallback((t: { inp: number; out: number }) => setLastTokens(t), []);
   const clearAttached = useCallback(() => setAttached([]), []);
   const getSnap = useCallback(() => snap.current, []);
-  const { run, send, stop } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens });
+  const { run, send: engineSend, stop, isLive } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens });
 
   const reconnect = useCallback(() => {
     setStatus('connecting');
@@ -292,12 +299,115 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
   const removeAttach = useCallback((i: number) => {
     setAttached((prev) => prev.filter((_, ix) => ix !== i));
   }, []);
+  const queueRef = useRef<string[]>([]);
+  queueRef.current = queue;
+  const exportCurrentSession = useCallback(() => {
+    const { projects: ps, sel: s } = snap.current;
+    const p = ps.find((x) => x.id === s.p);
+    const sess = p?.sessions.find((x) => x.id === s.s);
+    if (!p || !sess) {
+      toast('No session selected.');
+      return;
+    }
+    const md = buildSessionMarkdown(p.name, sess.name, sess.messages);
+    try {
+      const u = URL as unknown as { createObjectURL?: (b: Blob) => string; revokeObjectURL?: (u: string) => void };
+      if (typeof u.createObjectURL !== 'function') {
+        toast('Export not supported in this browser.');
+        return;
+      }
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const a = document.createElement('a');
+      a.href = u.createObjectURL(blob);
+      a.download = 'muse-session-' + Date.now() + '.md';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        if (u.revokeObjectURL) u.revokeObjectURL(a.href);
+        a.remove();
+      }, 1000);
+      toast('Session exported.');
+    } catch (e) {
+      toast('Export failed: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }, [toast]);
+  const importSession = useCallback((pIdx: number, fileName: string, text: string) => {
+    let parsed;
+    try {
+      parsed = parseSessionFile(fileName, text);
+    } catch (e) {
+      toast('Import failed: ' + (e instanceof Error ? e.message : String(e)));
+      return;
+    }
+    const now = new Date();
+    setProjects((prev) => {
+      const p = prev[pIdx];
+      if (!p) return prev;
+      const s = { id: Date.now() + Math.random(), sid: uuid(), name: parsed.name, time: now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), messages: parsed.messages.map((m) => ({ ...m, time: now.toISOString() })) };
+      setSel({ p: p.id, s: s.id });
+      return prev.map((x, i) => (i === pIdx ? { ...x, sessions: [...x.sessions, s] } : x));
+    });
+    toast('Imported ' + parsed.messages.length + ' messages.');
+  }, [toast]);
+  const handleSlash = useCallback((raw: string) => {
+    const cmd = raw.trim().split(/\s+/)[0].toLowerCase();
+    const modes: Record<string, string> = { '/build': 'build', '/supervised': 'supervised', '/plan': 'plan', '/research': 'research', '/debug': 'debug' };
+    if (modes[cmd]) {
+      setMode(modes[cmd]);
+      toast('Mode: ' + MODES[modes[cmd]].label);
+      return;
+    }
+    if (cmd === '/export') {
+      exportCurrentSession();
+      return;
+    }
+    if (cmd === '/clear') {
+      const idx = snap.current.projects.findIndex((p) => p.id === snap.current.sel.p);
+      if (idx < 0) {
+        toast('No project selected.');
+        return;
+      }
+      addSession(idx);
+      return;
+    }
+    if (cmd === '/help') {
+      appendMessage({ type: 'system', text: 'Commands: /build /supervised /plan /research /debug — switch modes. /export — download session. /clear — new session. /help — this list.' });
+      return;
+    }
+    toast('Unknown command "' + cmd + '". Try /help.');
+  }, [setMode, exportCurrentSession, addSession, appendMessage, toast]);
+  const send = useCallback((text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    if (t.startsWith('/')) {
+      handleSlash(t);
+      return;
+    }
+    if (isLive()) {
+      if (queueRef.current.length >= 3) {
+        toast('Queue is full (3).');
+        return;
+      }
+      setQueue((q) => [...q, text]);
+      toast('Queued — sends when the run finishes.');
+      return;
+    }
+    engineSend(text);
+  }, [engineSend, isLive, handleSlash, toast]);
+  const clearQueue = useCallback(() => setQueue([]), []);
+  useEffect(() => {
+    if (!run && queue.length) {
+      const next = queue[0];
+      setQueue((q) => q.slice(1));
+      engineSend(next);
+    }
+  }, [run, queue, engineSend]);
   const openModal = useCallback((m: ModalState) => setModal(m), []);
   const closeModal = useCallback(() => setModal({ kind: null }), []);
 
   const value: AppValue = {
     client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal, usage, refreshUsage,
-    runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, project, session, currentMessages, reconnect, toast, openModal, closeModal,
+    runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, queue, clearQueue, importSession, exportCurrentSession, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
     removeAttach, send, stop,

@@ -11,6 +11,7 @@ import { ProjectModal } from './components/modals/project';
 import { ModelModal } from './components/modals/ModelModal';
 import { PermsModal } from './components/modals/PermsModal';
 import { FileModal } from './components/modals/FileModal';
+import { McpModal } from './components/modals/McpModal';
 
 function OutdatedBanner() {
   const { bridgeOutdated } = useApp();
@@ -48,6 +49,7 @@ function Shell() {
       )}
       {modal.kind === 'project' ? <ProjectModal /> : null}
       {modal.kind === 'file' ? <FileModal /> : null}
+      {modal.kind === 'mcp' ? <McpModal /> : null}
       {modal.kind === 'model' ? <ModelModal /> : null}
       {modal.kind === 'perms' ? <PermsModal /> : null}
       <ToastStack />

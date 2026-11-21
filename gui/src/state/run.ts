@@ -191,5 +191,6 @@ export function useRunEngine(deps: Deps) {
     );
   }, []);
 
-  return { run, send, stop };
+  const isLive = useCallback(() => liveRef.current !== null, []);
+  return { run, send, stop, isLive };
 }

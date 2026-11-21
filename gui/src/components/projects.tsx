@@ -1,7 +1,7 @@
 import { useApp } from '../state/store';
 
 export function Projects() {
-  const { projects, sel, toggleProject, selectSession, addSession, deleteSession, deleteProject, openModal } = useApp();
+  const { projects, sel, toggleProject, selectSession, addSession, deleteSession, deleteProject, openModal, importSession } = useApp();
   if (!projects.length) {
     return (
       <div data-testid="empty-projects" className="px-3 py-5 text-center">
@@ -35,6 +35,10 @@ export function Projects() {
               <div onClick={(e) => { e.stopPropagation(); addSession(pIdx); }} className="my-0.5 cursor-pointer rounded-r-lg px-3 py-1.5 text-[12px] text-flare hover:bg-base2">
                 + New Session
               </div>
+              <div onClick={(e) => { e.stopPropagation(); document.getElementById('import-file-' + pIdx)?.click(); }} className="my-0.5 cursor-pointer rounded-r-lg px-3 py-1.5 text-[12px] text-dim hover:bg-base2">
+                Import session
+              </div>
+              <input id={'import-file-' + pIdx} data-testid="import-file" type="file" accept=".md,.markdown,.json" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await importSession(pIdx, f.name, await f.text()); }} />
             </div>
           ) : null}
         </div>
