@@ -15,7 +15,7 @@
 
 **Download:** no MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. Windows, macOS and Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.
 
-You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. (Per-OS install guides from the upstream site are not included in this copy; install the `muse` CLI from Meta and run `muse login` once.)
+You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/desktop-Tauri%202-FFC131.svg)](https://tauri.app)
@@ -102,13 +102,13 @@ Linux: no AppImage has been published yet (needs the release workflow on GitHub)
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-This copy is the desktop app only — no VS Code extension is included.
+Scope: the desktop app only (Windows, macOS, Linux). There is no VS Code, Cursor or Windsurf extension in this copy, and none is published for it.
 
-If you would rather read what changed before it lands, use **Watch → Custom → Releases** at the top of this page: GitHub then tells you about each release and nothing else. [Discussions](https://github.com/yourbossdonpely/musecligui/discussions) is the place for questions and for what you are building with it.
+[Discussions](https://github.com/yourbossdonpely/musecligui/discussions) is the place for questions and for what you are building with it.
 
 ## Docs
 
-This copy has no landing site, guides site, or per-feature docs pages (upstream ships those separately; they are not included here). What is here: this README, [CONTRIBUTING.md](CONTRIBUTING.md), and the screenshots in docs/assets/ (carried over from upstream; branding inside the images is upstream's).
+This copy has no landing site, guides site, or per-feature docs pages; nothing outside this folder is linked from here. What is here: this README, [CONTRIBUTING.md](CONTRIBUTING.md), and the screenshots in `docs/assets/`, captured from this build.
 
 ## From source
 
@@ -173,10 +173,6 @@ Your code, prompts, threads and files stay where they are: MuseCodeIcon talks to
 your own login, and keeps its state in SQLite beside it. There is no account and no analytics in the app.
 
 This build makes no update-check requests at all: the updater is disabled, so it never contacts a release server, and there is no install-counting telemetry.
-
-## Code signing
-
-Not code signed. The Windows installer triggers a SmartScreen warning (More info → Run anyway), and macOS builds are not Apple-notarized (first launch needs System Settings → Privacy & Security → Open Anyway, or xattr -dr com.apple.quarantine). The bundled Node.js sidecar is never signed.
 
 ## Legal
 
