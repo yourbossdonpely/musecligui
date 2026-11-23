@@ -9,14 +9,13 @@
 
 > **Unofficial community project — not made, endorsed, or supported by Meta. Not affiliated with Meta.**
 
-**Download:** No MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer builds to `apps/desktop/src-tauri/target/release/bundle/nsis/`. (Windows / macOS / Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.)
-
-
-You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. (Per-OS install guides from the upstream site are not included in this copy; install the `muse` CLI from Meta and run `muse login` once.)
-
 </div>
 
 ![MuseCodeIcon: start a thread in a project, dark theme with gold accents](docs/assets/app-home.png)
+
+**Download:** no MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. Windows, macOS and Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.
+
+You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. (Per-OS install guides from the upstream site are not included in this copy; install the `muse` CLI from Meta and run `muse login` once.)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/desktop-Tauri%202-FFC131.svg)](https://tauri.app)
