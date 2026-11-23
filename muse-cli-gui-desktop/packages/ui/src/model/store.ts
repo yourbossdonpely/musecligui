@@ -148,7 +148,8 @@ export const DEFAULT_SIDEBAR_WIDTH = 284;
 export function defaultPrefs(now = new Date().toISOString()): Prefs {
   return {
     groupBy: "project",
-    theme: "system",
+    // Gold on dark is the product default on every platform; light and system stay one click away.
+    theme: "dark",
     codeTheme: "musecodeicon",
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
     sidebarCollapsed: false,

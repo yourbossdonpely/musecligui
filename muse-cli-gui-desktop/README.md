@@ -1,6 +1,11 @@
+<div align="center">
+
+<img src="docs/assets/app-icon.png" alt="MuseCodeIcon app icon" width="112" />
+
 # MuseCodeIcon
 
 **A free, MIT-licensed desktop app (Windows, macOS, Linux) for Meta's Muse Code CLI.**
+**Dark and gold, on every platform.**
 
 > **Unofficial community project — not made, endorsed, or supported by Meta. Not affiliated with Meta.**
 
@@ -9,11 +14,9 @@
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. (Per-OS install guides from the upstream site are not included in this copy; install the `muse` CLI from Meta and run `muse login` once.)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme-hero-dark.png" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/readme-hero-light.png" />
-  <img alt="MuseCodeIcon: open-source desktop & web client for Muse Code" src="docs/assets/readme-hero-light.png" />
-</picture>
+</div>
+
+![MuseCodeIcon: start a thread in a project, dark theme with gold accents](docs/assets/app-home.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/desktop-Tauri%202-FFC131.svg)](https://tauri.app)
@@ -23,24 +26,21 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 
 > **MuseCodeIcon** - home of the Muses. An open-source desktop + web ADE for Meta's **Muse Code CLI** (`muse`), in the spirit of the Claude Code desktop app and the Codex / ChatGPT desktop app.
 
-### MuseCodeIcon in 30 seconds
-
-![MuseCodeIcon: approvals you can read, diffs where the edit happened, and what each thread would have cost](docs/assets/launch.gif)
-
-(Screenshots and the GIF below are carried over from the upstream project (Helicon); branding visible inside the images is upstream's. The cost figures in them are sample data.)
-
 **Sidebar-first:** all projects grouped by working directory, each with its tasks and sessions - resume anything, including sessions started from the `muse` terminal TUI.
 
-![Thread view](docs/assets/thread.png)
+![A thread: readable approvals, diffs where the edit happened, and the files each thread changed](docs/assets/app-thread.png)
 
 <details>
 <summary>Usage and settings</summary>
 
-![Usage: what these threads would have cost at API rates, by day, by model and by thread](docs/assets/usage.png)
+![Usage: what these threads would have cost at API rates, by day, by model and by thread](docs/assets/app-usage.png)
 
-![Settings: theme and code colours, what a new thread starts on, approvals, updates](docs/assets/settings.png)
+![Settings: theme (dark by default), code colours, what a new thread starts on, approvals](docs/assets/app-settings.png)
 
 </details>
+
+> **Colours:** gold on deep charcoal. The app opens in the dark theme on every platform; light and system are two clicks away in Settings → Appearance.
+
 
 > ⚠️ **Unofficial community project.** Not made, endorsed, or supported by Meta. MuseCodeIcon is a client for the **Muse Code CLI**, and is unrelated to the Muse assistant app for Mac. "Muse" and "Muse Code" are trademarks of Meta, used here only to describe what this client connects to. This is **not legal advice** - see [Legal](#legal).
 
@@ -60,10 +60,6 @@ Muse Code today is terminal-only (`muse`, on macOS, Linux and Windows). MuseCode
 - **Goals you can steer** - set, pause, resume, change and clear a `/goal` from the goal panel or the composer
 - **Background work under control** - send a running tool call to the background, stop one, or stop them all; cancel a workflow run, or skip and retry its agents
 - **Reasoning effort that sticks** - applied as the session's own default, which is the level `muse serve` actually uses
-
-![Starting a thread: recent work per project above the composer](docs/assets/home.png)
-
-![The command palette: threads, projects, and actions on Cmd/Ctrl+K](docs/assets/palette.png)
 
 ## Architecture
 

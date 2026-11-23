@@ -8,9 +8,10 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * MuseCodeIcon tokens. Restrained palette: cool-tinted neutrals (hue 255) plus one blue accent,
- * the blue of the app icon, reserved for action, live state and focus. Every text token
- * clears 4.5:1 on every surface in both themes (checked with a WCAG script).
+ * MuseCodeIcon tokens. Dark charcoal neutrals (hue 75, barely warm) plus one gold accent, the gold
+ * of the app icon, reserved for action, live state and focus. Gold and dark are the product's own
+ * colours: the app defaults to the dark theme on every platform. Every text token clears 4.5:1 on
+ * every surface in both themes (checked with a WCAG script).
  */
 :root {
   color-scheme: light;
@@ -27,11 +28,11 @@
   --fg: oklch(0.2 0.01 255);
   --fg-muted: oklch(0.43 0.012 255);
   --fg-subtle: oklch(0.5 0.012 255);
-  --accent: oklch(0.55 0.19 257);
-  --accent-hover: oklch(0.5 0.19 257);
-  --accent-fg: oklch(0.99 0 0);
-  --accent-text: oklch(0.5 0.18 257);
-  --accent-soft: oklch(0.55 0.19 257 / 0.1);
+  --accent: oklch(0.7 0.13 80);
+  --accent-hover: oklch(0.65 0.13 78);
+  --accent-fg: oklch(0.2 0.03 75);
+  --accent-text: oklch(0.48 0.1 72);
+  --accent-soft: oklch(0.7 0.13 80 / 0.14);
   --warn: oklch(0.74 0.16 70);
   --warn-text: oklch(0.5 0.12 65);
   --warn-soft: oklch(0.82 0.15 80 / 0.18);
@@ -57,9 +58,9 @@
   --elev-btn: 0 0 0 1px var(--border-strong), 0 1px 2px oklch(0.2 0.02 255 / 0.06);
   --elev-card: 0 0 0 1px var(--border), 0 1px 2px oklch(0.2 0.02 255 / 0.04), 0 2px 6px oklch(0.2 0.02 255 / 0.04);
   /* First-run folder art (Rare UI FolderComponent), in the accent family. */
-  --folder-back: oklch(0.7 0.13 250);
-  --folder-flap: oklch(0.6 0.15 254 / 0.55);
-  --folder-edge: oklch(0.84 0.08 245);
+  --folder-back: oklch(0.78 0.11 82);
+  --folder-flap: oklch(0.68 0.13 80 / 0.55);
+  --folder-edge: oklch(0.88 0.06 85);
   --folder-page: oklch(0.992 0 0);
   --folder-page-edge: oklch(0.9 0.005 255);
   --folder-line: oklch(0.87 0.006 255);
@@ -68,7 +69,7 @@
   /* A thread waiting on the user's answer, T3 Code's indigo. */
   --status-input: oklch(0.52 0.17 285);
   /* Data colors for the context breakdown: distinct hues at even lightness. */
-  --chart-1: oklch(0.6 0.17 257);
+  --chart-1: oklch(0.68 0.13 80);
   --chart-2: oklch(0.64 0.13 170);
   --chart-3: oklch(0.72 0.15 75);
   --chart-4: oklch(0.6 0.17 305);
@@ -78,10 +79,10 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: oklch(0.178 0.004 255);
-  --bg-sidebar: oklch(0.152 0.004 255);
-  --bg-raised: oklch(0.215 0.005 255);
-  --bg-sunken: oklch(0.148 0.004 255);
+  --bg: oklch(0.165 0.006 75);
+  --bg-sidebar: oklch(0.142 0.006 75);
+  --bg-raised: oklch(0.205 0.007 75);
+  --bg-sunken: oklch(0.135 0.006 75);
   --bg-hover: oklch(0.98 0.005 255 / 0.05);
   --bg-active: oklch(0.98 0.005 255 / 0.085);
   --bg-inverse: oklch(0.95 0.003 255);
@@ -91,11 +92,11 @@
   --fg: oklch(0.955 0.003 255);
   --fg-muted: oklch(0.76 0.008 255);
   --fg-subtle: oklch(0.66 0.009 255);
-  --accent: oklch(0.56 0.18 257); /* 4.6:1 under accent-fg, AA for small text */
-  --accent-hover: oklch(0.63 0.17 257);
-  --accent-fg: oklch(0.99 0 0);
-  --accent-text: oklch(0.76 0.12 252);
-  --accent-soft: oklch(0.62 0.17 257 / 0.16);
+  --accent: oklch(0.79 0.135 85); /* gold; near-black text on it clears AA for small text */
+  --accent-hover: oklch(0.86 0.13 88);
+  --accent-fg: oklch(0.17 0.02 75);
+  --accent-text: oklch(0.86 0.12 88);
+  --accent-soft: oklch(0.8 0.13 88 / 0.16);
   --warn: oklch(0.8 0.15 75);
   --warn-text: oklch(0.83 0.13 80);
   --warn-soft: oklch(0.8 0.15 75 / 0.12);
@@ -120,14 +121,14 @@
   /* In dark mode the ring turns into a faint light edge that melts into the shadow. */
   --elev-btn: 0 0 0 1px oklch(1 0 0 / 0.1), 0 1px 2px oklch(0 0 0 / 0.3);
   --elev-card: 0 0 0 1px oklch(1 0 0 / 0.09), 0 1px 2px oklch(0 0 0 / 0.2), 0 2px 6px oklch(0 0 0 / 0.2);
-  --folder-back: oklch(0.52 0.14 256);
-  --folder-flap: oklch(0.42 0.13 256 / 0.6);
-  --folder-edge: oklch(0.68 0.11 250);
+  --folder-back: oklch(0.62 0.11 82);
+  --folder-flap: oklch(0.5 0.1 80 / 0.6);
+  --folder-edge: oklch(0.75 0.09 85);
   --folder-page: oklch(0.29 0.006 255);
   --folder-page-edge: oklch(0.37 0.008 255);
   --folder-line: oklch(0.44 0.01 255);
   --status-input: oklch(0.76 0.12 285);
-  --chart-1: oklch(0.68 0.15 257);
+  --chart-1: oklch(0.8 0.13 85);
   --chart-2: oklch(0.72 0.12 170);
   --chart-3: oklch(0.8 0.14 78);
   --chart-4: oklch(0.7 0.15 305);

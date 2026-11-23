@@ -62,7 +62,6 @@ export function Sidebar() {
       {overlay ? <TrafficLightsSlot /> : null}
       <SidebarTop newThreadRef={newThreadRef} />
       <ThreadList />
-      <EditorExtensionCard focusAfter={newThreadRef} />
       <SidebarFooter />
       <ResizeHandle />
     </aside>
@@ -862,65 +861,6 @@ function GroupByMenu() {
         </MenuRadioGroup>
       </MenuContent>
     </Menu>
-  );
-}
-
-/** Where the extension is listed: the VS Code Marketplace, and Open VSX for Cursor, Windsurf and the other forks. */
-const EXTENSION_LINKS = [
-  { label: "VS Code", href: "https://marketplace.visualstudio.com/items?itemName=harjjotsinghh.musecodeicon" },
-  { label: "Cursor / Windsurf", href: "https://open-vsx.org/extension/harjjotsinghh/musecodeicon" },
-] as const;
-
-/**
- * A quiet note above the footer that MuseCodeIcon also runs as an editor side panel, shown until it is closed.
- * It stays out of the editor itself, where it would be pointing at the panel it is in, and out of a first
- * launch with no threads yet, where the user has enough to take in. It appears in the same render as the
- * thread list it sits under, so nothing above it moves once the list is up.
- */
-function EditorExtensionCard(props: { focusAfter: { readonly current: HTMLButtonElement | null } }) {
-  const controller = useController();
-  const panel = usePanel();
-  const dismissed = useApp((s) => s.prefs.editorTipDismissed);
-  const hasThreads = useApp((s) => s.sessionsLoaded && Object.keys(s.sessions).length > 0);
-  const card = useRef<HTMLElement>(null);
-  if (panel || isEditorHosted() || dismissed || !hasThreads) {
-    return null;
-  }
-  const dismiss = () => {
-    // Focus moves before the card goes, so it lands on New thread rather than the top of the page.
-    if (card.current?.contains(document.activeElement)) {
-      props.focusAfter.current?.focus({ preventScroll: true });
-    }
-    controller.setPrefs({ editorTipDismissed: true });
-  };
-  return (
-    <div className="shrink-0 px-2 pb-2">
-      <section ref={card} aria-label="Editor extension" className="relative rounded-xl bg-raised py-2.5 pr-8 pl-3 shadow-card">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-fg">
-          <CodeIcon size={13} className="shrink-0 text-subtle" aria-hidden="true" />
-          MuseCodeIcon is in your editor too
-        </p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">A side panel for VS Code, Cursor and Windsurf, with the same threads.</p>
-        <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-          {EXTENSION_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="rounded-sm font-medium text-accent-text underline-offset-2 hover:underline"
-            >
-              {link.label}
-            </a>
-          ))}
-        </p>
-        <Tip label="Dismiss">
-          <IconButton size="xs" label="Dismiss" onClick={dismiss} className="absolute top-1.5 right-1.5">
-            <XIcon size={12} />
-          </IconButton>
-        </Tip>
-      </section>
-    </div>
   );
 }
 

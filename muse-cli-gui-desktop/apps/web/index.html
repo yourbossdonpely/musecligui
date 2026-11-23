@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBFCFE" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101113" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#12100C" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12100C" />
     <title>MuseCodeIcon</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon-32.png" sizes="32x32" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       // Resolve the theme and zoom before first paint so neither flashes its default.
       (function () {
-        var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        var theme = dark ? "dark" : "light";
+        // The app is dark-and-gold on every platform, whatever the OS prefers.
+        var theme = "dark";
         var zoom = 1;
         try {
           var prefs = JSON.parse(localStorage.getItem("musecodeicon.prefs.v1") || "{}");

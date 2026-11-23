@@ -67,7 +67,43 @@ Bulk rename across 95 files, then targeted fixes:
 The GitHub repo path `yourbossdonpely/musecligui` is intentionally preserved
 (it is the repository name, not the product name).
 
-## Step 3 — fetch-node tar fix (Windows)
+## Step 3 — Branding: icon and the dark-and-gold default
+
+### App icon
+
+The icon is generated art (`apps/desktop/assets/icon-source.jpg`, a gold geometric M on a
+charcoal rounded tile, with a small gold spark). Tauri turns it into every platform size:
+
+```bash
+cd apps/desktop
+npx tauri icon assets/icon-source.jpg
+```
+
+That writes `src-tauri/icons/` (`.ico` for Windows, `.icns` for macOS, PNGs, Store/Square logos,
+Android and iOS sets). The same PNGs are reused by the web build:
+`apps/web/public/favicon-32.png`, `favicon.ico`, `apple-touch-icon.png`, `icon-128.png`.
+
+Verified in the built exe with `[System.Drawing.Icon]::ExtractAssociatedIcon(...)`: the gold M is
+the embedded icon. Re-run the command above if the source art changes, then rebuild.
+
+### Dark and gold as the product default
+
+Two changes, so the first paint is already dark:
+
+1. `packages/ui/src/model/store.ts` — `defaultPrefs().theme` is `"dark"` (it was `"system"`).
+   Light and system stay selectable in Settings → Appearance.
+2. `apps/web/index.html` — the pre-paint script sets `data-theme = "dark"` unless stored prefs
+   say otherwise, so nothing flashes light on a light-mode OS. Both `theme-color` metas are
+   `#12100C`.
+3. `apps/web/src/theme.css` — the accent family is gold (`oklch(0.79 0.135 85)` on dark, with
+   near-black `--accent-fg`), the dark neutrals are a barely-warm charcoal (hue 75, `--bg`
+   `oklch(0.165 0.006 75)`), and the first-run folder art and `--chart-1` follow the accent.
+   Light mode keeps the same gold accent on white.
+
+The sidebar's "MuseCodeIcon is in your editor too" card was removed: this copy ships no VS Code
+extension, and the card linked to a marketplace listing that does not exist.
+
+## Step 4 — fetch-node tar fix (Windows)
 
 `apps/desktop/scripts/fetch-node.mjs` downloads Node.js v22.23.2 and extracts
 the zip with `tar`. On a Git Bash machine the first build failed with:
@@ -93,7 +129,7 @@ execFileSync(tarCmd, ["-xf", archive, "-C", cacheDir, `${dist.name}/${dist.membe
 After the fix: `sidecar ready: ...\binaries\node-x86_64-pc-windows-msvc.exe`
 (83 MB, exit 0). Do not revert this — GNU tar cannot extract Windows-path zips.
 
-## Step 4 — Exact build commands and results
+## Step 5 — Exact build commands and results
 
 All commands run from `muse-cli-gui-desktop/` on Windows (Git Bash).
 
@@ -156,7 +192,7 @@ Result: exit 0 (`TAURIEXIT:0`), same NSIS bundle. Full output:
 All build artifacts are gitignored (`**/target/`, `**/src-tauri/binaries/`,
 `apps/desktop/.cache/`, `dist/`, `*.exe`): nothing of the above is committed.
 
-## Step 5 — Tests (for reference only)
+## Step 6 — Tests (for reference only)
 
 `npm run test --workspaces --if-present` (full log: `test.log`):
 
@@ -167,7 +203,7 @@ All build artifacts are gitignored (`**/target/`, `**/src-tauri/binaries/`,
 
 None of the failures are caused by the rename.
 
-## Step 6 — Smoke test
+## Step 7 — Smoke test
 
 Launched `musecodeicon.exe` directly: window title `MuseCodeIcon`, server
 `HTTP 200` on its run port with page `<title>MuseCodeIcon</title>`, no
@@ -182,6 +218,10 @@ away, it still started: `/api/env` → `museFound: false`, `musePath: null`
 npm install
 npm run build
 ```
+
+If the Rust build stops with `called Result::unwrap() on an Err value: Os { code: 5,
+kind: PermissionDenied }` inside `tauri-build`, a copy of the app or its sidecar is still running and
+holding `target/release/node.exe`. Close the app (or stop that node process) and build again.
 
 That produces the NSIS installer. For macOS/Linux bundles, CI runners are
 required (see `.github/workflows/release.yml`, not yet pushed — it needs a
