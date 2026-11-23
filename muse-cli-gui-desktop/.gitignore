@@ -50,6 +50,9 @@ projects/
 **/src-tauri/binaries/
 apps/desktop/.cache/
 
+# Built installers (NSIS setup exes land under target/; never commit them)
+*.exe
+
 # vercel
 .vercel
 landing/seo-data/dashboard.html
