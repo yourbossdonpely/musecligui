@@ -1,0 +1,195 @@
+# MuseCodeIcon — Build Log
+
+How this Windows installer is produced, end to end, from the upstream copy to
+`MuseCodeIcon_0.23.6_x64-setup.exe`. Anyone with these prerequisites can
+reproduce it.
+
+## Prerequisites
+
+| Tool | Version observed |
+|------|------------------|
+| Node.js | v22.23.4 |
+| npm | 10.9.9 |
+| Rust / Cargo | 1.99.0 |
+| `muse` CLI + `muse login` | Required to *run* the app (not to build it) |
+| Tauri system deps (Windows) | WebView2 + MSVC Build Tools (Tauri 2 checks) |
+| Network access | Yes — `fetch:node` downloads Node.js; NSIS is fetched by Tauri |
+
+## Step 1 — What was copied from Helicon (MIT)
+
+Upstream: https://github.com/HarjjotSinghh/helicon (MIT, Copyright 2026 Harjot
+Singh Rana and contributors — see `LICENSE`, unchanged).
+
+This folder (`muse-cli-gui-desktop/`) contains only the desktop pieces,
+extracted with `git archive`:
+
+- `apps/web` — React UI (shared with the browser demo)
+- `apps/desktop` — Tauri 2 shell + Node sidecar scripts
+- `packages/daemon`, `packages/server`, `packages/ui`
+- Root npm files (`package.json`, `package-lock.json`, `tsconfig.base.json`,
+  `.editorconfig`, `.nvmrc`), `LICENSE`, `README.md`, `CONTRIBUTING.md`
+
+Deliberately NOT copied: the landing site, the VS Code extension, docs guides.
+The clone used for the copy (`helicon-clone/`) was deleted afterwards.
+
+### Updater disabled (before the rename)
+
+Helicon ships an in-app updater pointing at `helicon.sh` and Helicon's GitHub
+releases, which a renamed build would pull. Before renaming, the updater was
+removed entirely:
+
+- `apps/web/src/updater.ts` — `desktopUpdater()` returns `undefined`
+- `apps/desktop/src-tauri/src/main.rs` — `.plugin(tauri_plugin_updater…)` removed
+- `apps/desktop/src-tauri/Cargo.toml` — `tauri-plugin-updater` dep removed
+- `apps/desktop/src-tauri/capabilities/main.json` — `updater:default` removed
+- `apps/desktop/src-tauri/tauri.conf.json` — `plugins.updater` and
+  `createUpdaterArtifacts` removed
+
+## Step 2 — Rename to MuseCodeIcon
+
+Bulk rename across 95 files, then targeted fixes:
+
+- `@helicon/` → `@musecodeicon/`; `helicon-desktop` → `musecodeicon-desktop`
+- Identifier `com.helicon.desktop` → `com.musecodeicon.desktop`
+- `helicon://` → `musecodeicon://`; `HELICON_` → `MUSECODEICON_`
+- Display strings "Helicon" → "MuseCodeIcon" (product name, window title,
+  splash page, error pages in `main.rs`)
+- Repo links → `yourbossdonpely/musecligui` (kept as the repo path)
+- Special cases: `MuseCodeIconApp.tsx` (renamed from `HeliconApp.tsx`),
+  class names `MuseCodeIconController/Error/Client/Store/MspHost/Event`
+- `fetch-node.mjs`: sidecar env var `MUSECODEICON_NODE_TARGET`, Linux binary
+  `musecodeicon-node`
+- README disclaimer added: *"Unofficial community project — not made, endorsed,
+  or supported by Meta. Not affiliated with Meta."*
+- Screenshots copied from upstream `docs/assets/` and marked in the README as
+  carried over from upstream (branding inside the images is upstream's)
+
+The GitHub repo path `yourbossdonpely/musecligui` is intentionally preserved
+(it is the repository name, not the product name).
+
+## Step 3 — fetch-node tar fix (Windows)
+
+`apps/desktop/scripts/fetch-node.mjs` downloads Node.js v22.23.2 and extracts
+the zip with `tar`. On a Git Bash machine the first build failed with:
+
+```
+tar: Cannot connect to C: resolve failed
+Error: Command failed: tar -xf C:\dev\…\node-v22.23.2-win-x64.zip …
+  status: 128
+```
+
+Root cause: bare `tar` on PATH is Git Bash GNU tar 1.35, which reads a
+`C:\...` path as a remote archive host. Fix (in `fetch-node.mjs`): on Windows,
+use the system bsdtar explicitly:
+
+```js
+const tarCmd =
+  process.platform === "win32"
+    ? join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe")
+    : "tar";
+execFileSync(tarCmd, ["-xf", archive, "-C", cacheDir, `${dist.name}/${dist.member}`], { stdio: "inherit" });
+```
+
+After the fix: `sidecar ready: ...\binaries\node-x86_64-pc-windows-msvc.exe`
+(83 MB, exit 0). Do not revert this — GNU tar cannot extract Windows-path zips.
+
+## Step 4 — Exact build commands and results
+
+All commands run from `muse-cli-gui-desktop/` on Windows (Git Bash).
+
+### Install
+
+```bash
+npm install
+```
+
+Result: exit 0. Later rerun after the rename:
+`added 5 packages, removed 5 packages, and audited 325 packages in 3s`.
+Full output: `npm-install-musecodeicon.log`.
+
+### Workspace build (includes `tauri build` for the desktop workspace)
+
+```bash
+npm run build
+```
+
+This runs `npm run build --workspaces --if-present`. Output (two runs
+reproduced identically; latest rerun: `build-rerun.log`):
+
+- `@musecodeicon/daemon`, `@musecodeicon/server`, `@musecodeicon/ui` —
+  `tsc -p tsconfig.json`, clean, no errors
+- `musecodeicon-desktop` → `tauri build` → `beforeBuildCommand`:
+  1. `npm run build --workspace @musecodeicon/web` — `tsc -p tsconfig.json && vite build`
+     → `✓ 5490 modules transformed`, `✓ built in 6.85s`, `dist/assets/index-*.js 1,159.86 kB`
+  2. `npm run bundle:server --workspace musecodeicon-desktop`
+     → `src-tauri\resources\server.cjs 501.4kb`
+  3. `npm run fetch:node --workspace musecodeicon-desktop`
+     → `sidecar ready: ...\binaries\node-x86_64-pc-windows-msvc.exe`,
+     `bundled Node.js v22.23.2 for x86_64-pc-windows-msvc`
+- Rust release compile: 24–27s (incremental), 2 pre-existing warnings in
+  `main.rs` (unused `OsString` import, line 8; needless `mut`, line 206) —
+  cosmetic only, not errors
+- NSIS: `Running makensis to produce ...\bundle\nsis\MuseCodeIcon_0.23.6_x64-setup.exe`
+- Exit code: **0** (`BUILDEXIT:0`)
+
+Note: the web workspace builds twice — once inside `beforeBuildCommand` and
+once as the last workspace — because `musecodeicon-desktop build` is
+`tauri build` and the root script builds all workspaces. Normal.
+
+### Tauri build (standalone rerun)
+
+```bash
+cd apps/desktop
+npx tauri build
+```
+
+Result: exit 0 (`TAURIEXIT:0`), same NSIS bundle. Full output:
+`apps/desktop/tauri-build-rerun.log`.
+
+### Artifacts
+
+| Artifact | Size |
+|----------|------|
+| `apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.6_x64-setup.exe` | 28 MB |
+| `apps/desktop/src-tauri/target/release/musecodeicon.exe` | 14 MB |
+
+All build artifacts are gitignored (`**/target/`, `**/src-tauri/binaries/`,
+`apps/desktop/.cache/`, `dist/`, `*.exe`): nothing of the above is committed.
+
+## Step 5 — Tests (for reference only)
+
+`npm run test --workspaces --if-present` (full log: `test.log`):
+
+- `@musecodeicon/ui`: **386 pass, 0 fail**
+- `daemon` 59/61: 2 WSL probe tests (depend on local WSL/muse install state)
+- `server` 207/221: symlink EPERM (needs symlink privilege) + live-`muse` "fetch failed"
+- `web` 70/89: `device`/`tryPage` need the un-copied landing site; `desktop updater` tests fail because the updater is intentionally disabled
+
+None of the failures are caused by the rename.
+
+## Step 6 — Smoke test
+
+Launched `musecodeicon.exe` directly: window title `MuseCodeIcon`, server
+`HTTP 200` on its run port with page `<title>MuseCodeIcon</title>`, no
+splash/error pages. With `%LOCALAPPDATA%\Programs\muse` temporarily renamed
+away, it still started: `/api/env` → `museFound: false`, `musePath: null`
+(onboarding path). Test processes stopped and the muse install restored.
+
+## Reproducing from scratch
+
+```bash
+# from this folder:
+npm install
+npm run build
+```
+
+That produces the NSIS installer. For macOS/Linux bundles, CI runners are
+required (see `.github/workflows/release.yml`, not yet pushed — it needs a
+`workflow`-scopable token; run `gh auth refresh -h github.com -s workflow`,
+then tag a `v*` version to trigger the workflow).
+
+## Unofficial notice
+
+MuseCodeIcon is an unofficial community project. Not made, endorsed, or
+supported by Meta; not affiliated with Meta. "Muse" and "Muse Code" are
+trademarks of Meta, used here only to describe what this client connects to.
