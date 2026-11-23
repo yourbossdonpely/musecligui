@@ -79,7 +79,7 @@ apps/web         same UI against a remote daemon
 - [x] PRD + UX spec (sidebar, session view, diffs, approvals) — upstream docs not included in this copy
 - [x] `packages/daemon` - MSP connect, list/resume sessions, send/steer, approvals
 - [x] `packages/ui` - projects sidebar, session chat, inline diffs, slash commands and skills, goals
-- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation (auto-update disabled in this copy: no updater signing, and it never pulls another project's releases)
+- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation (no updater in this copy: it never pulls another project's releases)
 - [x] `apps/web` - the same UI in a browser against the local server
 - [x] `apps/web` - remote daemon mode
 - [x] Windows end to end (native Muse Code for Windows, or WSL2 Ubuntu)
@@ -147,7 +147,7 @@ npm run dev --workspace musecodeicon-desktop
 
 Releases ride on tags: once the Release workflow is enabled on GitHub, pushing `v0.1.0` builds the Windows installer, then the universal macOS build, then the Linux bundles, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
 
-This build has no auto-update (the updater is disabled, so it never pulls another project's releases). Ship new versions by downloading new installers manually.
+This build has no auto-update at all — there is no updater code in it, so it never pulls another project's releases. Ship new versions by downloading new installers manually.
 
 ## Remote daemon
 
@@ -172,7 +172,7 @@ Browsers only accept cross-site cookies over HTTPS, so a daemon reached from ano
 Your code, prompts, threads and files stay where they are: MuseCodeIcon talks to the `muse` CLI on your own computer, with
 your own login, and keeps its state in SQLite beside it. There is no account and no analytics in the app.
 
-This build makes no update-check requests at all: the updater is disabled, so it never contacts a release server, and there is no install-counting telemetry.
+This build makes no update-check requests at all: no updater ships with it, so it never contacts a release server, and there is no install-counting telemetry.
 
 ## Legal
 

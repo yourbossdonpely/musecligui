@@ -38,7 +38,8 @@ Helicon ships an in-app updater pointing at `helicon.sh` and Helicon's GitHub
 releases, which a renamed build would pull. Before renaming, the updater was
 removed entirely:
 
-- `apps/web/src/updater.ts` — `desktopUpdater()` returns `undefined`
+- `apps/web/src/updater.ts` — `desktopUpdater()` returns `undefined` (the whole update
+  manager was deleted afterwards, see the cleanup pass at the end)
 - `apps/desktop/src-tauri/src/main.rs` — `.plugin(tauri_plugin_updater…)` removed
 - `apps/desktop/src-tauri/Cargo.toml` — `tauri-plugin-updater` dep removed
 - `apps/desktop/src-tauri/capabilities/main.json` — `updater:default` removed
@@ -196,10 +197,10 @@ All build artifacts are gitignored (`**/target/`, `**/src-tauri/binaries/`,
 
 `npm run test --workspaces --if-present` (full log: `test.log`):
 
-- `@musecodeicon/ui`: **386 pass, 0 fail**
+- `@musecodeicon/ui`: **369 pass, 0 fail**
 - `daemon` 59/61: 2 WSL probe tests (depend on local WSL/muse install state)
 - `server` 207/221: symlink EPERM (needs symlink privilege) + live-`muse` "fetch failed"
-- `web` 70/89: `device`/`tryPage` need the un-copied landing site; `desktop updater` tests fail because the updater is intentionally disabled
+- `web` 52/52
 
 None of the failures are caused by the rename.
 
@@ -210,6 +211,45 @@ Launched `musecodeicon.exe` directly: window title `MuseCodeIcon`, server
 splash/error pages. With `%LOCALAPPDATA%\Programs\muse` temporarily renamed
 away, it still started: `/api/env` → `museFound: false`, `musePath: null`
 (onboarding path). Test processes stopped and the muse install restored.
+
+## Step 8 — Cleanup pass: removing what a desktop-only copy cannot use
+
+A fresh-eyes pass over the copy deleted the parts of Helicon's codebase that exist
+for hosts this build does not have. Net change: 37 files, 105 insertions, 2,925
+deletions.
+
+- **The hosted `/try` demo** (`apps/web/src/demo/tryPage.ts`, `tryAnalytics.ts`,
+  `TryBanner.tsx`, `device.ts`, their three test files, the `build:try` script and
+  the `tryHtml` Vite plugin). It builds a page for the landing site, which is not
+  in this copy, and it was the only thing keeping `VITE_TRY` branches in
+  `main.tsx`. The local demo client (`npm run dev:demo`) stays.
+- **The updater**: `packages/ui/src/model/updates.ts` (the whole `UpdateManager`),
+  `apps/web/src/updater.ts`, `controller.attachUpdater` and its
+  check/download/restart/pref methods, the `updates`, `autoUpdate` and
+  `updatesPaused` state, the Settings “Updates” section, the sidebar update menu
+  and its dot, the palette commands, and two test files. With the Tauri plugin
+  gone there was nothing left to drive any of it.
+- **The editor-extension framing protocol** (`app/host.ts`, 345 lines): theme
+  forwarding from a parent page, `postMessage` commands, the framed-page clipboard
+  workaround, and `setEditorHosted`. All of it talked to an editor extension that
+  is not part of this build. `copyText` survives on its own in
+  `app/clipboard.ts`.
+- **The compact panel layout** (`components/panel/Panel.tsx`, `app/panel.ts`,
+  `--view=panel`): the editor side panel. With the host gone nothing could open
+  it, and it was the only reason `Onboarding`, `BootError` and `ThreadView` had
+  `compact`/`bare` variants — those are gone too, so each screen has one shape.
+- **Small leftovers**: the “MuseCodeIcon is in your editor too” prefs flag, the
+  `?host=editor`/`?theme=`/`?view=panel` URL options, `setExternalFileOpener`,
+  the `@tauri-apps/plugin-updater` dependency, two Rust warnings (a split
+  `node_candidates()` replaces the `mut` that was unused off Unix).
+
+Verified after the cuts: `tsc --noEmit` clean for `packages/ui` and `apps/web`;
+`npm run build` exit 0 with no Rust warnings; installer rebuilt
+(`MuseCodeIcon_0.23.6_x64-setup.exe`, 27 MB); the app launched, its window titled
+`MuseCodeIcon`, its server answered `<title>MuseCodeIcon</title>` and `/api/env`
+reported `museFound: true, museSignedIn: true`. Tests: `@musecodeicon/ui`
+369/369, `@musecodeicon/web` 52/52; `server` and `daemon` keep only their
+environment-bound failures (symlink `EPERM` without developer mode, WSL probes).
 
 ## Reproducing from scratch
 

@@ -66,18 +66,12 @@ describe("newEntries", () => {
 });
 
 describe("runningVersion", () => {
-  it("uses the version a self-updating shell reports", () => {
-    assert.equal(runningVersion({ currentVersion: "0.14.1" }, entries), "0.14.1");
+  it("is the newest built-in entry", () => {
+    assert.equal(runningVersion(entries), "0.14.2");
   });
 
-  it("waits for that shell rather than guessing", () => {
-    assert.equal(runningVersion({ currentVersion: null }, entries), null);
-  });
-
-  it("is the newest built-in entry where nothing reports one, as in the browser and the editor", () => {
-    assert.equal(runningVersion(null, entries), "0.14.2");
-    assert.equal(runningVersion(undefined, entries), "0.14.2");
-    assert.equal(runningVersion(null, []), null);
+  it("is null with no entries at all", () => {
+    assert.equal(runningVersion([]), null);
   });
 });
 

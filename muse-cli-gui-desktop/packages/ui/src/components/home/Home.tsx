@@ -272,15 +272,14 @@ export function SignInCard(props: { className?: string }) {
   );
 }
 
-/** The setup screen. `compact` fits it in a narrow editor side panel: no logo, smaller heading, less padding. */
-export function Onboarding(props: { compact?: boolean }) {
+/** The setup screen: what to install, in order, with the command to run for each step. */
+export function Onboarding() {
   const controller = useController();
   const env = useApp((s) => s.env);
   const checking = useApp((s) => s.boot === "loading");
   if (!env) {
     return null;
   }
-  const compact = props.compact ?? false;
   const windows = env.platform === "win32";
   const install = INSTALL_WINDOWS;
   const steps: Step[] = [];
@@ -322,18 +321,16 @@ export function Onboarding(props: { compact?: boolean }) {
     command: "muse login",
   });
   return (
-    <div className={cn("flex h-full items-center justify-center overflow-y-auto bg-bg", compact ? "px-4 py-6" : "px-6 py-10")}>
+    <div className="flex h-full items-center justify-center overflow-y-auto bg-bg px-6 py-10">
       <div className="w-full max-w-[560px]">
-        {compact ? null : <Logo size={40} />}
-        <h1 className={compact ? "text-lg font-medium text-fg text-balance" : cn(DISPLAY, "mt-7")}>
-          {compact ? "Set up Muse Code to use this panel" : "Set up Muse"}
-        </h1>
-        <p className={cn("leading-relaxed text-muted", compact ? "mt-2 text-sm" : "mt-3 text-md")}>
+        <Logo size={40} />
+        <h1 className={cn(DISPLAY, "mt-7")}>Set up Muse</h1>
+        <p className="mt-3 text-md leading-relaxed text-muted">
           MuseCodeIcon drives the Muse Code CLI on this computer. Finish these steps, then check again.
         </p>
-        <ol className={cn("flex flex-col gap-2.5", compact ? "mt-5" : "mt-8")}>
+        <ol className="mt-8 flex flex-col gap-2.5">
           {steps.map((step, index) => (
-            <li key={step.title} className={cn("flex rounded-xl bg-raised shadow-[0_0_0_1px_var(--border)]", compact ? "gap-3 p-3" : "gap-3.5 p-4")}>
+            <li key={step.title} className="flex gap-3.5 rounded-xl bg-raised p-4 shadow-[0_0_0_1px_var(--border)]">
               <span
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
@@ -430,16 +427,15 @@ export function BootScreen() {
   );
 }
 
-/** The boot failure screen. `compact` fits it in a narrow editor side panel. */
-export function BootError(props: { compact?: boolean }) {
+/** The boot failure screen: the server never answered. */
+export function BootError() {
   const controller = useController();
   const message = useApp((s) => s.bootError);
-  const compact = props.compact ?? false;
   return (
-    <div className={cn("flex h-full items-center justify-center bg-bg", compact ? "px-4" : "px-6")}>
+    <div className="flex h-full items-center justify-center bg-bg px-6">
       <div className="w-full max-w-[480px]">
-        {compact ? null : <Logo size={36} />}
-        <h1 className={compact ? "text-lg font-medium text-fg text-balance" : cn(DISPLAY, "mt-6 text-3xl")}>
+        <Logo size={36} />
+        <h1 className={cn(DISPLAY, "mt-6 text-3xl")}>
           MuseCodeIcon could not reach its server
         </h1>
         <p className="mt-3 text-sm break-words text-muted">{message ?? "The local MuseCodeIcon server did not answer."}</p>

@@ -1,4 +1,4 @@
-import { copyText } from "../../app/host.js";
+import { copyText } from "../../app/clipboard.js";
 import { CheckIcon, CopyIcon } from "./icons.js";
 import { Children, createContext, isValidElement, memo, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { looksLikeFilePath, type FileTarget } from "../../model/files.js";

@@ -55,7 +55,8 @@ Helicon ships an in-app updater pointing at `helicon.sh` and Helicon's GitHub
 releases — a renamed build would silently pull *their* updates. Removed
 entirely, before the rename:
 
-- `apps/web/src/updater.ts` — `desktopUpdater()` returns `undefined`
+- `apps/web/src/model/updates.ts`, `apps/web/src/updater.ts` — the update manager and
+  the shell hookup deleted, with the Settings/command-palette/footer rows they fed
 - `apps/desktop/src-tauri/src/main.rs` — `.plugin(tauri_plugin_updater…)` removed
 - `apps/desktop/src-tauri/Cargo.toml` — `tauri-plugin-updater` dependency removed
 - `apps/desktop/src-tauri/capabilities/main.json` — `updater:default` removed
@@ -146,13 +147,11 @@ process, then rebuild.
 
 `npm run test --workspaces --if-present`:
 
-- `@musecodeicon/ui` — **386 pass, 0 fail**
+- `@musecodeicon/ui` — **369 pass, 0 fail**
 - `@musecodeicon/daemon` — 59/61 (2 WSL-probe tests depend on local WSL state)
 - `@musecodeicon/server` — 207/221 (symlink-EPERM tests need symlink privilege;
   "fetch failed" tests need a live `muse` server)
-- `@musecodeicon/web` — 70/89 (`device`/`tryPage` compare against the landing
-  site, which is not in this copy; `desktop updater` tests fail because the
-  updater is intentionally disabled)
+- `@musecodeicon/web` — **52 pass, 0 fail**
 
 None of the failures come from the rename or the rebrand.
 
@@ -174,6 +173,30 @@ restored.
   are expected on first launch.
 - **Published releases**: none. There are no tags or release assets for
   MuseCodeIcon.
+
+## 9. Cleanup pass (desktop-only scope)
+
+Once the copy was building, a review removed the parts of Helicon that exist only
+for hosts this build does not have — 37 files, 105 insertions, 2,925 deletions:
+
+| Removed | Why |
+|---------|-----|
+| Hosted `/try` demo: `demo/tryPage.ts`, `tryAnalytics.ts`, `TryBanner.tsx`, `device.ts`, 3 test files, `build:try`, the Vite `tryHtml` plugin | It builds a page for the landing site, which is not in this copy |
+| The updater: `model/updates.ts`, `apps/web/src/updater.ts`, `attachUpdater`, the `updates`/`autoUpdate`/`updatesPaused` state, Settings and sidebar rows, palette items, 2 test files | The Tauri updater plugin is gone, so nothing could drive it |
+| The editor-extension protocol: `app/host.ts` theme forwarding, `postMessage` commands, framed-page clipboard, `setEditorHosted` | Nothing frames this app; no extension ships in this copy |
+| The compact panel layout: `components/panel/Panel.tsx`, `app/panel.ts`, `?view=panel`, the `compact`/`bare` screen variants | It was the editor side panel; unreachable without a host |
+| Leftovers: the editor-tip pref, `?host=editor`/`?theme=` options, `setExternalFileOpener`, `@tauri-apps/plugin-updater`, two Rust warnings | Dead once the host and updater were gone |
+
+`copyText` moved to `apps/web`-side `packages/ui/src/app/clipboard.ts` and keeps
+the plain clipboard API. Details are in
+[`muse-cli-gui-desktop/BUILD-LOG.md`](muse-cli-gui-desktop/BUILD-LOG.md).
+
+After the cuts: `tsc --noEmit` clean for both packages, `npm run build` exit 0
+with no Rust warnings, installer rebuilt (27 MB), app launched and served
+`<title>MuseCodeIcon</title>` with `/api/env` reporting `museFound: true` and
+`museSignedIn: true`. Tests: ui 369/369, web 52/52; server and daemon keep only
+their environment-bound failures (symlink `EPERM` without developer mode, WSL
+probes).
 
 ## 10. Reproducing
 

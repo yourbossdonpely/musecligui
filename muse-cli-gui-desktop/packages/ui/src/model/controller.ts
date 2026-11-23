@@ -69,7 +69,6 @@ import {
   type Toast,
 } from "./store.js";
 import { NotificationManager, type Notifier } from "./notify.js";
-import { UpdateManager, type AppUpdater } from "./updates.js";
 
 /** The environment the controller runs in; injectable so the logic stays testable without a DOM. */
 export interface Platform {
@@ -316,7 +315,6 @@ export class MuseCodeIconController {
   /** The main route Back leaves the settings/usage pages for; cleared once back on a main route. */
   private returnRoute: Route | null = null;
 
-  private updates: UpdateManager | null = null;
   private notifications: NotificationManager | null = null;
   /** Kept as well as the manager, because asking for permission is the shell's job, not the manager's. */
   private notifier: Notifier | null = null;
@@ -349,10 +347,6 @@ export class MuseCodeIconController {
         }
       }),
     );
-    if (this.updates) {
-      this.updates.start();
-      this.disposers.push(() => this.updates?.stop());
-    }
     this.scheduleStaleCheck();
     void this.boot(false);
     return () => this.dispose();
@@ -382,53 +376,6 @@ export class MuseCodeIconController {
     this.setPrefs({ notifications: true });
   }
 
-  /** The desktop shell's updater. Call before `start`; a browser never has one. */
-  attachUpdater(updater: AppUpdater): void {
-    this.updates = new UpdateManager(
-      updater,
-      () => ({ autoUpdate: this.state.prefs.autoUpdate, paused: this.state.prefs.updatesPaused }),
-      (next) => {
-        const previous = this.state.updates?.status;
-        this.update((s) => ({ ...s, updates: next }));
-        if (next.status === "ready" && previous !== "ready") {
-          this.toast(
-            "info",
-            `MuseCodeIcon ${next.update?.version ?? ""} is ready`,
-            this.state.prefs.autoUpdate && !this.state.prefs.updatesPaused ? "It installs when you close MuseCodeIcon." : "Restart MuseCodeIcon to install it.",
-            { label: "Restart now", run: () => this.restartToUpdate() },
-          );
-        }
-      },
-      () => this.platform.now(),
-    );
-    this.update((s) => ({ ...s, updates: this.updates?.current ?? null }));
-  }
-
-  checkForUpdates(): void {
-    void this.updates?.check(true);
-  }
-
-  downloadUpdate(): void {
-    void this.updates?.download();
-  }
-
-  restartToUpdate(): void {
-    void this.updates?.restart();
-  }
-
-  setAutoUpdate(autoUpdate: boolean): void {
-    this.setPrefs({ autoUpdate });
-    if (autoUpdate && !this.state.prefs.updatesPaused) {
-      void this.updates?.download();
-    }
-  }
-
-  setUpdatesPaused(updatesPaused: boolean): void {
-    this.setPrefs({ updatesPaused });
-    if (!updatesPaused) {
-      void this.updates?.check();
-    }
-  }
 
   dispose(): void {
     this.disposed = true;
@@ -3062,10 +3009,6 @@ export class MuseCodeIconController {
     if (!cwd || !target || !target.path) {
       return false;
     }
-    if (this.externalFileOpener) {
-      this.externalFileOpener(cwd, target.path, line ?? target.line);
-      return true;
-    }
     this.patchPanel(sessionId, (panel) => ({
       tabs: panel.tabs.includes(target.path) ? panel.tabs : [...panel.tabs, target.path],
       active: target.path,
@@ -3076,13 +3019,6 @@ export class MuseCodeIconController {
       this.setPrefs({ filesOpen: true });
     }
     return true;
-  }
-
-  /** Set when a host (an editor extension) opens files itself: file links then go there, not to the viewer. */
-  private externalFileOpener: ((cwd: string, path: string, line: LineRange | null) => void) | null = null;
-
-  setExternalFileOpener(opener: ((cwd: string, path: string, line: LineRange | null) => void) | null): void {
-    this.externalFileOpener = opener;
   }
 
   showFileTree(sessionId: string, tree: boolean): void {

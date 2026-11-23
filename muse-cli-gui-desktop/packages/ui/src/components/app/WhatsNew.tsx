@@ -11,13 +11,12 @@ const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
  * card in the toast stack with a few headlines and a link to the full notes. The notes are built
  * in, so this costs no request and says the same thing offline; opening it sends nothing.
  *
- * The desktop shell reports the version it runs; the browser and the editor extension run the
- * interface they were built with. A first run records the version and stays quiet: there is
- * nothing to have missed.
+ * The notes are built in with the interface, so the running version is the newest entry. A first
+ * run records the version and stays quiet: there is nothing to have missed.
  */
 export function WhatsNew() {
   const controller = useController();
-  const current = useApp((s) => runningVersion(s.updates));
+  const current = useApp((s) => runningVersion());
   const seen = useApp((s) => s.prefs.lastSeenVersion);
   const asked = useApp((s) => s.whatsNewOpen);
   const [dismissed, setDismissed] = useState(false);

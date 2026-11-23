@@ -1,4 +1,4 @@
-import { copyText } from "../../app/host.js";
+import { copyText } from "../../app/clipboard.js";
 import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TreeStructureIcon } from "../ui/icons.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
@@ -24,8 +24,7 @@ import { Transcript } from "./Transcript.js";
 import { ChangedFiles } from "./ChangedFiles.js";
 import { Monitors } from "./Monitors.js";
 
-/** `bare` drops the header and the files panel, for the compact panel whose tabs stand in for the header. */
-export function ThreadView(props: { sessionId: string; bare?: boolean }) {
+export function ThreadView(props: { sessionId: string }) {
   const session = useApp((s) => s.sessions[props.sessionId] ?? null);
   const thread = useApp((s) => s.threads[props.sessionId] ?? null);
   const filesOpen = useApp((s) => s.prefs.filesOpen);
@@ -44,13 +43,13 @@ export function ThreadView(props: { sessionId: string; bare?: boolean }) {
       className="flex h-full min-w-0 flex-1 flex-col overflow-hidden outline-none"
     >
       <ThreadAnnouncements sessionId={props.sessionId} />
-      {props.bare ? null : <ThreadHeader session={session} thread={thread} running={running} />}
+      <ThreadHeader session={session} thread={thread} running={running} />
       <div className="flex min-h-0 flex-1">
         <div className="@container flex min-w-0 flex-1 flex-col">
           {thread ? <Transcript sessionId={props.sessionId} thread={thread} /> : <div className="min-h-0 flex-1" />}
           <Dock session={session} thread={thread} running={running} />
         </div>
-        {filesOpen && !props.bare ? (ssh ? <SshFilesNote /> : <FilesPanel sessionId={props.sessionId} cwd={session.cwd} />) : null}
+        {filesOpen ? ssh ? <SshFilesNote /> : <FilesPanel sessionId={props.sessionId} cwd={session.cwd} /> : null}
       </div>
     </section>
   );

@@ -12,13 +12,8 @@ import { cn, isMac } from "../components/ui/primitives.js";
 import { Toasts } from "../components/ui/Toasts.js";
 import { MuseCodeIconController, type Platform } from "../model/controller.js";
 import type { Notifier } from "../model/notify.js";
-import type { AppUpdater } from "../model/updates.js";
 import { zoomStepFromKey, type ZoomStep } from "../model/zoom-shortcut.js";
 import { ControllerProvider, useApp, useController } from "./context.js";
-import { PanelContext, type PanelMode } from "./panel.js";
-import { installEditorClipboard, postToHost, setEditorHosted, useHostTheme } from "./host.js";
-import { catchOutsideLinks } from "./links.js";
-import { PanelShell } from "../components/panel/Panel.js";
 import { FrameProvider, FrameStrip, WindowControls, type WindowFrame } from "./frame.js";
 import { FocusKeeper, LiveAnnouncer, announce } from "./a11y.js";
 
@@ -37,16 +32,8 @@ export interface MuseCodeIconAppProps {
   frame?: WindowFrame;
   /** Present when the shell overlays macOS traffic lights on the UI instead of a title bar. */
   titlebarOverlay?: boolean;
-  /** Present when the shell can update itself. */
-  updater?: AppUpdater;
   /** How this shell raises a system notification; absent where it cannot. */
   notifier?: Notifier;
-  /** The compact layout for a narrow host, such as an editor extension's side panel. */
-  panel?: PanelMode;
-  /** The host's color scheme, when it has its own (an editor theme); overrides the system one. */
-  hostTheme?: "light" | "dark";
-  /** The page is framed by an editor, which opens files a reply names in its own tabs. */
-  editorHost?: boolean;
 }
 
 export type MenuCommand = "new-thread" | "settings";
@@ -55,52 +42,35 @@ export type MenuCommand = "new-thread" | "settings";
 export function MuseCodeIconApp(props: MuseCodeIconAppProps) {
   const [controller] = useState(() => {
     const created = new MuseCodeIconController(props.client, props.platform);
-    if (props.updater) {
-      created.attachUpdater(props.updater);
-    }
     if (props.notifier) {
       created.attachNotifier(props.notifier);
-    }
-    if (props.editorHost) {
-      setEditorHosted(true);
-      created.setExternalFileOpener((cwd, path, line) => postToHost({ type: "musecodeicon-command", command: "openFile", args: { cwd, path, line } }));
     }
     return created;
   });
   useEffect(() => controller.start(), [controller]);
-  useEffect(() => (props.editorHost ? installEditorClipboard(isMac) : undefined), [props.editorHost]);
-  // The editor's webview drops link clicks from a framed page, so outside links go through the editor instead.
-  useEffect(
-    () => (props.editorHost ? catchOutsideLinks((url) => postToHost({ type: "musecodeicon-command", command: "openExternal", args: { url } })) : undefined),
-    [props.editorHost],
-  );
-  const hostTheme = useHostTheme(props.hostTheme);
-  const panel = props.panel ?? null;
   return (
     <ControllerProvider controller={controller}>
-      <PanelContext.Provider value={panel}>
-        <FrameProvider frame={props.frame} overlay={props.titlebarOverlay}>
-          <TooltipProvider>
-            <ThemeSync hostTheme={hostTheme} />
-            <ZoomSync />
-            <GlobalShortcuts panel={panel !== null} />
-            {panel ? <PanelShell /> : <Shell />}
-            {panel ? null : <CommandPalette />}
-            {panel ? null : <AddProjectDialog />}
-            <Toasts
-              leading={
-                <Suspense fallback={null}>
-                  <WhatsNew />
-                </Suspense>
-              }
-            />
-            <WindowControls />
-            <LiveAnnouncer />
-            <RouteAnnouncer />
-            <FocusKeeper />
-          </TooltipProvider>
-        </FrameProvider>
-      </PanelContext.Provider>
+      <FrameProvider frame={props.frame} overlay={props.titlebarOverlay}>
+        <TooltipProvider>
+          <ThemeSync />
+          <ZoomSync />
+          <GlobalShortcuts />
+          <Shell />
+          <CommandPalette />
+          <AddProjectDialog />
+          <Toasts
+            leading={
+              <Suspense fallback={null}>
+                <WhatsNew />
+              </Suspense>
+            }
+          />
+          <WindowControls />
+          <LiveAnnouncer />
+          <RouteAnnouncer />
+          <FocusKeeper />
+        </TooltipProvider>
+      </FrameProvider>
     </ControllerProvider>
   );
 }
@@ -134,10 +104,8 @@ function RouteAnnouncer() {
   return null;
 }
 
-function ThemeSync(props: { hostTheme: "light" | "dark" | null }) {
-  const pref = useApp((s) => s.prefs.theme);
-  // A host theme stands in for "system": an explicit light or dark choice in Settings still wins.
-  const theme = pref === "system" && props.hostTheme ? props.hostTheme : pref;
+function ThemeSync() {
+  const theme = useApp((s) => s.prefs.theme);
   const codeTheme = useApp((s) => s.prefs.codeTheme);
   useEffect(() => {
     document.documentElement.dataset["codeTheme"] = codeTheme;
@@ -205,14 +173,10 @@ function applyZoomStep(controller: MuseCodeIconController, step: ZoomStep) {
   }
 }
 
-function GlobalShortcuts(props: { panel: boolean }) {
+function GlobalShortcuts() {
   const controller = useController();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // Inside an editor the editor owns these chords (Cmd+B, Cmd+K, Cmd+Shift+E...); only zoom stays.
-      if (props.panel && !zoomStepFromKey(event, isMac)) {
-        return;
-      }
       const mod = isMac ? event.metaKey : event.ctrlKey;
       const key = event.key.toLowerCase();
       const zoom = zoomStepFromKey(event, isMac);
@@ -284,7 +248,7 @@ function GlobalShortcuts(props: { panel: boolean }) {
       window.removeEventListener("musecodeicon-zoom-step", onMenuZoom);
       window.removeEventListener("musecodeicon-menu", onMenu);
     };
-  }, [controller, props.panel]);
+  }, [controller]);
   return null;
 }
 

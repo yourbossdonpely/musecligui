@@ -44,13 +44,6 @@ npm run dev --workspace @musecodeicon/web
 # open http://localhost:5173
 ```
 
-### The website (github.com/yourbossdonpely/musecligui)
-
-```bash
-cd landing && npm install && npm run dev
-# open http://localhost:3000
-```
-
 ### The desktop app
 
 ```bash
@@ -67,9 +60,8 @@ Needs [the Tauri prerequisites](https://tauri.app/start/prerequisites/) for your
 | `packages/server` | The local HTTP + SSE API the UI talks to |
 | `packages/daemon` | Runs `muse serve` and speaks MSP (JSON-RPC over stdio) through `@muse-code/sdk` |
 | `apps/web` | The Vite entry for the browser build, plus demo mode (`src/demo`) |
-| `apps/desktop` | The Tauri 2 shell (Rust), installers and updater |
-| `landing` | github.com/yourbossdonpely/musecligui, a Next.js site |
-| `docs` | Design system ([DESIGN.md](docs/DESIGN.md)), changelog, assets |
+| `apps/desktop` | The Tauri 2 shell (Rust) and installers |
+| `docs/assets` | Screenshots used by this README |
 
 ## Tests
 
@@ -79,8 +71,7 @@ Run these for the workspaces you touched. None of them need Muse.
 npm run test --workspace @musecodeicon/ui       # about 250 tests, under 10 s
 npm run test --workspace @musecodeicon/server
 npm run test --workspace @musecodeicon/daemon
-npm run test --workspace @musecodeicon/web      # build @musecodeicon/ui first
-cd landing && npm test                     # the website
+npm run test --workspace @musecodeicon/web
 ```
 
 CI runs the same on Windows, macOS and Linux, and checks the desktop crate with `cargo check` and `cargo test`.
@@ -91,7 +82,7 @@ For UI changes, check light and dark themes and a narrow window, and add a scree
 
 - One change per PR, linked to an issue, with tests where the change has logic in it.
 - Commit subjects are short and plain, and say what changed: `Keep focus in the sidebar after renaming a project`. Add a body only when the "why" isn't obvious.
-- Merged PRs are credited by handle in the [changelog](docs/CHANGELOG.md) and the release notes.
+- Merged PRs are credited by handle in the release notes.
 
 ## Hacktoberfest
 
@@ -112,10 +103,10 @@ Using AI tools is fine. Understanding and testing what you submit is on you.
 2. Don't use the `Muse` mark in new binary names, bundle IDs, domains or titles.
 3. Never commit credentials (`auth.json`, `.env`, API keys). Use your own `muse login`.
 4. Never bypass approvals or billing. Surface approval modes honestly.
-5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecligui/security/advisories/new), not an issue. See [SECURITY.md](SECURITY.md).
+5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecligui/security/advisories/new), not an issue.
 
-Everyone here follows the [code of conduct](CODE_OF_CONDUCT.md).
+Everyone here is expected to be civil and to assume good faith.
 
 ## Versioning
 
-Semver. Every release gets a git tag and a GitHub Release with binaries. Merged PRs with considerable work bump at least the patch version; routine work never bumps major. The maintainer cuts releases.
+Semver. The app never updates itself, so a new version is a hand-built installer and a bumped version in `apps/desktop/src-tauri/tauri.conf.json`. Merged PRs with considerable work bump at least the patch version; routine work never bumps major. The maintainer cuts releases.

@@ -5,7 +5,7 @@
 #[cfg(windows)]
 mod redraw;
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
@@ -21,8 +21,8 @@ use tauri::Emitter;
 
 struct ServerChild(Arc<Mutex<Option<Child>>>);
 
-/// Stops the local server when Tauri clears its resources, which the updater does right before it
-/// quits the app to run the installer; a normal close stops it in the window's Destroyed handler.
+/// Stops the local server when Tauri clears its resources, for instance if the app exits without
+/// running the window's Destroyed handler.
 struct ServerGuard(Arc<Mutex<Option<Child>>>);
 
 impl tauri::Resource for ServerGuard {}
@@ -203,29 +203,38 @@ fn find_node() -> Option<PathBuf> {
     if let Some(bundled) = bundled_node().filter(|node| node_runs(node)) {
         return Some(bundled);
     }
+    node_candidates().into_iter().find(|candidate| node_runs(candidate))
+}
+
+/// Where else to look when no bundled Node.js runs. Windows has nothing beyond the bundled copy and
+/// PATH, so it only needs plain `node`.
+#[cfg(not(unix))]
+fn node_candidates() -> Vec<PathBuf> {
+    vec![PathBuf::from("node")]
+}
+
+#[cfg(unix)]
+fn node_candidates() -> Vec<PathBuf> {
     let mut candidates = vec![PathBuf::from("node")];
-    #[cfg(unix)]
-    {
-        if let Some(found) = shell_probe("/bin/sh", &["-lc", "command -v node"]) {
-            candidates.push(found);
-        }
-        if let Ok(shell) = std::env::var("SHELL") {
-            if shell != "/bin/sh" {
-                // Login plus interactive, so .zshrc-style rc files run and managers like fnm, nvm,
-                // volta and mise put their node on PATH.
-                let probe = if shell.ends_with("csh") {
-                    "which node"
-                } else {
-                    "command -v node"
-                };
-                if let Some(found) = shell_probe(&shell, &["-li", "-c", probe]) {
-                    candidates.push(found);
-                }
+    if let Some(found) = shell_probe("/bin/sh", &["-lc", "command -v node"]) {
+        candidates.push(found);
+    }
+    if let Ok(shell) = std::env::var("SHELL") {
+        if shell != "/bin/sh" {
+            // Login plus interactive, so .zshrc-style rc files run and managers like fnm, nvm,
+            // volta and mise put their node on PATH.
+            let probe = if shell.ends_with("csh") {
+                "which node"
+            } else {
+                "command -v node"
+            };
+            if let Some(found) = shell_probe(&shell, &["-li", "-c", probe]) {
+                candidates.push(found);
             }
         }
-        candidates.extend(well_known_nodes());
     }
-    candidates.into_iter().find(|candidate| node_runs(candidate))
+    candidates.extend(well_known_nodes());
+    candidates
 }
 
 /// Runs one shell probe with a timeout: rc files can hang, and boot must not hang with them.

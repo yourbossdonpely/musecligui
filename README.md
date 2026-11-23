@@ -44,7 +44,7 @@ A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` pe
 - **Your real plan meter** and a **usage page** with what each thread would have cost
 - **Goals, background workflows, slash commands, skills, reasoning effort, command palette**
 - **Dark and gold by default** on every platform; light and system are one click away in Settings → Appearance
-- **No auto-update**: the updater is disabled in this copy, so it never contacts a release server or pulls another project's releases
+- **No auto-update**: this copy has no updater at all, so it never contacts a release server or pulls another project's releases
 
 Screenshots, the feature detail and the full caveat list live in [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). How it was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).
 
