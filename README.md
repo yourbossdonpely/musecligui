@@ -20,6 +20,57 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 
 **Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
 
+> ⚠️ **Unofficial community project.** Neither app in this repo is made, endorsed, or supported by Meta, and neither is affiliated with Meta. "Muse" and "Muse Code" are trademarks of Meta, used here only to describe what these apps connect to. Muse Code itself is terminal-only and closed to third-party clients; both apps here simply drive the official `muse` CLI with your own login.
+
+## 🧭 Two apps in this repo
+
+| App | Where | What it is |
+|-----|-------|------------|
+| **MuseCodeIcon** | [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) | A standalone **desktop app** (Tauri 2: Windows, macOS, Linux) for the `muse` CLI. Gold on deep charcoal, dark theme by default. Projects → threads → turns, readable approvals, inline diffs, file viewer, plan/usage meters, goals, background workflows, command palette. |
+| **Muse CLI GUI** (the bridge GUI) | repo root (this README) | The portable Windows GUI + WebSocket bridge described below: agent chat, file browser, browser/research panel, and an OpenAI-compatible API on `localhost:8766`. |
+
+The desktop app is the newer one and the one to reach for on a desktop. The bridge GUI below still works and is unchanged.
+
+## 🖥️ MuseCodeIcon — the desktop app
+
+![MuseCodeIcon: start a thread in a project, dark theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
+
+A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. The desktop installers bundle their own Node.js, so the only thing you need installed is the official `muse` CLI with `muse login` done once — the app reads that login and never stores credentials of its own.
+
+- **Projects** grouped by working directory, each with its threads; sessions started in the `muse` terminal appear too
+- **Threads** with full history, resume, live streaming replies, tool cards, and inline diffs
+- **Approvals** shown honestly (allow once / allow all / reject) — never bypassed
+- **A file viewer** beside the thread: source, Markdown, images, video, PDFs
+- **Your real plan meter** and a **usage page** with what each thread would have cost
+- **Goals, background workflows, slash commands, skills, reasoning effort, command palette**
+- **Dark and gold by default** on every platform; light and system are one click away in Settings → Appearance
+- **No auto-update**: the updater is disabled in this copy, so it never contacts a release server or pulls another project's releases
+
+Screenshots, the feature detail and the full caveat list live in [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). How it was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).
+
+### Build MuseCodeIcon (Windows installer)
+
+Prerequisites: **Node.js 22+**, **Rust stable** with the MSVC toolchain, **WebView2** (ships with Windows 10/11), and network access for the bundled Node.js sidecar. `muse` is needed to *run* the app, not to build it.
+
+```bash
+cd muse-cli-gui-desktop
+npm install
+npm run build
+```
+
+`npm run build` compiles the daemon, server and UI, builds the web assets, bundles the sidecar Node.js, then runs `tauri build`. Results:
+
+| Output | Path |
+|--------|------|
+| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.6_x64-setup.exe` (≈27 MB) |
+| App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
+
+The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles have to be built on those platforms (or in CI); only the Windows build has been produced and tested here.
+
+Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
+
+## Muse CLI GUI — the bridge GUI
+
 ## Features
 
 | Area | What it does |
@@ -263,5 +314,4 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 
 ---
 
-**Project:** Muse CLI GUI — AI coding agent GUI for the Meta Muse Code CLI
-(portable — runs from wherever it is cloned or unzipped)
+**Projects:** Muse CLI GUI — the portable bridge GUI in this folder — and **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/`. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
