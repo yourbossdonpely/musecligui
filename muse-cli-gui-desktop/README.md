@@ -4,11 +4,10 @@
 
 > **Unofficial community project — not made, endorsed, or supported by Meta. Not affiliated with Meta.**
 
-**Download:** [Windows](https://github.com/yourbossdonpely/musecligui/releases/latest) · [macOS](https://github.com/yourbossdonpely/musecligui/releases/latest) · [Linux (AppImage)](https://github.com/yourbossdonpely/musecligui/releases/latest)
+**Download:** No MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer builds to `apps/desktop/src-tauri/target/release/bundle/nsis/`. (Windows / macOS / Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.)
 
-**Try it in your browser:** https://github.com/yourbossdonpely/musecligui/try?utm_source=github&utm_medium=readme&utm_campaign=readme
 
-You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. Install guides: [Windows](https://github.com/yourbossdonpely/musecligui/install/windows) · [macOS](https://github.com/yourbossdonpely/musecligui/install/macos) · [Linux](https://github.com/yourbossdonpely/musecligui/install/linux).
+You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. (Per-OS install guides from the upstream site are not included in this copy; install the `muse` CLI from Meta and run `muse login` once.)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme-hero-dark.png" />
@@ -17,38 +16,22 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 </picture>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/installer-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg)](https://github.com/yourbossdonpely/musecligui/releases/latest)
 [![Tauri](https://img.shields.io/badge/desktop-Tauri%202-FFC131.svg)](https://tauri.app)
 [![Web](https://img.shields.io/badge/web-shared%20React%20UI-61DAFB.svg)](#architecture)
 [![Muse Code](https://img.shields.io/badge/powered_by-Muse%20Code%20CLI%20(MSP)-0668E1.svg)](https://developer.meta.com/ai/products/muse-code)
 [![Contributors](https://img.shields.io/github/contributors/yourbossdonpely/musecligui.svg)](https://github.com/yourbossdonpely/musecligui/graphs/contributors)
-[![Downloads](https://img.shields.io/github/downloads/yourbossdonpely/musecligui/total.svg?label=installer%20downloads)](https://github.com/yourbossdonpely/musecligui/releases)
-[![Latest release](https://img.shields.io/github/v/release/yourbossdonpely/musecligui.svg?label=latest)](https://github.com/yourbossdonpely/musecligui/releases/latest)
-[![Stars](https://img.shields.io/github/stars/yourbossdonpely/musecligui.svg?style=social)](https://github.com/yourbossdonpely/musecligui/stargazers)
-[![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2026-ff8ae2.svg)](https://github.com/yourbossdonpely/musecligui/issues?q=is%3Aissue+is%3Aopen+label%3Ahacktoberfest)
-[![Good first issues](https://img.shields.io/github/issues/yourbossdonpely/musecligui/good%20first%20issue.svg?label=good%20first%20issues&color=7057ff)](https://github.com/yourbossdonpely/musecligui/contribute)
 
 > **MuseCodeIcon** - home of the Muses. An open-source desktop + web ADE for Meta's **Muse Code CLI** (`muse`), in the spirit of the Claude Code desktop app and the Codex / ChatGPT desktop app.
 
 ### MuseCodeIcon in 30 seconds
 
-[![MuseCodeIcon in 30 seconds: approvals you can read, diffs where the edit happened, and what each thread would have cost](docs/assets/launch.gif)](docs/assets/musecodeicon-launch.mp4)
+![MuseCodeIcon: approvals you can read, diffs where the edit happened, and what each thread would have cost](docs/assets/launch.gif)
 
-Click through for the full-quality video with sound. The cost figures in it are sample data.
-
-### Shared on X
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/social-proof-dark.png" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/social-proof-light.png" />
-  <img alt="Posts about MuseCodeIcon from Alexandr Wang, Cosmo Du and Michael Douglas" src="docs/assets/social-proof-light.png" />
-</picture>
-
-The posts: [Alexandr Wang](https://x.com/alexandr_wang/status/2100590733627715684) · [Cosmo Du](https://x.com/Answeror/status/2100457921113170092) · [Michael Douglas](https://x.com/mjdouglas/status/2100399865562059121). MuseCodeIcon is an unofficial community project: Meta has not endorsed it, and it is not affiliated with Meta.
+(Screenshots and the GIF below are carried over from the upstream project (Helicon); branding visible inside the images is upstream's. The cost figures in them are sample data.)
 
 **Sidebar-first:** all projects grouped by working directory, each with its tasks and sessions - resume anything, including sessions started from the `muse` terminal TUI.
 
-[![MuseCodeIcon walkthrough: open a CLI thread, send a fix, then usage](docs/assets/demo.gif)](https://github.com/yourbossdonpely/musecligui/?utm_source=github&utm_medium=readme&utm_campaign=readme)
+![Thread view](docs/assets/thread.png)
 
 <details>
 <summary>Usage and settings</summary>
@@ -98,29 +81,29 @@ apps/web         same UI against a remote daemon
 ## Roadmap
 
 - [x] Name locked: **MuseCodeIcon** · stack locked: **Tauri + shared React UI**
-- [x] PRD + UX spec (sidebar, session view, diffs, approvals) - [docs/PRD.md](docs/PRD.md), [docs/PRODUCT.md](docs/PRODUCT.md)
+- [x] PRD + UX spec (sidebar, session view, diffs, approvals) — upstream docs not included in this copy
 - [x] `packages/daemon` - MSP connect, list/resume sessions, send/steer, approvals
 - [x] `packages/ui` - projects sidebar, session chat, inline diffs, slash commands and skills, goals
-- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation, signed auto-update
+- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation (auto-update disabled in this copy: no updater signing, and it never pulls another project's releases)
 - [x] `apps/web` - the same UI in a browser against the local server
 - [x] `apps/web` - remote daemon mode
 - [x] Windows end to end (native Muse Code for Windows, or WSL2 Ubuntu)
-- [x] GitHub Releases with a Windows installer (updater signed; not Authenticode signed yet)
-- [x] macOS end to end, and macOS releases (one universal binary for Apple Silicon and Intel)
-- [x] Linux builds and releases
+- [ ] GitHub Releases with a Windows installer (not published yet; Windows installer builds locally under `apps/desktop/src-tauri/target/release/bundle/nsis/`, unsigned)
+- [ ] macOS releases (universal binary for Apple Silicon and Intel; not published yet — needs the release workflow on GitHub)
+- [ ] Linux builds and releases (not published yet — needs the release workflow on GitHub)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
 
-Windows: download the setup file from the [latest release](https://github.com/yourbossdonpely/musecligui/releases/latest). It is not code signed yet, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. This build does not auto-update — download new versions manually.
+Windows: no MuseCodeIcon installer has been published to GitHub Releases yet. Build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. This build does not auto-update — download new versions manually.
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-macOS: download the DMG from the [latest release](https://github.com/yourbossdonpely/musecligui/releases/latest); it runs on Apple Silicon and Intel. The builds are not Apple-notarized yet. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
+macOS: no DMG has been published yet (needs the release workflow on GitHub). Once built, it runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-Linux: download the AppImage (x86_64) from the [latest release](https://github.com/yourbossdonpely/musecligui/releases/latest). It runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
+Linux: no AppImage has been published yet (needs the release workflow on GitHub). Once built, it runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
@@ -130,22 +113,7 @@ If you would rather read what changed before it lands, use **Watch → Custom �
 
 ## Docs
 
-Longer versions of everything above live on [github.com/yourbossdonpely/musecligui](https://github.com/yourbossdonpely/musecligui/?utm_source=github&utm_medium=readme&utm_campaign=readme). Every page has a
-Markdown twin at the same path with `.md` appended, for anyone reading this with an agent.
-
-| | |
-| --- | --- |
-| [Muse Code GUI options](https://github.com/yourbossdonpely/musecligui/muse-code-gui) | Every graphical interface for Muse Code, including the editor extensions and the other wrappers |
-| [The desktop app](https://github.com/yourbossdonpely/musecligui/muse-code-desktop-app) | What MuseCodeIcon is, on which platforms, and what it needs from you |
-| [Install](https://github.com/yourbossdonpely/musecligui/install) | [Windows](https://github.com/yourbossdonpely/musecligui/install/windows) · [macOS](https://github.com/yourbossdonpely/musecligui/install/macos) · [Linux](https://github.com/yourbossdonpely/musecligui/install/linux) · [WSL2](https://github.com/yourbossdonpely/musecligui/install/wsl2) |
-| [Comparisons](https://github.com/yourbossdonpely/musecligui/compare) | Against [the terminal](https://github.com/yourbossdonpely/musecligui/compare/muse-code-terminal), [VS Code extensions](https://github.com/yourbossdonpely/musecligui/compare/vs-code-extension), [Zed and JetBrains over ACP](https://github.com/yourbossdonpely/musecligui/compare/zed-acp), and [the other Muse GUIs](https://github.com/yourbossdonpely/musecligui/compare/other-muse-code-guis) |
-| [Features](https://github.com/yourbossdonpely/musecligui/features) | One page per capability: [sessions](https://github.com/yourbossdonpely/musecligui/features/session-history), [diffs](https://github.com/yourbossdonpely/musecligui/features/inline-diffs), [approvals](https://github.com/yourbossdonpely/musecligui/features/approvals), [cost](https://github.com/yourbossdonpely/musecligui/features/cost-and-usage), [remote daemon](https://github.com/yourbossdonpely/musecligui/features/remote-daemon) |
-| [Guides](https://github.com/yourbossdonpely/musecligui/guides) | [Windows without WSL](https://github.com/yourbossdonpely/musecligui/guides/muse-code-windows-without-wsl), [resuming a session](https://github.com/yourbossdonpely/musecligui/guides/resume-a-muse-session), [parallel agents](https://github.com/yourbossdonpely/musecligui/guides/run-parallel-agents), [when the CLI is not found](https://github.com/yourbossdonpely/musecligui/guides/muse-cli-not-found) |
-| [Glossary](https://github.com/yourbossdonpely/musecligui/glossary) | [Muse Code](https://github.com/yourbossdonpely/musecligui/glossary/muse-code), [MSP](https://github.com/yourbossdonpely/musecligui/glossary/msp), [`muse serve`](https://github.com/yourbossdonpely/musecligui/glossary/muse-serve), [ACP](https://github.com/yourbossdonpely/musecligui/glossary/acp), [approvals](https://github.com/yourbossdonpely/musecligui/glossary/agent-approvals) |
-| [FAQ](https://github.com/yourbossdonpely/musecligui/faq) · [Pricing](https://github.com/yourbossdonpely/musecligui/pricing) · [Changelog](https://github.com/yourbossdonpely/musecligui/changelog) | Every question in one page; free and MIT; every release |
-
-For agents: [llms.txt](https://github.com/yourbossdonpely/musecligui/llms.txt), [llms-full.txt](https://github.com/yourbossdonpely/musecligui/llms-full.txt),
-[AGENTS.md](https://github.com/yourbossdonpely/musecligui/agents.md), [facts.json](https://github.com/yourbossdonpely/musecligui/facts.json).
+This copy has no landing site, guides site, or per-feature docs pages (upstream ships those separately; they are not included here). What is here: this README, [CONTRIBUTING.md](CONTRIBUTING.md), and the screenshots in docs/assets/ (carried over from upstream; branding inside the images is upstream's).
 
 ## From source
 
@@ -175,14 +143,14 @@ npm run dev --workspace @musecodeicon/web
 
 No `muse` on this machine? `npm run dev:demo --workspace @musecodeicon/web` runs the same UI against an in-memory client with sample projects and threads, no server needed.
 
-The interface itself lives in `packages/ui` (state model in `src/model`, components in `src/components`); design tokens and the visual system are documented in [docs/DESIGN.md](docs/DESIGN.md).
+The interface itself lives in `packages/ui` (state model in `src/model`, components in `src/components`); design tokens and the visual system are in src/theme.css and the components under packages/ui/src/components/ (upstream design docs are not included in this copy).
 
 ```bash
 # Desktop app (dev shell; needs the Tauri prereqs on your OS)
 npm run dev --workspace musecodeicon-desktop
 ```
 
-Releases ride on tags: push `v0.1.0` and the Release workflow builds the Windows installer, then the universal macOS build, then the Linux bundles, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
+Releases ride on tags: once the Release workflow is enabled on GitHub, pushing `v0.1.0` builds the Windows installer, then the universal macOS build, then the Linux bundles, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
 
 This build has no auto-update (the updater is disabled, so it never pulls another project's releases). Ship new versions by downloading new installers manually.
 
@@ -209,28 +177,11 @@ Browsers only accept cross-site cookies over HTTPS, so a daemon reached from ano
 Your code, prompts, threads and files stay where they are: MuseCodeIcon talks to the `muse` CLI on your own computer, with
 your own login, and keeps its state in SQLite beside it. There is no account and no analytics in the app.
 
-The one request that does go out is the update check. The desktop app asks `github.com/yourbossdonpely/musecligui` whether a newer version exists,
-which is how it updates itself, and that request tells us an install is alive: the platform, the version it is on, and a
-hash of the IP it came from, salted per week so two weeks of logs cannot be joined together. It is how we count roughly
-how many installs are in use, since downloads and stars say nothing about that. If the site is unreachable the app falls
-back to asking GitHub, as it always did.
+This build makes no update-check requests at all: the updater is disabled, so it never contacts a release server, and there is no install-counting telemetry.
 
-## Code signing policy
+## Code signing
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-The Windows installer is built by [the release workflow](.github/workflows/release.yml) on a GitHub-hosted runner and is
-signed only after a maintainer approves the signing request. Signing starts with the first release after SignPath
-Foundation issues the certificate; releases up to 0.23.5 shipped unsigned. The macOS and Linux builds are not covered by
-this certificate. MuseCodeIcon never signs third-party binaries such as the bundled Node.js.
-
-- Committers and reviewers: [Harjot Singh Rana](https://github.com/HarjjotSinghh). Every pull request from an outside contributor is reviewed before it is merged.
-- Approvers: [Harjot Singh Rana](https://github.com/HarjjotSinghh).
-- Everyone in these roles uses multi-factor authentication on GitHub and SignPath.
-
-Privacy: the only request the app makes for itself is the update check described above. Pause updates in Settings
-stops the automatic checks; Check now still asks when you click it. Full policy: [github.com/yourbossdonpely/musecligui/privacy](https://github.com/yourbossdonpely/musecligui/privacy). The policy page is
-[github.com/yourbossdonpely/musecligui/code-signing](https://github.com/yourbossdonpely/musecligui/code-signing).
+Not code signed. The Windows installer triggers a SmartScreen warning (More info → Run anyway), and macOS builds are not Apple-notarized (first launch needs System Settings → Privacy & Security → Open Anyway, or xattr -dr com.apple.quarantine). The bundled Node.js sidecar is never signed.
 
 ## Legal
 
@@ -242,37 +193,9 @@ stops the automatic checks; Check now still asks when you click it. Full policy:
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome. See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
-
-**Hacktoberfest:** MuseCodeIcon takes part. Pick an issue labelled [`good first issue`](https://github.com/yourbossdonpely/musecligui/contribute) or [`help wanted`](https://github.com/yourbossdonpely/musecligui/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22), comment to claim it, and open a PR. Most of them don't need a Muse Code subscription. Every open PR gets a first review within 48 hours, and everyone who lands a change is credited in the [changelog](docs/CHANGELOG.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
 
 Not a code change? [Discussions](https://github.com/yourbossdonpely/musecligui/discussions) takes questions, setups that did not work, and anything you want MuseCodeIcon to do that it does not.
-
-### Contributors
-
-Everyone who has landed a change here. Thank you.
-
-<a href="https://github.com/yourbossdonpely/musecligui/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=yourbossdonpely/musecligui" alt="Contributors to MuseCodeIcon" />
-</a>
-
-## Project stats
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yourbossdonpely/musecligui&type=Date&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=yourbossdonpely/musecligui&type=Date" />
-  <img src="https://api.star-history.com/svg?repos=yourbossdonpely/musecligui&type=Date" alt="Star history for MuseCodeIcon" width="640" />
-</picture>
-
-| | |
-| --- | --- |
-| Commit activity | [![Commits](https://img.shields.io/github/commit-activity/m/yourbossdonpely/musecligui.svg?label=commits%2Fmonth)](https://github.com/yourbossdonpely/musecligui/graphs/commit-activity) |
-| Last commit | [![Last commit](https://img.shields.io/github/last-commit/yourbossdonpely/musecligui.svg?label=)](https://github.com/yourbossdonpely/musecligui/commits) |
-| Issues | [![Issues](https://img.shields.io/github/issues/yourbossdonpely/musecligui.svg?label=open)](https://github.com/yourbossdonpely/musecligui/issues) [![Closed issues](https://img.shields.io/github/issues-closed/yourbossdonpely/musecligui.svg?label=closed)](https://github.com/yourbossdonpely/musecligui/issues?q=is%3Aissue+is%3Aclosed) |
-| Pull requests | [![PRs](https://img.shields.io/github/issues-pr/yourbossdonpely/musecligui.svg?label=open)](https://github.com/yourbossdonpely/musecligui/pulls) [![Merged PRs](https://img.shields.io/github/issues-pr-closed/yourbossdonpely/musecligui.svg?label=merged)](https://github.com/yourbossdonpely/musecligui/pulls?q=is%3Apr+is%3Amerged) |
-| Code | [![Languages](https://img.shields.io/github/languages/top/yourbossdonpely/musecligui.svg)](#architecture) [![Repo size](https://img.shields.io/github/repo-size/yourbossdonpely/musecligui.svg?label=repo)](https://github.com/yourbossdonpely/musecligui) |
-
-The charts and counts come from GitHub and refresh on their own; nothing here is generated by a bot committing to the repo.
 
 ## License
 
