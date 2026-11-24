@@ -6,6 +6,9 @@
 mod redraw;
 
 use std::ffi::OsStr;
+// Unix-only: the PATH augmentation hands OsString values around, and the Windows build never sees those functions.
+#[cfg(unix)]
+use std::ffi::OsString;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader};
 use std::net::TcpListener;

@@ -116,7 +116,10 @@ jobs:
   desktop-linux:
     permissions:
       contents: write
-    needs: desktop-macos
+    # After Windows, which creates the release, but not after macOS: a macOS-only failure must not
+    # skip the Linux bundle. Windows has already made the release by then, so neither job races to
+    # create it.
+    needs: desktop-windows
     # 22.04 keeps the glibc baseline low enough for every supported distro.
     runs-on: ubuntu-22.04
     defaults:
