@@ -163,6 +163,41 @@ jobs:
           zip="MuseCodeIcon_${version}_universal-macos.zip"
           ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
           gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
+      # "Released" has to mean more than "compiled": start the bundle and ask it for its UI. The app
+      # boots its own server in a thread and writes the port to its data dir before the window loads,
+      # so this proves the sidecar Node.js, resources and frontend inside the .app all resolve.
+      - name: Smoke test - launch the macOS bundle and check it serves its UI
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          app="$(find apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -name '*.app' -type d | head -1)"
+          [ -n "$app" ] && [ -d "$app" ] || { echo "::error::No .app bundle to test" >&2; exit 1; }
+          data="$HOME/Library/Application Support/com.musecodeicon.desktop"
+          logs="$HOME/Library/Logs/com.musecodeicon.desktop"
+          rm -rf "$data" "$logs"
+          "$app/Contents/MacOS/musecodeicon" > app.log 2>&1 &
+          pid=$!
+          page="$(mktemp)"
+          ok=0
+          port=""
+          for _ in $(seq 1 90); do
+            if [ -f "$data/server-port" ]; then
+              port="$(tr -dc 0-9 < "$data/server-port")"
+              if [ -n "$port" ] && curl -fsS --max-time 2 "http://127.0.0.1:$port/" -o "$page"; then ok=1; break; fi
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          if [ "$ok" != 1 ] || ! grep -qi '<title>MuseCodeIcon</title>' "$page"; then
+            echo "::error::The macOS bundle never served its UI" >&2
+            echo '--- app.log' ; cat app.log || true
+            echo '--- server.log' ; cat "$logs/server.log" 2>/dev/null || true
+            exit 1
+          fi
+          echo "macOS bundle served its UI on 127.0.0.1:$port"
 
   desktop-linux:
     permissions:
@@ -187,7 +222,7 @@ jobs:
       - name: Install Tauri Linux dependencies
         # squashfs-tools is what the AppImage bundle is packed with; the rest is Tauri's documented
         # Debian list for WebKitGTK 4.1.
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file zip libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev squashfs-tools
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file zip xvfb dbus-x11 libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev squashfs-tools
       - run: npm ci
       - run: npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
@@ -224,6 +259,50 @@ jobs:
           zip -j "$GITHUB_WORKSPACE/muse-cli-gui-desktop/$zip" "$(basename "$appimage")"
           cd "$GITHUB_WORKSPACE/muse-cli-gui-desktop"
           gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
+      # The same proof on Linux: unpack the AppImage (no FUSE in CI), start it on a virtual display and
+      # fetch the UI from the port its server publishes. WebKitGTK needs the compositing and sandbox
+      # switches off to draw on Xvfb.
+      - name: Smoke test - launch the Linux bundle and check it serves its UI
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          appimage_dir="apps/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage"
+          appimage="$(find "$appimage_dir" -maxdepth 1 -name '*.AppImage' -type f | head -1)"
+          [ -n "$appimage" ] && [ -f "$appimage" ] || { echo "::error::No AppImage to test" >&2; exit 1; }
+          work="$(mktemp -d)"
+          cp "$appimage" "$work/app.AppImage"
+          cd "$work"
+          chmod +x app.AppImage
+          ./app.AppImage --appimage-extract > /dev/null
+          export XDG_DATA_HOME="$work/xdg-data"
+          export XDG_CACHE_HOME="$work/xdg-cache"
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export WEBKIT_DISABLE_DMABUF_RENDERER=1
+          export WEBKIT_FORCE_SANDBOX=0
+          xvfb-run -a -s "-screen 0 1280x800x24" dbus-run-session -- ./squashfs-root/AppRun > app.log 2>&1 &
+          pid=$!
+          data="$work/xdg-data/com.musecodeicon.desktop"
+          page="$work/page.html"
+          ok=0
+          port=""
+          for _ in $(seq 1 90); do
+            if [ -f "$data/server-port" ]; then
+              port="$(tr -dc 0-9 < "$data/server-port")"
+              if [ -n "$port" ] && curl -fsS --max-time 2 "http://127.0.0.1:$port/" -o "$page"; then ok=1; break; fi
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          if [ "$ok" != 1 ] || ! grep -qi '<title>MuseCodeIcon</title>' "$page"; then
+            echo "::error::The Linux bundle never served its UI" >&2
+            echo '--- app.log' ; cat app.log || true
+            echo '--- server.log' ; cat "$data/logs/server.log" 2>/dev/null || true
+            exit 1
+          fi
+          echo "Linux bundle served its UI on 127.0.0.1:$port"
 
   # One SHA256SUMS per release, so copies of the installers on mirror sites can be checked against it.
   checksums:
