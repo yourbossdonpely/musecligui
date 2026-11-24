@@ -81,11 +81,29 @@ jobs:
           $ErrorActionPreference = "Stop"
           $version = "$env:GITHUB_REF_NAME".TrimStart("v")
           $release = "apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release"
-          foreach ($item in @("musecodeicon.exe", "node.exe", "resources")) {
-            if (-not (Test-Path "$release/$item")) { throw "Missing portable payload: $release/$item" }
+          # Stage first: a --target build does not always leave the sidecar as `node.exe` in the
+          # release folder, and the zip has to look exactly like an install (node.exe beside the exe).
+          $stage = "portable-stage"
+          if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+          New-Item -ItemType Directory -Path $stage | Out-Null
+          $exe = Join-Path $release "musecodeicon.exe"
+          if (-not (Test-Path $exe)) { throw "Missing portable payload: $exe" }
+          Copy-Item $exe $stage
+          $node = Join-Path $release "node.exe"
+          if (-not (Test-Path $node)) {
+            $node = Get-ChildItem -Path $release -Filter "node*.exe" -File | Select-Object -First 1 -ExpandProperty FullName
           }
+          if (-not $node) {
+            # fetch-node.mjs leaves the sidecar under this name before Tauri copies it.
+            $node = Get-ChildItem -Path "apps/desktop/src-tauri/binaries" -Filter "node*x86_64-pc-windows-msvc*.exe" -File | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $node) { throw "Missing the Node.js sidecar in $release or apps/desktop/src-tauri/binaries" }
+          Copy-Item $node (Join-Path $stage "node.exe")
+          $resources = Join-Path $release "resources"
+          if (-not (Test-Path $resources)) { throw "Missing portable payload: $resources" }
+          Copy-Item $resources $stage -Recurse
           $zip = "MuseCodeIcon_${version}_x64-portable.zip"
-          Compress-Archive -Path "$release/musecodeicon.exe", "$release/node.exe", "$release/resources" -DestinationPath $zip -CompressionLevel Optimal -Force
+          Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal -Force
           gh release upload "$env:GITHUB_REF_NAME" $zip --clobber
 
   desktop-macos:
