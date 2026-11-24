@@ -13,7 +13,7 @@
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
-**Download:** no MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. Windows, macOS and Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.
+**Download:** [MuseCodeIcon v0.23.6](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6) — `MuseCodeIcon_0.23.6_x64-setup.exe` for Windows, `MuseCodeIcon_0.23.6_universal.dmg` for macOS (Apple Silicon and Intel), and `MuseCodeIcon_0.23.6_amd64.AppImage` plus `.deb` and `.rpm` for Linux, all built by CI from that tag. Windows is unsigned and macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
@@ -83,22 +83,22 @@ apps/web         same UI against a remote daemon
 - [x] `apps/web` - the same UI in a browser against the local server
 - [x] `apps/web` - remote daemon mode
 - [x] Windows end to end (native Muse Code for Windows, or WSL2 Ubuntu)
-- [ ] GitHub Releases with a Windows installer (not published yet; Windows installer builds locally under `apps/desktop/src-tauri/target/release/bundle/nsis/`, unsigned)
-- [ ] macOS releases (universal binary for Apple Silicon and Intel; not published yet — needs the release workflow on GitHub)
-- [ ] Linux builds and releases (not published yet — needs the release workflow on GitHub)
+- [x] GitHub Releases with a Windows installer (`v0.23.6`; unsigned, so SmartScreen warns)
+- [x] macOS releases (universal binary for Apple Silicon and Intel; `v0.23.6`, ad-hoc signed, not notarized)
+- [x] Linux builds and releases (`v0.23.6`: AppImage, `.deb`, `.rpm`)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
 
-Windows: no MuseCodeIcon installer has been published to GitHub Releases yet. Build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. This build does not auto-update — download new versions manually.
+Windows: download `MuseCodeIcon_0.23.6_x64-setup.exe` from the [v0.23.6 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. This build does not auto-update — download new versions manually.
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-macOS: no DMG has been published yet (needs the release workflow on GitHub). Once built, it runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
+macOS: download `MuseCodeIcon_0.23.6_universal.dmg` from the [v0.23.6 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6). It runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-Linux: no AppImage has been published yet (needs the release workflow on GitHub). Once built, it runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
+Linux: download `MuseCodeIcon_0.23.6_amd64.AppImage` from the [v0.23.6 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
@@ -145,7 +145,7 @@ The interface itself lives in `packages/ui` (state model in `src/model`, compone
 npm run dev --workspace musecodeicon-desktop
 ```
 
-Releases ride on tags: once the Release workflow is enabled on GitHub, pushing `v0.1.0` builds the Windows installer, then the universal macOS build, then the Linux bundles, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
+Releases ride on tags: pushing a `v*` tag that matches `tauri.conf.json` runs `.github/workflows/release.yml`, which builds the Windows installer first, then the universal macOS build and the Linux bundles side by side, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
 
 This build has no auto-update at all — there is no updater code in it, so it never pulls another project's releases. Ship new versions by downloading new installers manually.
 

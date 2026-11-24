@@ -69,7 +69,7 @@ npm run build
 | Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.6_x64-setup.exe` (≈27 MB) |
 | App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
 
-The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles have to be built on those platforms (or in CI); only the Windows build has been produced and tested here.
+The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.6`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. Nothing on macOS or Linux has been launched and tested here — the bundles build and upload, which is not the same as running.
 
 Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
 

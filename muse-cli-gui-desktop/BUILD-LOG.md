@@ -276,19 +276,20 @@ with the `workflow` scope: `gh auth refresh -h github.com -s workflow`.
 
 ## Remaining release blockers
 
-What still stands between this tree and a download people can click, as of the last session:
+Resolved on 2026-11-24 by the first tagged CI run, [45359114370](https://github.com/yourbossdonpely/musecligui/actions/runs/45359114370): `v0.23.6` published the Windows NSIS installer, the universal macOS `.dmg`, and the Linux AppImage, `.deb` and `.rpm`, plus `SHA256SUMS`.
+
+Two things had to change first. The macOS leg had never compiled: `main.rs` used `OsString` in its `cfg(unix)` PATH helpers without importing it, so Windows-only builds hid a Unix-only error (fixed in `4d9fa7d`). And Linux waited on macOS, so a macOS failure skipped it; it now waits only on Windows, which creates the release.
+
+What still stands between this tree and a release people can trust unconditionally:
 
 | Blocker | State | What clears it |
 |---------|-------|----------------|
-| The workflow is not on GitHub | `.github/workflows/release.yml` is committed locally, but pushing it is rejected: `refusing to allow an OAuth App to create or update workflow … without 'workflow' scope` | `gh auth refresh -h github.com -s workflow`, complete the browser step, then push with `gh`'s token (git's `credential.helper=manager` caches a separate credential) |
-| No tag and no release | No `v0.23.6` ref on the remote and no MuseCodeIcon release; the earlier Windows-only draft was deleted on purpose | Push the `v0.23.6` tag (matching `tauri.conf.json`); that tag push is what starts the build |
-| macOS and Linux unbuilt | Only the Windows installer has ever been produced here (Windows-only machine) | The `desktop-macos` and `desktop-linux` CI jobs. Neither has run yet, so both platforms are unverified, not merely unreleased |
 | Windows installer unsigned | SmartScreen shows "Windows protected your PC" → More info → Run anyway | A code-signing certificate; nothing in the repo pretends otherwise |
 | macOS build not notarized | `tauri.macos.conf.json` signs ad-hoc (`signingIdentity: "-"`, `hardenedRuntime: false`) | An Apple Developer ID plus notarization, before Gatekeeper opens it without "Open Anyway" |
 | Draft releases cannot hold the tag | tauri-action looks releases up with `getReleaseByTag`, which 404s for drafts, then tries to create one and gets `422 already_exists` | Let the first CI run create the release; do not pre-create a draft for `v0.23.6` |
 | No updater | The Tauri updater plugin was removed, and CI runs with `includeUpdaterJson: false` | Nothing — by design. There is no `latest.json` and no update channel to keep fed |
 
-Reproducing the Windows installer works today with the commands above; everything else is gated on that first successful push and CI run.
+Reproducing the Windows installer works locally with the commands above; macOS and Linux bundles come from the workflow, because neither can be cross-built on Windows (an Apple target fails at `objc2-exception-helper` before reaching this crate).
 
 ## Unofficial notice
 
