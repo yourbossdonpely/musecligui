@@ -71,6 +71,22 @@ jobs:
           # latest.json would advertise an update channel that does not exist.
           includeUpdaterJson: false
           args: --target x86_64-pc-windows-msvc
+      # A zip of the same runtime the installer lays down: exe, sidecar Node.js and resources. Unzip
+      # anywhere and run musecodeicon.exe, no install and no admin rights.
+      - name: Package and upload the Windows portable zip
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "$env:GITHUB_REF_NAME".TrimStart("v")
+          $release = "apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release"
+          foreach ($item in @("musecodeicon.exe", "node.exe", "resources")) {
+            if (-not (Test-Path "$release/$item")) { throw "Missing portable payload: $release/$item" }
+          }
+          $zip = "MuseCodeIcon_${version}_x64-portable.zip"
+          Compress-Archive -Path "$release/musecodeicon.exe", "$release/node.exe", "$release/resources" -DestinationPath $zip -CompressionLevel Optimal -Force
+          gh release upload "$env:GITHUB_REF_NAME" $zip --clobber
 
   desktop-macos:
     permissions:
@@ -112,6 +128,20 @@ jobs:
           # One universal .dmg for Apple Silicon and Intel; the bundle targets come from
           # tauri.macos.conf.json (app + dmg, ad-hoc signing).
           args: --target universal-apple-darwin
+      # A zip of the .app itself, for people who want the app in ~/Applications without mounting a
+      # disk image. ditto keeps the bundle's symlinks, permissions and signature intact.
+      - name: Package and upload the macOS zip
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          app="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/MuseCodeIcon.app"
+          [ -d "$app" ] || { echo "::error::Missing macOS bundle: $app" >&2; exit 1; }
+          zip="MuseCodeIcon_${version}_universal-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
+          gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
 
   desktop-linux:
     permissions:
@@ -136,7 +166,7 @@ jobs:
       - name: Install Tauri Linux dependencies
         # squashfs-tools is what the AppImage bundle is packed with; the rest is Tauri's documented
         # Debian list for WebKitGTK 4.1.
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev squashfs-tools
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file zip libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev squashfs-tools
       - run: npm ci
       - run: npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
@@ -156,6 +186,23 @@ jobs:
           includeUpdaterJson: false
           # Bundle targets come from tauri.linux.conf.json (appimage, deb, rpm).
           args: --target x86_64-unknown-linux-gnu
+      # The AppImage inside a zip, for people who would rather unpack one archive than chmod a
+      # download. The bare AppImage stays on the release too.
+      - name: Package and upload the Linux portable zip
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          appimage_dir="apps/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage"
+          appimage="$appimage_dir/MuseCodeIcon_${version}_amd64.AppImage"
+          [ -f "$appimage" ] || { echo "::error::Missing AppImage: $appimage" >&2; exit 1; }
+          zip="MuseCodeIcon_${version}_amd64-linux-portable.zip"
+          cd "$appimage_dir"
+          zip -j "$GITHUB_WORKSPACE/muse-cli-gui-desktop/$zip" "$(basename "$appimage")"
+          cd "$GITHUB_WORKSPACE/muse-cli-gui-desktop"
+          gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
 
   # One SHA256SUMS per release, so copies of the installers on mirror sites can be checked against it.
   checksums:
@@ -176,7 +223,7 @@ jobs:
           trap 'rm -rf "$work"' EXIT
           cd "$work"
           # gh infers nothing from a temp dir, so the repository is passed explicitly.
-          installers=('MuseCodeIcon_*_x64-setup.exe' 'MuseCodeIcon_*_universal.dmg' 'MuseCodeIcon_*_amd64.AppImage')
+          installers=('MuseCodeIcon_*_x64-setup.exe' 'MuseCodeIcon_*_universal.dmg' 'MuseCodeIcon_*_amd64.AppImage' 'MuseCodeIcon_*_x64-portable.zip' 'MuseCodeIcon_*_universal-macos.zip' 'MuseCodeIcon_*_amd64-linux-portable.zip')
           for pattern in "${installers[@]}"; do
             # A pattern that matches nothing exits non-zero; report which installer is missing instead.
             gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$pattern" || true

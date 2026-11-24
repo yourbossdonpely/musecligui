@@ -41,11 +41,11 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 
 | Platform | File |
 |----------|------|
-| Windows | [`MuseCodeIcon_0.23.6_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.6/MuseCodeIcon_0.23.6_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI |
-| macOS | [`MuseCodeIcon_0.23.6_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.6/MuseCodeIcon_0.23.6_universal.dmg) — universal, ad-hoc signed (not notarized) |
-| Linux | [`.AppImage`, `.deb`, `.rpm`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6) |
+| Windows | [`MuseCodeIcon_0.23.7_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_x64-portable.zip), unzip and run |
+| macOS | [`MuseCodeIcon_0.23.7_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal.dmg) — universal, ad-hoc signed (not notarized). Or the `.app` in [`…universal-macos.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal-macos.zip) |
+| Linux | [`.AppImage`, `.deb`, `.rpm`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7); the AppImage is also in [`…amd64-linux-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_amd64-linux-portable.zip) |
 
-All of them, plus `SHA256SUMS`, are on the [`v0.23.6` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6).
+All of them, plus `SHA256SUMS`, are on the [`v0.23.7` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7).
 
 > ⚠️ **Do not download `MuseCLIGUI.exe` for this app.** The 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases is the *bridge GUI's launcher*, not MuseCodeIcon, and it is not standalone: it needs `muse-bridge.js` and `gui/` from `MuseCLIGUI-v2.6.2-win-x64.zip` next to it, so run on its own it stops with `Missing file: …\muse-bridge.js`. Use the installer in the table above.
 
@@ -78,10 +78,10 @@ npm run build
 
 | Output | Path |
 |--------|------|
-| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.6_x64-setup.exe` (≈27 MB) |
+| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.7_x64-setup.exe` (≈27 MB) |
 | App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
 
-The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.6`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. Nothing on macOS or Linux has been launched and tested here — the bundles build and upload, which is not the same as running.
+The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. Nothing on macOS or Linux has been launched and tested here — the bundles build and upload, which is not the same as running.
 
 Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
 
