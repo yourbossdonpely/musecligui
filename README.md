@@ -37,6 +37,18 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 
 **[Its full write-up — features, screenshots, install steps and caveats — is in `muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md).** This section is the short version.
 
+### ⬇️ Download
+
+| Platform | File |
+|----------|------|
+| Windows | [`MuseCodeIcon_0.23.6_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.6/MuseCodeIcon_0.23.6_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI |
+| macOS | [`MuseCodeIcon_0.23.6_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.6/MuseCodeIcon_0.23.6_universal.dmg) — universal, ad-hoc signed (not notarized) |
+| Linux | [`.AppImage`, `.deb`, `.rpm`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6) |
+
+All of them, plus `SHA256SUMS`, are on the [`v0.23.6` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.6).
+
+> ⚠️ **Do not download `MuseCLIGUI.exe` for this app.** The 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases is the *bridge GUI's launcher*, not MuseCodeIcon, and it is not standalone: it needs `muse-bridge.js` and `gui/` from `MuseCLIGUI-v2.6.2-win-x64.zip` next to it, so run on its own it stops with `Missing file: …\muse-bridge.js`. Use the installer in the table above.
+
 ![A thread: every edited file as a chip with its line counts, the files that thread changed, and the model, speed and cost for the reply](muse-cli-gui-desktop/docs/assets/app-thread.png)
 
 A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. The desktop installers bundle their own Node.js, so the only thing you need installed is the official `muse` CLI with `muse login` done once — the app reads that login and never stores credentials of its own.
