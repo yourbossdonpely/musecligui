@@ -244,7 +244,7 @@ jobs:
           trap 'rm -rf "$work"' EXIT
           cd "$work"
           # gh infers nothing from a temp dir, so the repository is passed explicitly.
-          installers=('MuseCodeIcon_*_x64-setup.exe' 'MuseCodeIcon_*_universal.dmg' 'MuseCodeIcon_*_amd64.AppImage' 'MuseCodeIcon_*_x64-portable.zip' 'MuseCodeIcon_*_universal-macos.zip' 'MuseCodeIcon_*_amd64-linux-portable.zip')
+          installers=('MuseCodeIcon_*_x64-setup.exe' 'MuseCodeIcon_*_universal.dmg' 'MuseCodeIcon_*_amd64.AppImage' 'MuseCodeIcon_*_amd64.deb' 'MuseCodeIcon-*.x86_64.rpm' 'MuseCodeIcon_universal.app.tar.gz' 'MuseCodeIcon_*_x64-portable.zip' 'MuseCodeIcon_*_universal-macos.zip' 'MuseCodeIcon_*_amd64-linux-portable.zip')
           for pattern in "${installers[@]}"; do
             # A pattern that matches nothing exits non-zero; report which installer is missing instead.
             gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$pattern" || true
