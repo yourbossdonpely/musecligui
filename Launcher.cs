@@ -26,8 +26,8 @@ static class Launcher
         string bridge = Path.Combine(dir, "muse-bridge.js");
         string gui = Path.Combine(dir, "gui", "dist", "index.html");
         if (!File.Exists(gui)) gui = Path.Combine(dir, "muse-gui.html");
-        if (!File.Exists(bridge)) { Fail("Missing file: " + bridge); return 1; }
-        if (!File.Exists(gui)) { Fail("Missing file: " + gui); return 1; }
+        if (!File.Exists(bridge)) { Fail(LauncherOnly(bridge)); return 1; }
+        if (!File.Exists(gui)) { Fail(LauncherOnly(gui)); return 1; }
         if (!PortOpen()) {
             try {
                 var psi = new ProcessStartInfo(node, "\"" + bridge + "\"");
@@ -140,6 +140,18 @@ static class Launcher
                 return true;
             }
         } catch { return false; }
+    }
+
+    /// The exe is downloadable on its own from the releases page, where it is the only Windows-looking file.
+    /// Run like that it has nothing to launch, so say what it needs and where the rest of it is, instead of
+    /// naming one missing path and leaving the reader to guess.
+    static string LauncherOnly(string missing) {
+        return "This is MuseCLIGUI.exe, the launcher by itself, so it has nothing to start.\n\n"
+             + "It needs muse-bridge.js and the gui folder from MuseCLIGUI-v2.6.2-win-x64.zip beside it.\n\n"
+             + "Missing: " + missing + "\n\n"
+             + "Download MuseCLIGUI-v2.6.2-win-x64.zip from\n"
+             + "https://github.com/yourbossdonpely/musecligui/releases/tag/v2.6.2\n"
+             + "then unzip it and run the MuseCLIGUI.exe inside the unzipped folder.";
     }
 
     static void Fail(string msg) {
