@@ -27,7 +27,7 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 
 **Sidebar-first:** all projects grouped by working directory, each with its tasks and sessions - resume anything, including sessions started from the `muse` terminal TUI.
 
-![A thread: readable approvals, diffs where the edit happened, and the files each thread changed](docs/assets/app-thread.png)
+![A thread: every edited file as a chip with its line counts, the files that thread changed, and the model, speed and cost for the reply](docs/assets/app-thread.png)
 
 <details>
 <summary>Usage and settings</summary>
