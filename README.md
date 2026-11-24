@@ -1,24 +1,26 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="Muse CLI GUI logo" width="128" />
+<img src="muse-cli-gui-desktop/docs/assets/app-icon.png" alt="MuseCodeIcon app icon" width="112" />
 
-# Muse CLI GUI
+# MuseCodeIcon
 
-**The AI coding agent GUI for Meta Muse Code — drive your subscription at full speed, no permission prompts.**
+**A desktop app for Meta's Muse Code CLI — gold on black, on Windows, macOS and Linux.**
 
-[![Latest release](https://img.shields.io/github/v/release/yourbossdonpely/musecligui)](https://github.com/yourbossdonpely/musecligui/releases/latest)
+**[→ Read the MuseCodeIcon README](muse-cli-gui-desktop/README.md)**
+
 [![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecligui)](LICENSE)
-[![Windows](https://img.shields.io/badge/platform-Windows-blue)](https://github.com/yourbossdonpely/musecligui/releases/latest)
+[![Desktop app](https://img.shields.io/badge/desktop-Tauri%202%20%C2%B7%20Windows%20%7C%20macOS%20%7C%20Linux-FFC131)](muse-cli-gui-desktop/README.md)
+[![Also in this repo](https://img.shields.io/badge/also%20in%20this%20repo-portable%20Windows%20bridge%20GUI-6b7280)](#muse-cli-gui--the-bridge-gui-older)
 
-[Download the latest release](https://github.com/yourbossdonpely/musecligui/releases/latest) · [Quick start](#-quick-start) · [Screenshots](#-screenshots) · [OpenCode / FreeBuff setup](#use-with-opencode--freebuff-openai-compatible-api)
+[Read the desktop app write-up](muse-cli-gui-desktop/README.md) · [Build MuseCodeIcon](#build-musecodeicon-windows-installer) · [Bridge GUI — the older app](#muse-cli-gui--the-bridge-gui-older)
 
 </div>
 
-![Muse CLI GUI — agent chat, file browser, skills and subscription](docs/screenshots/chat.png)
+![MuseCodeIcon: start a thread in a project, black theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
 
-A custom GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
+**This repo has two apps.** The one to start with is **MuseCodeIcon**, the desktop app in [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) — its full write-up, with features, screenshots, install steps and caveats, is [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). The older portable Windows bridge GUI that lives in this folder still works and is documented further down.
 
-**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded. Clone or unzip it anywhere — all paths resolve from the app folder itself.
+MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI in a real window: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. Projects → threads → turns, readable approvals, inline diffs, a file viewer, real plan and usage meters, goals, background workflows, slash commands, command palette. Dark by default with gold accents, on every platform.
 
 > ⚠️ **Unofficial community project.** Neither app in this repo is made, endorsed, or supported by Meta, and neither is affiliated with Meta. "Muse" and "Muse Code" are trademarks of Meta, used here only to describe what these apps connect to. Muse Code itself is terminal-only and closed to third-party clients; both apps here simply drive the official `muse` CLI with your own login.
 
@@ -29,11 +31,13 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 | **MuseCodeIcon** | [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) | A standalone **desktop app** (Tauri 2: Windows, macOS, Linux) for the `muse` CLI. Gold on black, dark theme by default. Projects → threads → turns, readable approvals, inline diffs, file viewer, plan/usage meters, goals, background workflows, command palette. |
 | **Muse CLI GUI** (the bridge GUI) | repo root (this README) | The portable Windows GUI + WebSocket bridge described below: agent chat, file browser, browser/research panel, and an OpenAI-compatible API on `localhost:8766`. |
 
-The desktop app is the newer one and the one to reach for on a desktop. The bridge GUI below still works and is unchanged.
+**Start here →** [MuseCodeIcon, the desktop app](muse-cli-gui-desktop/README.md). It is the current app and the one to reach for on a desktop; everything below the table is about it first. The bridge GUI further down still works and is unchanged.
 
 ## 🖥️ MuseCodeIcon — the desktop app
 
-![MuseCodeIcon: start a thread in a project, black theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
+**[Its full write-up — features, screenshots, install steps and caveats — is in `muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md).** This section is the short version.
+
+![A thread: every edited file as a chip with its line counts, the files that thread changed, and the model, speed and cost for the reply](muse-cli-gui-desktop/docs/assets/app-thread.png)
 
 A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. The desktop installers bundle their own Node.js, so the only thing you need installed is the official `muse` CLI with `muse login` done once — the app reads that login and never stores credentials of its own.
 
@@ -46,7 +50,7 @@ A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` pe
 - **Gold on black by default** on every platform — the window, splash and first paint are dark, so a light desktop never shows it light; light and system are one click away in Settings → Appearance
 - **No auto-update**: this copy has no updater at all, so it never contacts a release server or pulls another project's releases
 
-Screenshots, the feature detail and the full caveat list live in [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). How it was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).
+How the copy was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).
 
 ### Build MuseCodeIcon (Windows installer)
 
@@ -69,7 +73,13 @@ The installer is **not code signed**, so SmartScreen shows "Windows protected yo
 
 Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
 
-## Muse CLI GUI — the bridge GUI
+## Muse CLI GUI — the bridge GUI (older)
+
+**The older app.** A portable Windows GUI plus a WebSocket bridge for the same `muse` CLI, launched from `MuseCLIGUI.exe` in this folder. No desktop shell, no macOS or Linux build, and unchanged since MuseCodeIcon took over. Everything from here down documents it.
+
+A custom GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
+
+**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded.
 
 ## Features
 
@@ -314,4 +324,4 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 
 ---
 
-**Projects:** Muse CLI GUI — the portable bridge GUI in this folder — and **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/`. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
+**Projects:** **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/` ([its README](muse-cli-gui-desktop/README.md)) — and Muse CLI GUI, the portable bridge GUI in this folder. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
