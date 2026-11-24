@@ -108,7 +108,7 @@ Scope: the desktop app only (Windows, macOS, Linux). There is no VS Code, Cursor
 
 ## Docs
 
-This copy has no landing site, guides site, or per-feature docs pages; nothing outside this folder is linked from here. What is here: this README, [CONTRIBUTING.md](CONTRIBUTING.md), and the screenshots in `docs/assets/`, captured from this build.
+This copy has no landing site, guides site, or per-feature docs pages; nothing outside this folder is linked from here. What is here: this README, [`BUILD-LOG.md`](BUILD-LOG.md) — what was copied from upstream, the rename, the updater removal, the Node-sidecar tar fix, the exact build commands and their output, test counts, and the open release blockers — [CONTRIBUTING.md](CONTRIBUTING.md), and the screenshots in `docs/assets/`, captured from this build.
 
 ## From source
 

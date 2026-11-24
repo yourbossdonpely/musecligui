@@ -62,8 +62,10 @@ Bulk rename across 95 files, then targeted fixes:
   `musecodeicon-node`
 - README disclaimer added: *"Unofficial community project — not made, endorsed,
   or supported by Meta. Not affiliated with Meta."*
-- Screenshots copied from upstream `docs/assets/` and marked in the README as
-  carried over from upstream (branding inside the images is upstream's)
+- Screenshots: upstream's `docs/assets/` images were replaced with captures of
+  this build, and recaptured later from the running `musecodeicon.exe` window
+  (home, thread, usage, settings). Nothing in `docs/assets/` shows upstream
+  branding.
 
 The GitHub repo path `yourbossdonpely/musecligui` is intentionally preserved
 (it is the repository name, not the product name).
@@ -96,8 +98,8 @@ Two changes, so the first paint is already dark:
 1. `packages/ui/src/model/store.ts` — `defaultPrefs().theme` is `"dark"` (it was `"system"`).
    Light and system stay selectable in Settings → Appearance.
 2. `apps/web/index.html` — the pre-paint script sets `data-theme = "dark"` unless stored prefs
-   say otherwise, so nothing flashes light on a light-mode OS. Both `theme-color` metas are
-   `#12100C`.
+   say otherwise, so nothing flashes light on a light-mode OS. Both `theme-color` metas are `#0A0806`,
+   matching the Tauri window (`theme: "Dark"`, `backgroundColor: "#0A0806"`).
 3. `apps/web/src/theme.css` — the accent family is gold (`oklch(0.845 0.152 87)` on dark, with
    near-black `--accent-fg`), the dark neutrals are near-black and warm-tinted (hue 78, `--bg`
    `oklch(0.112 0.008 78)`, sidebar `oklch(0.078 0.007 78)`), and the borders and hairlines carry
@@ -271,6 +273,22 @@ required: `.github/workflows/release.yml` at the repository root builds all thre
 OSes when a `v*` tag matching `tauri.conf.json` is pushed (or
 `gh workflow run release.yml --ref vX.Y.Z`). Pushing a workflow file needs a token
 with the `workflow` scope: `gh auth refresh -h github.com -s workflow`.
+
+## Remaining release blockers
+
+What still stands between this tree and a download people can click, as of the last session:
+
+| Blocker | State | What clears it |
+|---------|-------|----------------|
+| The workflow is not on GitHub | `.github/workflows/release.yml` is committed locally, but pushing it is rejected: `refusing to allow an OAuth App to create or update workflow … without 'workflow' scope` | `gh auth refresh -h github.com -s workflow`, complete the browser step, then push with `gh`'s token (git's `credential.helper=manager` caches a separate credential) |
+| No tag and no release | No `v0.23.6` ref on the remote and no MuseCodeIcon release; the earlier Windows-only draft was deleted on purpose | Push the `v0.23.6` tag (matching `tauri.conf.json`); that tag push is what starts the build |
+| macOS and Linux unbuilt | Only the Windows installer has ever been produced here (Windows-only machine) | The `desktop-macos` and `desktop-linux` CI jobs. Neither has run yet, so both platforms are unverified, not merely unreleased |
+| Windows installer unsigned | SmartScreen shows "Windows protected your PC" → More info → Run anyway | A code-signing certificate; nothing in the repo pretends otherwise |
+| macOS build not notarized | `tauri.macos.conf.json` signs ad-hoc (`signingIdentity: "-"`, `hardenedRuntime: false`) | An Apple Developer ID plus notarization, before Gatekeeper opens it without "Open Anyway" |
+| Draft releases cannot hold the tag | tauri-action looks releases up with `getReleaseByTag`, which 404s for drafts, then tries to create one and gets `422 already_exists` | Let the first CI run create the release; do not pre-create a draft for `v0.23.6` |
+| No updater | The Tauri updater plugin was removed, and CI runs with `includeUpdaterJson: false` | Nothing — by design. There is no `latest.json` and no update channel to keep fed |
+
+Reproducing the Windows installer works today with the commands above; everything else is gated on that first successful push and CI run.
 
 ## Unofficial notice
 
