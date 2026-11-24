@@ -99,8 +99,11 @@ jobs:
           }
           if (-not $node) { throw "Missing the Node.js sidecar in $release or apps/desktop/src-tauri/binaries" }
           Copy-Item $node (Join-Path $stage "node.exe")
+          # Tauri reads bundle.resources from src-tauri/resources and does not copy them into the
+          # target folder, so that source tree is the one the bundle is actually built from.
           $resources = Join-Path $release "resources"
-          if (-not (Test-Path $resources)) { throw "Missing portable payload: $resources" }
+          if (-not (Test-Path $resources)) { $resources = "apps/desktop/src-tauri/resources" }
+          if (-not (Test-Path (Join-Path $resources "server.cjs"))) { throw "Missing portable payload: $resources/server.cjs" }
           Copy-Item $resources $stage -Recurse
           $zip = "MuseCodeIcon_${version}_x64-portable.zip"
           Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -CompressionLevel Optimal -Force
@@ -155,8 +158,8 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          app="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/MuseCodeIcon.app"
-          [ -d "$app" ] || { echo "::error::Missing macOS bundle: $app" >&2; exit 1; }
+          app="$(find apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -name '*.app' -type d | head -1)"
+          [ -n "$app" ] && [ -d "$app" ] || { echo "::error::Missing the macOS .app bundle" >&2; exit 1; }
           zip="MuseCodeIcon_${version}_universal-macos.zip"
           ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
           gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
@@ -214,8 +217,8 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           appimage_dir="apps/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage"
-          appimage="$appimage_dir/MuseCodeIcon_${version}_amd64.AppImage"
-          [ -f "$appimage" ] || { echo "::error::Missing AppImage: $appimage" >&2; exit 1; }
+          appimage="$(find "$appimage_dir" -maxdepth 1 -name '*.AppImage' -type f | head -1)"
+          [ -n "$appimage" ] && [ -f "$appimage" ] || { echo "::error::Missing the Linux AppImage" >&2; exit 1; }
           zip="MuseCodeIcon_${version}_amd64-linux-portable.zip"
           cd "$appimage_dir"
           zip -j "$GITHUB_WORKSPACE/muse-cli-gui-desktop/$zip" "$(basename "$appimage")"
