@@ -68,17 +68,21 @@ makes no telemetry calls**. New versions are installed by hand.
 
 ## 4. Branding: icon and the dark-and-gold default
 
-- Icon source art: `muse-cli-gui-desktop/apps/desktop/assets/icon-source.jpg`
-  (gold geometric M on a charcoal tile). Expanded for every platform with:
-  `cd muse-cli-gui-desktop/apps/desktop && npx tauri icon assets/icon-source.jpg`
+- Icon source art: `muse-cli-gui-desktop/apps/desktop/assets/make-icon.py` (Pillow) draws
+  `icon-source.png` — a gold geometric M with a spark on a near-black tile — which is also the
+  mark the in-app `<Logo>` draws. Expanded for every platform with:
+  `cd muse-cli-gui-desktop/apps/desktop && python assets/make-icon.py && npx tauri icon assets/icon-source.png`
   → `src-tauri/icons/` (`.ico`, `.icns`, PNGs, Store/Square, Android, iOS).
   Verified embedded in the built exe via
   `[System.Drawing.Icon]::ExtractAssociatedIcon(...)`.
 - Default theme is `"dark"` (`packages/ui/src/model/store.ts`), and the
   pre-paint script in `apps/web/index.html` sets `data-theme="dark"` unless
   saved prefs say otherwise — no light flash on a light-mode OS.
-- Accent family is gold: `--accent: oklch(0.79 0.135 85)` on a barely-warm
-  charcoal (`--bg: oklch(0.165 0.006 75)`), with near-black text on gold.
+- Accent family is gold: `--accent: oklch(0.845 0.152 87)` on near-black
+  (`--bg: oklch(0.112 0.008 78)`, sidebar `oklch(0.078 0.007 78)`), with near-black text on
+  gold and gold-tinted borders. The Tauri window is built with
+  `.theme(Some(tauri::Theme::Dark))` and `.background_color(Color(10, 8, 6, 255))`, and the
+  splash/error pages are hard-coded dark, so no OS preference can show the app light.
   Light mode keeps the same gold accent.
 
 ## 5. Windows fix: `fetch-node` and GNU tar

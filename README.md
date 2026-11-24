@@ -26,14 +26,14 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 
 | App | Where | What it is |
 |-----|-------|------------|
-| **MuseCodeIcon** | [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) | A standalone **desktop app** (Tauri 2: Windows, macOS, Linux) for the `muse` CLI. Gold on deep charcoal, dark theme by default. Projects → threads → turns, readable approvals, inline diffs, file viewer, plan/usage meters, goals, background workflows, command palette. |
+| **MuseCodeIcon** | [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) | A standalone **desktop app** (Tauri 2: Windows, macOS, Linux) for the `muse` CLI. Gold on black, dark theme by default. Projects → threads → turns, readable approvals, inline diffs, file viewer, plan/usage meters, goals, background workflows, command palette. |
 | **Muse CLI GUI** (the bridge GUI) | repo root (this README) | The portable Windows GUI + WebSocket bridge described below: agent chat, file browser, browser/research panel, and an OpenAI-compatible API on `localhost:8766`. |
 
 The desktop app is the newer one and the one to reach for on a desktop. The bridge GUI below still works and is unchanged.
 
 ## 🖥️ MuseCodeIcon — the desktop app
 
-![MuseCodeIcon: start a thread in a project, dark theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
+![MuseCodeIcon: start a thread in a project, black theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
 
 A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. The desktop installers bundle their own Node.js, so the only thing you need installed is the official `muse` CLI with `muse login` done once — the app reads that login and never stores credentials of its own.
 
@@ -43,7 +43,7 @@ A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` pe
 - **A file viewer** beside the thread: source, Markdown, images, video, PDFs
 - **Your real plan meter** and a **usage page** with what each thread would have cost
 - **Goals, background workflows, slash commands, skills, reasoning effort, command palette**
-- **Dark and gold by default** on every platform; light and system are one click away in Settings → Appearance
+- **Gold on black by default** on every platform — the window, splash and first paint are dark, so a light desktop never shows it light; light and system are one click away in Settings → Appearance
 - **No auto-update**: this copy has no updater at all, so it never contacts a release server or pulls another project's releases
 
 Screenshots, the feature detail and the full caveat list live in [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). How it was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).

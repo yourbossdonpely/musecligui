@@ -5,13 +5,13 @@
 # MuseCodeIcon
 
 **A free, MIT-licensed desktop app (Windows, macOS, Linux) for Meta's Muse Code CLI.**
-**Dark and gold, on every platform.**
+**Gold on black, on every platform.**
 
 > **Unofficial community project — not made, endorsed, or supported by Meta. Not affiliated with Meta.**
 
 </div>
 
-![MuseCodeIcon: start a thread in a project, dark theme with gold accents](docs/assets/app-home.png)
+![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
 **Download:** no MuseCodeIcon release has been published yet. Build from source (see [From source](#from-source)); the Windows installer lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. Windows, macOS and Linux downloads will appear on the Releases page once the multi-platform release workflow is enabled.
 
@@ -38,7 +38,7 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 
 </details>
 
-> **Colours:** gold on deep charcoal. The app opens in the dark theme on every platform; light and system are two clicks away in Settings → Appearance.
+> **Colours:** gold on black. The app opens in the dark theme on every platform — the window itself is created dark, the splash page is dark, and the first paint is dark — so a light desktop never shows it light. Light and system are still two clicks away in Settings → Appearance.
 
 
 > ⚠️ **Unofficial community project.** Not made, endorsed, or supported by Meta. MuseCodeIcon is a client for the **Muse Code CLI**, and is unrelated to the Muse assistant app for Mac. "Muse" and "Muse Code" are trademarks of Meta, used here only to describe what this client connects to. This is **not legal advice** - see [Legal](#legal).

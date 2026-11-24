@@ -8,10 +8,11 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
- * MuseCodeIcon tokens. Dark charcoal neutrals (hue 75, barely warm) plus one gold accent, the gold
- * of the app icon, reserved for action, live state and focus. Gold and dark are the product's own
- * colours: the app defaults to the dark theme on every platform. Every text token clears 4.5:1 on
- * every surface in both themes (checked with a WCAG script).
+ * MuseCodeIcon is gold on black. The dark theme is the product's own: near-black surfaces, warm
+ * gold hairlines, and one gold accent — the gold of the app icon — for action, live state and focus.
+ * It is the default on every platform and the desktop window is created in it, so no OS preference
+ * can show the app light. Light stays available for reading in daylight. Every text token clears
+ * 4.5:1 on every surface in both themes.
  */
 :root {
   color-scheme: light;
@@ -79,24 +80,24 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: oklch(0.165 0.006 75);
-  --bg-sidebar: oklch(0.142 0.006 75);
-  --bg-raised: oklch(0.205 0.007 75);
-  --bg-sunken: oklch(0.135 0.006 75);
-  --bg-hover: oklch(0.98 0.005 255 / 0.05);
-  --bg-active: oklch(0.98 0.005 255 / 0.085);
+  --bg: oklch(0.112 0.008 78);
+  --bg-sidebar: oklch(0.078 0.007 78);
+  --bg-raised: oklch(0.168 0.009 78);
+  --bg-sunken: oklch(0.062 0.006 78);
+  --bg-hover: oklch(0.96 0.03 90 / 0.055);
+  --bg-active: oklch(0.96 0.04 90 / 0.095);
   --bg-inverse: oklch(0.95 0.003 255);
   --fg-inverse: oklch(0.17 0.004 255);
-  --border: oklch(0.98 0.005 255 / 0.08);
-  --border-strong: oklch(0.98 0.005 255 / 0.15);
+  --border: oklch(0.86 0.07 86 / 0.14);
+  --border-strong: oklch(0.88 0.1 86 / 0.26);
   --fg: oklch(0.955 0.003 255);
   --fg-muted: oklch(0.76 0.008 255);
   --fg-subtle: oklch(0.66 0.009 255);
-  --accent: oklch(0.79 0.135 85); /* gold; near-black text on it clears AA for small text */
-  --accent-hover: oklch(0.86 0.13 88);
-  --accent-fg: oklch(0.17 0.02 75);
-  --accent-text: oklch(0.86 0.12 88);
-  --accent-soft: oklch(0.8 0.13 88 / 0.16);
+  --accent: oklch(0.845 0.152 87); /* gold; near-black text on it clears AA for small text */
+  --accent-hover: oklch(0.905 0.135 90);
+  --accent-fg: oklch(0.128 0.025 80);
+  --accent-text: oklch(0.888 0.135 90);
+  --accent-soft: oklch(0.85 0.145 88 / 0.18);
   --warn: oklch(0.8 0.15 75);
   --warn-text: oklch(0.83 0.13 80);
   --warn-soft: oklch(0.8 0.15 75 / 0.12);
@@ -108,7 +109,7 @@
   --ok-text: oklch(0.8 0.13 155);
   --diff-add: oklch(0.7 0.14 150 / 0.14);
   --diff-del: oklch(0.65 0.18 25 / 0.14);
-  --scrollbar: oklch(0.98 0.005 255 / 0.16);
+  --scrollbar: oklch(0.86 0.08 88 / 0.22);
   --sh-class: oklch(0.78 0.11 300);
   --sh-identifier: oklch(0.9 0.01 255);
   --sh-sign: oklch(0.68 0.01 255);
@@ -119,8 +120,8 @@
   --sh-keyword: oklch(0.76 0.13 20);
   --sh-comment: oklch(0.62 0.01 255);
   /* In dark mode the ring turns into a faint light edge that melts into the shadow. */
-  --elev-btn: 0 0 0 1px oklch(1 0 0 / 0.1), 0 1px 2px oklch(0 0 0 / 0.3);
-  --elev-card: 0 0 0 1px oklch(1 0 0 / 0.09), 0 1px 2px oklch(0 0 0 / 0.2), 0 2px 6px oklch(0 0 0 / 0.2);
+  --elev-btn: 0 0 0 1px oklch(0.88 0.08 86 / 0.18), 0 1px 2px oklch(0 0 0 / 0.4);
+  --elev-card: 0 0 0 1px oklch(0.88 0.07 86 / 0.16), 0 1px 2px oklch(0 0 0 / 0.25), 0 2px 6px oklch(0 0 0 / 0.25);
   --folder-back: oklch(0.62 0.11 82);
   --folder-flap: oklch(0.5 0.1 80 / 0.6);
   --folder-edge: oklch(0.75 0.09 85);

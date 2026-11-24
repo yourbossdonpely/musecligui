@@ -1,14 +1,16 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Logo } from "../src/components/ui/primitives.js";
 
 describe("Logo", () => {
-  it("renders the current MuseCodeIcon mark, not the retired H-and-dot", () => {
+  it("draws the current MuseCodeIcon mark — the gold M and spark on black — not Helicon's", () => {
     const markup = renderToStaticMarkup(createElement(Logo, { size: 32 }));
-    assert.match(markup, /M 619\.9 322/, "new mark path missing");
-    assert.doesNotMatch(markup, /M9\.5 9v14/, "retired H strokes present");
-    assert.doesNotMatch(markup, /<circle/, "retired blue dot present");
+    assert.match(markup, /M7\.44 23\.7/, "the M's left leg is missing");
+    assert.match(markup, /#FCECBE/, "the gold gradient is missing");
+    assert.match(markup, /fill="#0C0A07"/, "the black tile is missing");
+    assert.doesNotMatch(markup, /M 619\.9 322/, "Helicon's mark is still in the logo");
+    assert.doesNotMatch(markup, /<circle/, "a retired dot is still in the logo");
   });
 });

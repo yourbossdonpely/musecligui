@@ -68,16 +68,18 @@ Bulk rename across 95 files, then targeted fixes:
 The GitHub repo path `yourbossdonpely/musecligui` is intentionally preserved
 (it is the repository name, not the product name).
 
-## Step 3 — Branding: icon and the dark-and-gold default
+## Step 3 — Branding: the icon and gold-on-black
 
 ### App icon
 
-The icon is generated art (`apps/desktop/assets/icon-source.jpg`, a gold geometric M on a
-charcoal rounded tile, with a small gold spark). Tauri turns it into every platform size:
+The icon is drawn, not stock: `apps/desktop/assets/make-icon.py` (Pillow, no network) renders a
+gold geometric M with a spark on a near-black rounded tile at 4x and downsamples it, so the
+diagonals stay clean. It is the same mark the UI's `<Logo>` draws, so the taskbar icon, the
+installer and the sidebar header show one logo. Tauri turns it into every platform size:
 
 ```bash
 cd apps/desktop
-npx tauri icon assets/icon-source.jpg
+python assets/make-icon.py && npx tauri icon assets/icon-source.png
 ```
 
 That writes `src-tauri/icons/` (`.ico` for Windows, `.icns` for macOS, PNGs, Store/Square logos,
@@ -96,9 +98,10 @@ Two changes, so the first paint is already dark:
 2. `apps/web/index.html` — the pre-paint script sets `data-theme = "dark"` unless stored prefs
    say otherwise, so nothing flashes light on a light-mode OS. Both `theme-color` metas are
    `#12100C`.
-3. `apps/web/src/theme.css` — the accent family is gold (`oklch(0.79 0.135 85)` on dark, with
-   near-black `--accent-fg`), the dark neutrals are a barely-warm charcoal (hue 75, `--bg`
-   `oklch(0.165 0.006 75)`), and the first-run folder art and `--chart-1` follow the accent.
+3. `apps/web/src/theme.css` — the accent family is gold (`oklch(0.845 0.152 87)` on dark, with
+   near-black `--accent-fg`), the dark neutrals are near-black and warm-tinted (hue 78, `--bg`
+   `oklch(0.112 0.008 78)`, sidebar `oklch(0.078 0.007 78)`), and the borders and hairlines carry
+   a little gold; and the first-run folder art and `--chart-1` follow the accent.
    Light mode keeps the same gold accent on white.
 
 The sidebar's "MuseCodeIcon is in your editor too" card was removed: this copy ships no VS Code
