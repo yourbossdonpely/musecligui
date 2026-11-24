@@ -170,9 +170,10 @@ restored.
 
 ## 9. What is *not* built
 
-- **macOS and Linux bundles**: not produced here (Windows-only machine). The
-  release workflow that would build them is not in this repo yet; it needs a
-  token with `workflow` scope to push (`gh auth refresh -h github.com -s workflow`).
+- **macOS and Linux bundles**: not produced here (Windows-only machine). They come
+  from `.github/workflows/release.yml` on GitHub's runners: tag `v0.23.6` (matching
+  `tauri.conf.json`) and the three OS jobs publish the installer, the universal `.dmg`
+  and the Linux AppImage/.deb/.rpm plus a `SHA256SUMS` file.
 - **Code signing / notarization**: none. SmartScreen and Gatekeeper warnings
   are expected on first launch.
 - **Published releases**: none. There are no tags or release assets for

@@ -267,9 +267,10 @@ kind: PermissionDenied }` inside `tauri-build`, a copy of the app or its sidecar
 holding `target/release/node.exe`. Close the app (or stop that node process) and build again.
 
 That produces the NSIS installer. For macOS/Linux bundles, CI runners are
-required (see `.github/workflows/release.yml`, not yet pushed — it needs a
-`workflow`-scopable token; run `gh auth refresh -h github.com -s workflow`,
-then tag a `v*` version to trigger the workflow).
+required: `.github/workflows/release.yml` at the repository root builds all three
+OSes when a `v*` tag matching `tauri.conf.json` is pushed (or
+`gh workflow run release.yml --ref vX.Y.Z`). Pushing a workflow file needs a token
+with the `workflow` scope: `gh auth refresh -h github.com -s workflow`.
 
 ## Unofficial notice
 

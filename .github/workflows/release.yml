@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # Rebuilds and republishes an existing tag: `gh workflow run release.yml --ref v0.23.6`. The ref
+  # must be the tag itself: the guard job below refuses to publish anything else, so a manual run
+  # from a branch cannot create a release named after the branch.
+  workflow_dispatch:
+
+# One release at a time, and never cancel a run halfway through uploading assets.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Cheap pre-flight: fails in seconds, before three OS builds, if the tag is not a v* tag that
+  # matches the version inside tauri.conf.json (artifact names and the release title come from it).
+  guard:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the ref is a v* tag matching the app version
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF" in
+            refs/tags/v*) ;;
+            *) echo "::error::Run this workflow on a v* tag: push one, or 'gh workflow run release.yml --ref vX.Y.Z'. Got $GITHUB_REF." >&2; exit 1 ;;
+          esac
+          version="$(node -p 'require("./muse-cli-gui-desktop/apps/desktop/src-tauri/tauri.conf.json").version')"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the version in tauri.conf.json ($version). Bump it, or tag $version." >&2
+            exit 1
+          fi
+
+  desktop-windows:
+    permissions:
+      contents: write
+    needs: guard
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: muse-cli-gui-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: muse-cli-gui-desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          # Which Node.js sidecar beforeBuildCommand bundles (apps/desktop/scripts/fetch-node.mjs).
+          MUSECODEICON_NODE_TARGET: x86_64-pc-windows-msvc
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # The folder holding src-tauri; the action resolves it from the repository root, not from
+          # the run step's working-directory.
+          projectPath: muse-cli-gui-desktop/apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "MuseCodeIcon ${{ github.ref_name }}"
+          releaseBody: "Bundles Node.js, so the only requirement is the Muse CLI with muse login (Muse for Windows natively, or inside WSL2). Unofficial community project, not affiliated with Meta. The Windows installer is not code signed yet, so SmartScreen may show a warning: click More info, then Run anyway. macOS builds are not Apple-notarized yet. On macOS 15 or later, first launch needs System Settings > Privacy & Security > Open Anyway (or run: xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app). On macOS 14 or earlier, right-click the app, then Open."
+          releaseDraft: false
+          prerelease: false
+          retryAttempts: 3
+          # MuseCodeIcon has no updater (it was removed with the Tauri plugin), so publishing a
+          # latest.json would advertise an update channel that does not exist.
+          includeUpdaterJson: false
+          args: --target x86_64-pc-windows-msvc
+
+  desktop-macos:
+    permissions:
+      contents: write
+    # After Windows, not beside it: all three jobs publish into the same release.
+    needs: desktop-windows
+    # macos-latest is arm64; the universal build adds the Intel half.
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: muse-cli-gui-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: muse-cli-gui-desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # universal-apple-darwin needs both halves installed; aarch64 is the runner default.
+          targets: x86_64-apple-darwin
+      - run: npm ci
+      - run: npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          # fetch-node.mjs lipos the two architectures into node-universal-apple-darwin.
+          MUSECODEICON_NODE_TARGET: universal-apple-darwin
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: muse-cli-gui-desktop/apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "MuseCodeIcon ${{ github.ref_name }}"
+          releaseBody: "Bundles Node.js, so the only requirement is the Muse CLI with muse login. Unofficial community project, not affiliated with Meta. macOS builds are not Apple-notarized yet. On macOS 15 or later, first launch needs System Settings > Privacy & Security > Open Anyway (or run: xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app). On macOS 14 or earlier, right-click the app, then Open."
+          releaseDraft: false
+          prerelease: false
+          retryAttempts: 3
+          includeUpdaterJson: false
+          # One universal .dmg for Apple Silicon and Intel; the bundle targets come from
+          # tauri.macos.conf.json (app + dmg, ad-hoc signing).
+          args: --target universal-apple-darwin
+
+  desktop-linux:
+    permissions:
+      contents: write
+    needs: desktop-macos
+    # 22.04 keeps the glibc baseline low enough for every supported distro.
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: muse-cli-gui-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: muse-cli-gui-desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri Linux dependencies
+        # squashfs-tools is what the AppImage bundle is packed with; the rest is Tauri's documented
+        # Debian list for WebKitGTK 4.1.
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev squashfs-tools
+      - run: npm ci
+      - run: npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          # Linux packages install to /usr/bin, so the sidecar is named musecodeicon-node-<triple>
+          # there; tauri.linux.conf.json points externalBin at that name.
+          MUSECODEICON_NODE_TARGET: x86_64-unknown-linux-gnu
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: muse-cli-gui-desktop/apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "MuseCodeIcon ${{ github.ref_name }}"
+          releaseBody: "Bundles Node.js, so the only requirement is the Muse CLI with muse login. Unofficial community project, not affiliated with Meta. Linux x86_64 bundle (AppImage / .deb / .rpm)."
+          releaseDraft: false
+          prerelease: false
+          retryAttempts: 3
+          includeUpdaterJson: false
+          # Bundle targets come from tauri.linux.conf.json (appimage, deb, rpm).
+          args: --target x86_64-unknown-linux-gnu
+
+  # One SHA256SUMS per release, so copies of the installers on mirror sites can be checked against it.
+  checksums:
+    permissions:
+      contents: write
+    needs: [desktop-windows, desktop-macos, desktop-linux]
+    # Only when every installer made it; a partial list is worse than none.
+    if: ${{ needs.desktop-windows.result == 'success' && needs.desktop-macos.result == 'success' && needs.desktop-linux.result == 'success' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Publish SHA256SUMS
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          cd "$work"
+          # gh infers nothing from a temp dir, so the repository is passed explicitly.
+          installers=('MuseCodeIcon_*_x64-setup.exe' 'MuseCodeIcon_*_universal.dmg' 'MuseCodeIcon_*_amd64.AppImage')
+          for pattern in "${installers[@]}"; do
+            # A pattern that matches nothing exits non-zero; report which installer is missing instead.
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$pattern" || true
+            compgen -G "$pattern" > /dev/null || { echo "::error::Missing release asset: $pattern" >&2; exit 1; }
+          done
+          shopt -s nullglob
+          sha256sum MuseCodeIcon_* > SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" SHA256SUMS --clobber
