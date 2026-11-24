@@ -2,22 +2,18 @@
 
 Thanks for helping. MuseCodeIcon is an open-source desktop and web app for Meta's Muse Code CLI, built with Tauri, React and TypeScript. You don't need a Muse Code subscription to work on most of it: demo mode runs the whole interface on sample data.
 
-## Your first PR in five steps
+## Before you start
 
-1. **Pick an issue.** [Good first issues](https://github.com/yourbossdonpely/musecligui/contribute) are small and each lists the files to touch. [Help wanted](https://github.com/yourbossdonpely/musecligui/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) issues are bigger.
-2. **Claim it.** Comment on the issue and wait to be assigned (usually within a day). One person per issue, so nobody's work gets thrown away. If an assigned issue sees no PR or update for 7 days, it goes back to the pool.
-3. **Branch from `prod`.** Fork the repo, then `git switch -c fix-sidebar-focus prod`.
-4. **Make the change and run the tests** for the workspaces you touched (below).
-5. **Open a PR** that says `Closes #123`. The template asks how you tested it. You'll get a first review within 48 hours.
+The app lives in this folder (`muse-cli-gui-desktop/`) of the [yourbossdonpely/musecligui](https://github.com/yourbossdonpely/musecligui) repository. Every workspace and every command below is rooted here, so clone and then change into this folder.
 
-Something you want to build that has no issue yet? Open one first (or start a [Discussion](https://github.com/yourbossdonpely/musecligui/discussions)) so we can agree on the shape before you write code.
+The repository has no issues and no pull-request template yet. For anything bigger than a small fix, [open an issue](https://github.com/yourbossdonpely/musecligui/issues/new) saying what you want to change and which files you expect to touch, so the shape can be agreed before you write code. There is no triage rota: one maintainer reviews when they get to it, and nothing is assigned to anyone in advance.
 
 ## Set up (about 5 minutes)
 
-You need Node 22 or newer and git. If you use NVM, run `nvm use` from the repository root after installing and configuring NVM to activate the Node.js version specified by `.nvmrc`. Rust and the Tauri prerequisites are only needed for the desktop shell.
+You need Node 22 or newer and git. If you use NVM, run `nvm use` from this folder after installing and configuring NVM to activate the Node.js version specified by `.nvmrc`. Rust and the Tauri prerequisites are only needed for the desktop shell.
 
 ```bash
-git clone https://github.com/<you>/musecodeicon && cd musecodeicon
+git clone https://github.com/<you>/musecligui && cd musecligui/muse-cli-gui-desktop
 nvm use
 npm install
 npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
@@ -37,7 +33,7 @@ Demo mode swaps the server for an in-memory client with sample projects, threads
 If you have the `muse` CLI and have run `muse login` once:
 
 ```bash
-# terminal 1: the API, talking to your muse
+# terminal 1: the API, talking to your muse (needs the build above)
 node packages/server/dist/src/cli.js --port 3127
 # terminal 2: the UI with hot reload
 npm run dev --workspace @musecodeicon/web
@@ -50,7 +46,7 @@ npm run dev --workspace @musecodeicon/web
 npm run dev --workspace musecodeicon-desktop
 ```
 
-Needs [the Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS.
+Needs [the Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS. `npm run build --workspace musecodeicon-desktop` produces the release binary and, on Windows, the installer under `apps/desktop/src-tauri/target/release/bundle/nsis/`.
 
 ## Where things live
 
@@ -61,52 +57,51 @@ Needs [the Tauri prerequisites](https://tauri.app/start/prerequisites/) for your
 | `packages/daemon` | Runs `muse serve` and speaks MSP (JSON-RPC over stdio) through `@muse-code/sdk` |
 | `apps/web` | The Vite entry for the browser build, plus demo mode (`src/demo`) |
 | `apps/desktop` | The Tauri 2 shell (Rust) and installers |
-| `docs/assets` | Screenshots used by this README |
+| `docs/assets` | Screenshots used by the README |
+
+`BUILD-LOG.md` records what was copied from upstream, what was removed, and the build and test results of this copy.
 
 ## Tests
 
-Run these for the workspaces you touched. None of them need Muse.
+Run these for the workspaces you touched. None of them need a Muse login.
 
 ```bash
-npm run test --workspace @musecodeicon/ui       # about 250 tests, under 10 s
-npm run test --workspace @musecodeicon/server
-npm run test --workspace @musecodeicon/daemon
-npm run test --workspace @musecodeicon/web
+npm run test --workspace @musecodeicon/ui       # 369 tests, about 12 s
+npm run test --workspace @musecodeicon/web      # 52 tests, about 9 s
+npm run test --workspace @musecodeicon/server   # 222 tests
+npm run test --workspace @musecodeicon/daemon   # 61 tests
 ```
 
-CI runs the same on Windows, macOS and Linux, and checks the desktop crate with `cargo check` and `cargo test`.
+Two environment notes from measuring this on Windows, so a red suite does not send you hunting for a bug:
+
+- Ten `packages/server` file-viewer tests fail with `EPERM` when Node cannot create symlinks (a Developer Mode or elevated shell normally can). Everything else in that suite passes.
+- The `packages/daemon` WSL probe has two tests that assert what is installed on the machine; they disagree with a machine that has the Windows `muse` installed, or a WSL default distro that differs from the one they assume.
+
+There is no test CI in this copy. The only workflow is `.github/workflows/release.yml` at the repository root: it builds the Windows, macOS and Linux installers on a `v*` tag and runs no tests, so run them yourself before you open a PR. For the desktop crate, also run:
+
+```bash
+cd apps/desktop/src-tauri && cargo check && cargo test
+```
 
 For UI changes, check light and dark themes and a narrow window, and add a screenshot or short clip to the PR.
 
 ## What gets merged
 
-- One change per PR, linked to an issue, with tests where the change has logic in it.
+- One change per PR, linked to an issue where there is one, with tests where the change has logic in it.
 - Commit subjects are short and plain, and say what changed: `Keep focus in the sidebar after renaming a project`. Add a body only when the "why" isn't obvious.
-- Merged PRs are credited by handle in the release notes.
-
-## Hacktoberfest
-
-MuseCodeIcon takes part in Hacktoberfest. A PR counts once it's merged, or once it's labelled `hacktoberfest-accepted`.
-
-PRs that won't count, and will be closed and labelled `spam` or `invalid`:
-
-- Typo, whitespace or formatting changes that no issue asked for
-- Changes to README badges, contributor lists or this file, made just to have a PR
-- Generated or AI-written changes the author clearly didn't run or read
-- A second PR for an issue someone else is already assigned to
-
-Using AI tools is fine. Understanding and testing what you submit is on you.
+- Typo-only PRs, and generated changes the author clearly did not run or read, are closed. Using AI tools is fine; understanding and testing what you submit is on you.
+- No release has been published yet. When the first one is, merged contributors are named by handle in its notes.
 
 ## Ground rules
 
-1. The README's "Unofficial community project" note is the one place that says MuseCodeIcon is not affiliated with Meta; don't repeat it in names, releases, docs or the app. App UI stays unbranded.
+1. The README says MuseCodeIcon is an unofficial community project, not affiliated with Meta; keep it to that note and don't repeat it in names, releases, docs or the app. App UI stays unbranded.
 2. Don't use the `Muse` mark in new binary names, bundle IDs, domains or titles.
 3. Never commit credentials (`auth.json`, `.env`, API keys). Use your own `muse login`.
 4. Never bypass approvals or billing. Surface approval modes honestly.
-5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecligui/security/advisories/new), not an issue.
+5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecligui/security/advisories/new) if the repository's Security tab offers one, not to a public issue.
 
 Everyone here is expected to be civil and to assume good faith.
 
 ## Versioning
 
-Semver. The app never updates itself, so a new version is a hand-built installer and a bumped version in `apps/desktop/src-tauri/tauri.conf.json`. Merged PRs with considerable work bump at least the patch version; routine work never bumps major. The maintainer cuts releases.
+Semver. The app never updates itself, so a release is a hand-built installer and a bumped version in `apps/desktop/src-tauri/tauri.conf.json` — or, once the release workflow is enabled on GitHub, a `v*` tag that builds the installers for all three platforms. Routine work never bumps major; merged PRs with considerable work bump at least the patch version. The maintainer cuts releases.
