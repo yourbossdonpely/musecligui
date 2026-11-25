@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { AttachButton, AttachmentTray, readFiles, restoreFiles, toOutgoing, toPreview, type PendingFile } from "./attachments.js";
+import { applyMention, buildMentionContext, extractMentions, findMentionToken, splitMentionQuery } from "../../model/mentions.js";
 import { CostMeter } from "./CostPanel.js";
 import { resolveSteer } from "./keys.js";
 import { Popover, Slider, Switch } from "radix-ui";
@@ -76,6 +77,61 @@ type SlashMenuView = SlashMenuState & { prefix: string };
  * What the menu shows for the draft and caret. While the caret is in the first word it lists matching
  * commands; `/skill <name>` lists skills; after that it only appears to flag a command Muse does not know.
  */
+interface MentionItem {
+  rel: string;
+  dir: boolean;
+}
+
+export function mentionOptionId(menuId: string, index: number): string {
+  return `${menuId}-mention-${index}`;
+}
+
+/**
+ * The file listbox the composer's textarea controls while an @path token is open.
+ * Focus never leaves the textarea: rows act on mouse down, arrows move through `aria-activedescendant`.
+ */
+function MentionMenu(props: {
+  id: string;
+  items: MentionItem[];
+  active: number;
+  placement: "above" | "below";
+  onActive: (index: number) => void;
+  onPick: (item: MentionItem) => void;
+}) {
+  return (
+    <div
+      id={props.id}
+      role="listbox"
+      aria-label="Matching files"
+      className={
+        "absolute right-3 left-3 z-30 max-h-56 overflow-y-auto rounded-xl border border-line bg-raised p-1 shadow-xl " +
+        (props.placement === "below" ? "top-full mt-1" : "bottom-full mb-1")
+      }
+    >
+      {props.items.map((item, index) => (
+        <div
+          key={item.rel}
+          id={mentionOptionId(props.id, index)}
+          role="option"
+          aria-selected={index === props.active}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            props.onPick(item);
+          }}
+          onMouseEnter={() => props.onActive(index)}
+          className={
+            "flex min-h-9 cursor-default items-center gap-2.5 rounded-lg px-2 py-1.5 font-mono text-sm select-none " +
+            (index === props.active ? "bg-active text-fg" : "text-muted")
+          }
+        >
+          <span aria-hidden="true">{item.dir ? "📁" : "📄"}</span>
+          <span className="min-w-0 truncate">{item.rel}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function slashMenuFor(text: string, caret: number, commands: SlashCommand[], skills: SkillsState | undefined): SlashMenuView | null {
   const first = /^\/(\S*)/.exec(text);
   if (!first) {
@@ -154,6 +210,7 @@ export function Composer(props: ComposerProps) {
   };
   const id = useId();
   const menuId = useId();
+  const mentionMenuId = useId();
   const starting = useApp((s) => Boolean(s.busy["start"]));
   const stopping = useApp((s) => (props.sessionId ? Boolean(s.busy[`stop:${props.sessionId}`]) : false));
   const steerByDefault = useApp((s) => s.prefs.steerByDefault);
@@ -207,6 +264,77 @@ export function Composer(props: ComposerProps) {
     setActive(0);
   }, [word, menu?.kind, menu?.prefix]);
 
+  // The @file menu: paths in the project folder, drilled by directory. Only when no slash menu owns the caret.
+  const [mentionItems, setMentionItems] = useState<MentionItem[] | null>(null);
+  const [mentionActive, setMentionActive] = useState(0);
+  const mentionSeq = useRef(0);
+  const mentionToken = !menu && !props.readOnly && props.cwd ? findMentionToken(text, caret) : null;
+  useEffect(() => {
+    if (!mentionToken || !props.cwd) {
+      setMentionItems(null);
+      return;
+    }
+    const seq = (mentionSeq.current += 1);
+    const cwd = props.cwd;
+    const { dir, file } = splitMentionQuery(mentionToken.query);
+    const timer = setTimeout(() => {
+      controller
+        .listFiles(cwd, dir)
+        .then((listing) => {
+          if (mentionSeq.current !== seq) {
+            return;
+          }
+          const query = file.toLowerCase();
+          const items: MentionItem[] = [];
+          for (const entry of listing.entries ?? []) {
+            if (!entry.name.toLowerCase().includes(query)) {
+              continue;
+            }
+            const isDir = entry.kind === "dir";
+            items.push({ rel: (dir ? `${dir}/` : "") + entry.name + (isDir ? "/" : ""), dir: isDir });
+            if (items.length >= 8) {
+              break;
+            }
+          }
+          setMentionItems(items.length ? items : null);
+          setMentionActive(0);
+        })
+        .catch(() => {
+          if (mentionSeq.current === seq) {
+            setMentionItems(null);
+          }
+        });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [mentionToken?.start, mentionToken?.query, props.cwd, controller, menu]);
+  const mentionRow = mentionItems && mentionItems.length ? Math.max(0, Math.min(mentionActive, mentionItems.length - 1)) : 0;
+  const pickMention = (item: MentionItem) => {
+    if (!mentionToken) {
+      return;
+    }
+    const applied = applyMention(text, caret, mentionToken.start, item.rel);
+    if (item.dir) {
+      // Keep the token open inside the directory: drop the trailing space the file case needs.
+      const value = `${applied.value.slice(0, applied.caret - 1)}${applied.value.slice(applied.caret)}`;
+      setText(value);
+      setCaret(applied.caret - 1);
+      requestAnimationFrame(() => {
+        const el = ref.current;
+        el?.focus();
+        el?.setSelectionRange(applied.caret - 1, applied.caret - 1);
+      });
+      return;
+    }
+    setText(applied.value);
+    setCaret(applied.caret);
+    setMentionItems(null);
+    requestAnimationFrame(() => {
+      const el = ref.current;
+      el?.focus();
+      el?.setSelectionRange(applied.caret, applied.caret);
+    });
+  };
+
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) {
@@ -239,10 +367,30 @@ export function Composer(props: ComposerProps) {
     }
     setText("");
     setFiles([]);
-    const sent = await controller.send(value, {
+    // @file mentions resolve to fenced context on the wire; the echo keeps what was typed.
+    // Unreadable mentions stay literal so nothing is ever lost.
+    let full = value;
+    const rels = props.cwd ? extractMentions(value) : [];
+    if (rels.length && props.cwd) {
+      const cwd = props.cwd;
+      const parts: { rel: string; content: string }[] = [];
+      for (const rel of rels.slice(0, 3)) {
+        try {
+          const file = await controller.readFile(cwd, rel);
+          if (file.content) {
+            parts.push({ rel, content: file.content.slice(0, 20000) });
+          }
+        } catch {
+          // Mentioned path is missing or binary: leave the @text for the model to see.
+        }
+      }
+      full = value + buildMentionContext(parts);
+    }
+    const sent = await controller.send(full, {
       steer,
       attachments: outgoing.map(toOutgoing),
       previews: outgoing.map(toPreview),
+      displayText: value,
     });
     if (!sent) {
       consumedRef.current = null;
@@ -323,6 +471,31 @@ export function Composer(props: ComposerProps) {
         } else {
           // Skills are still loading: send anyway, and the controller resolves the command once they arrive.
           void submit(resolveSteer(props.running, event.metaKey || event.ctrlKey, steerByDefault));
+        }
+        return;
+      }
+    }
+    const mentionOpen = mentionToken && mentionItems && mentionItems.length > 0;
+    if (mentionOpen && mentionItems) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        setMentionActive((mentionRow + step + mentionItems.length) % mentionItems.length);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMentionItems(null);
+        return;
+      }
+      if ((event.key === "Enter" || event.key === "Tab") && !event.shiftKey) {
+        event.preventDefault();
+        if (event.repeat) {
+          return;
+        }
+        const item = mentionItems[mentionRow];
+        if (item) {
+          pickMention(item);
         }
         return;
       }
@@ -414,6 +587,16 @@ export function Composer(props: ComposerProps) {
           onSendRaw={() => void runNow(text, true)}
         />
       ) : null}
+      {!menu && mentionToken && mentionItems && mentionItems.length ? (
+        <MentionMenu
+          id={mentionMenuId}
+          items={mentionItems}
+          active={mentionRow}
+          placement={props.variant === "home" ? "below" : "above"}
+          onActive={setMentionActive}
+          onPick={pickMention}
+        />
+      ) : null}
       {/* Names the thread, so landing in the composer says which conversation a message would go to. */}
       <label htmlFor={id} className="sr-only">
         {threadTitle ? `Message Muse in ${threadTitle}` : "Message Muse"}
@@ -436,11 +619,13 @@ export function Composer(props: ComposerProps) {
         disabled={props.readOnly}
         placeholder={placeholder}
         spellCheck
-        role={menu ? "combobox" : undefined}
-        aria-expanded={menu ? true : undefined}
-        aria-controls={menu ? menuId : undefined}
-        aria-autocomplete={menu ? "list" : undefined}
-        aria-activedescendant={menu ? slashOptionId(menuId, activeRow) : undefined}
+        role={menu || (mentionToken && mentionItems?.length) ? "combobox" : undefined}
+        aria-expanded={menu || (mentionToken && mentionItems?.length) ? true : undefined}
+        aria-controls={menu ? menuId : mentionToken && mentionItems?.length ? mentionMenuId : undefined}
+        aria-autocomplete={menu || (mentionToken && mentionItems?.length) ? "list" : undefined}
+        aria-activedescendant={
+          menu ? slashOptionId(menuId, activeRow) : mentionToken && mentionItems?.length ? mentionOptionId(mentionMenuId, mentionRow) : undefined
+        }
         onChange={(event) => {
           setText(event.currentTarget.value);
           setCaret(event.currentTarget.selectionStart);
