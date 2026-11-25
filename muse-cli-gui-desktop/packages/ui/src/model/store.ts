@@ -17,6 +17,7 @@ import type {
 } from "../types.js";
 import type { EchoAttachment, ThreadFold } from "./fold.js";
 import type { UpdateState } from "./updates.js";
+import { isTaskMode, type TaskMode } from "./modes.js";
 
 /** A tiny external store: immutable snapshots plus change listeners, read through useSyncExternalStore-style hooks. */
 export class Store<T> {
@@ -122,6 +123,10 @@ export interface Prefs {
   preYolo: { defaultMode: ApprovalMode; threads: Record<string, ApprovalMode | null> } | null;
   /** Read-aloud voice: null means automatic, which prefers a female English voice. */
   voice: { uri: string; rate: number } | null;
+  /** What new threads do: build, plan, research or debug framing for their prompts. */
+  defaultTaskMode: TaskMode;
+  /** Per-thread task framing, for threads set apart from the default. */
+  threadModes: Record<string, TaskMode>;
 }
 
 export const DEFAULT_FILES_WIDTH = 480;
@@ -179,6 +184,8 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     steerByDefault: false,
     preYolo: null,
     voice: null,
+    defaultTaskMode: "build",
+    threadModes: {},
   };
 }
 
@@ -282,7 +289,7 @@ export interface AppState {
 }
 
 /** `confirmFullAccess` is the full-access confirmation, which `/permissions full` must still pass through. */
-export type ComposerPicker = "model" | "effort" | "permissions" | "confirmFullAccess" | "confirmBypass" | "confirmYolo" | "account";
+export type ComposerPicker = "model" | "effort" | "permissions" | "confirmFullAccess" | "confirmBypass" | "confirmYolo" | "account" | "taskMode";
 
 /** The device-code login modal's state: a device prompt waiting or done, or a runtime fallback message. */
 export type AccountLoginState =
@@ -399,6 +406,11 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
     expandWork: pick("expandWork", (v) => typeof v === "boolean"),
     steerByDefault: pick("steerByDefault", (v) => typeof v === "boolean"),
     preYolo: pick("preYolo", isPreYolo),
+    defaultTaskMode: pick("defaultTaskMode", isTaskMode),
+    threadModes: pick(
+      "threadModes",
+      (v) => typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every(isTaskMode),
+    ),
     voice: pick(
       "voice",
       (v) =>

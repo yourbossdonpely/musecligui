@@ -2,6 +2,8 @@
 // with a [SUGGEST] block; the transcript parses it into clickable chips and
 // strips it from the displayed text. Zero extra model calls. When the model
 // omits the block, generic fallback chips fill in.
+import { modeFallbackSuggestions, type TaskMode } from "./modes.js";
+
 export const SUGGEST_SUFFIX =
   "\n\n[After your reply, end with exactly 3 short follow-up suggestions, one per line, " +
   "inside a [SUGGEST]...[/SUGGEST] block. Each suggestion must read as a concrete next " +
@@ -32,6 +34,10 @@ export function stripSuggestions(text: string): string {
 
 const FALLBACKS = ["Review the diff of these changes", "Run the tests to verify this", "Explain what changed and why"];
 
-export function fallbackSuggestions(): string[] {
+/** Generic chips when a reply carries none; a task mode tunes them to what the thread is doing. */
+export function fallbackSuggestions(mode?: TaskMode): string[] {
+  if (mode === "plan" || mode === "research" || mode === "debug") {
+    return modeFallbackSuggestions(mode);
+  }
   return [...FALLBACKS];
 }

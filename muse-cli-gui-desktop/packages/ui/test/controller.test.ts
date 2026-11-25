@@ -2138,6 +2138,43 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("frames plain prompts with the thread's task mode", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.setTaskMode("s1", "plan");
+    assert.equal(await controller.send("fix the footer"), true);
+    const sent = client.sent.at(-1)!;
+    assert.match(sent.text, /^MODE: You are in READ-ONLY PLANNING mode\./);
+    assert.ok(sent.text.includes("fix the footer"));
+    assert.equal(sent.displayText, "fix the footer", "the transcript keeps the clean text");
+    stop();
+  });
+
+  it("leaves raw and slash sends unframed", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.setTaskMode("s1", "debug");
+    assert.equal(await controller.send("exact bytes", { raw: true }), true);
+    assert.equal(client.sent.at(-1)?.text, "exact bytes");
+    assert.equal(await controller.send("/compact"), true);
+    assert.ok(client.actions.includes("compact"));
+    assert.ok(client.sent.every((s) => !s.text.startsWith("MODE:")), "no framing leaks into commands");
+    stop();
+  });
+
+  it("falls back to the default mode and lets threads opt out", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(controller.taskMode("s1"), "build");
+    controller.setTaskMode(null, "research");
+    assert.equal(controller.taskMode("s1"), "research");
+    assert.equal(controller.taskMode("nope"), "research");
+    controller.setTaskMode("s1", "debug");
+    assert.equal(controller.taskMode("s1"), "debug");
+    assert.equal(controller.store.get().prefs.defaultTaskMode, "research", "the default is untouched");
+    stop();
+  });
+
   it("opens a side chat beside the thread and switches to it", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

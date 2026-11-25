@@ -1,4 +1,4 @@
-import { ArrowUpIcon, ArrowsInIcon, BrainIcon, CaretDownIcon, CpuIcon, FolderIcon, GitBranchIcon, LightningIcon, LockIcon, QuestionIcon, ShieldChevronIcon, ShieldIcon, ShieldWarningIcon, SquareIcon, TerminalWindowIcon, UserIcon } from "../ui/icons.js";
+import { ArrowUpIcon, ArrowsInIcon, BrainIcon, CaretDownIcon, CpuIcon, FolderIcon, GitBranchIcon, LightningIcon, LockIcon, QuestionIcon, ShieldChevronIcon, ShieldIcon, ShieldWarningIcon, SquareIcon, TerminalWindowIcon, UserIcon, WrenchIcon } from "../ui/icons.js";
 import {
   forwardRef,
   useCallback,
@@ -23,6 +23,7 @@ import { stopSpeech } from "../../app/speech.js";
 import { useSampled } from "../../app/sampled.js";
 import { basename, formatDuration, formatSpeed, formatTokens, modelDisplayName } from "../../model/format.js";
 import { lastPrompt } from "../../model/fold.js";
+import { TASK_MODES, type TaskMode } from "../../model/modes.js";
 import { isSshPath } from "../../model/paths.js";
 import { matchSlash, parseSlash, resolveSlash, slashCommands, type SlashCommand } from "../../model/slash.js";
 import type { SkillsState } from "../../model/store.js";
@@ -652,6 +653,7 @@ export function Composer(props: ComposerProps) {
       <div className="flex min-w-0 flex-wrap items-center gap-0.5 px-2 pb-2">
         {/* The new-thread composer sits high, so its menus open downward; they still flip when there is no room. */}
         <AttachButton onFiles={(picked) => addFiles(Array.from(picked))} disabled={props.readOnly || files.length >= MAX_FILES} />
+        <TaskModePicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
         <ModelPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
         <EffortPicker side={props.variant === "home" ? "bottom" : "top"} />
         <AccessPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
@@ -662,7 +664,15 @@ export function Composer(props: ComposerProps) {
         {props.sessionId ? <ContextMeter sessionId={props.sessionId} /> : null}
         {props.running && props.sessionId && hasText ? (
           <Tip label="Stop the turn" shortcut={["Esc"]}>
-            <IconButton size="md" label="Stop the turn" disabled={stopping} onClick={() => void controller.stop(props.sessionId as string)}>
+            <IconButton
+              size="md"
+              label="Stop the turn"
+              disabled={stopping}
+              onClick={() => {
+                stopSpeech();
+                return void controller.stop(props.sessionId as string);
+              }}
+            >
               <SquareIcon weight="fill" size={11} />
             </IconButton>
           </Tip>
@@ -729,6 +739,38 @@ function ContributorBadge(props: { tip?: boolean }) {
 
 /** Which way a composer menu opens: away from the screen edge the composer sits against. */
 type PickerSide = "top" | "bottom";
+
+const TASK_MODE_ORDER: TaskMode[] = ["build", "supervised", "plan", "research", "debug"];
+
+/** What the thread is doing: frames plain prompts, and tunes the fallback chips. Permissions stay separate. */
+function TaskModePicker(props: { sessionId: string | null; side: PickerSide }) {
+  const controller = useController();
+  const open = useApp((s) => s.picker === "taskMode");
+  const current = useApp((s) => (props.sessionId ? (s.prefs.threadModes[props.sessionId] ?? s.prefs.defaultTaskMode) : s.prefs.defaultTaskMode));
+  return (
+    <Menu open={open} onOpenChange={(next) => (next ? controller.setPicker("taskMode") : controller.closePicker("taskMode"))}>
+      <MenuTrigger asChild>
+        <ToolbarTrigger
+          icon={<WrenchIcon size={13} />}
+          label={
+            <>
+              <span className="sr-only">Task mode: </span>
+              <span className="truncate">{TASK_MODES[current].label}</span>
+            </>
+          }
+        />
+      </MenuTrigger>
+      <MenuContent side={props.side} className="w-[330px]">
+        <MenuLabel>{props.sessionId ? "Task mode for this thread" : "Task mode for new threads"}</MenuLabel>
+        <MenuRadioGroup value={current} onValueChange={(value) => controller.setTaskMode(props.sessionId, value as TaskMode)}>
+          {TASK_MODE_ORDER.map((mode) => (
+            <MenuOption key={mode} value={mode} label={TASK_MODES[mode].label} description={TASK_MODES[mode].desc} />
+          ))}
+        </MenuRadioGroup>
+      </MenuContent>
+    </Menu>
+  );
+}
 
 function ModelPicker(props: { sessionId: string | null; side: PickerSide }) {
   const controller = useController();

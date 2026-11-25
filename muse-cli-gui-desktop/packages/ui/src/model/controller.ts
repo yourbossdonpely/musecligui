@@ -71,6 +71,7 @@ import {
 } from "./store.js";
 import { NotificationManager, type Notifier } from "./notify.js";
 import { UpdateManager, type AppUpdater } from "./updates.js";
+import { isTaskMode, modePromptPrefix, type TaskMode } from "./modes.js";
 import { shareMessages } from "./shares.js";
 import { SUGGEST_SUFFIX } from "./suggestions.js";
 
@@ -1120,8 +1121,12 @@ export class MuseCodeIconController {
     }
     // Follow-up chips come from the same turn at no extra cost: plain prompts ask the
     // model to end every reply with suggestions, while the echo keeps the clean text.
+    // A task mode frames the prompt the same way, ahead of the text.
     // Raw sends and slash, skill and shell expansions keep their exact bytes.
-    const prompt = options.raw ? trimmed : trimmed + SUGGEST_SUFFIX;
+    const route = this.state.route;
+    const bound = options.sessionId ?? (route.kind === "thread" ? route.sessionId : null);
+    const framing = options.raw ? "" : modePromptPrefix(this.taskMode(bound));
+    const prompt = options.raw ? trimmed : framing + trimmed + SUGGEST_SUFFIX;
     return this.deliver(prompt, {
       steer: options.steer,
       queue: options.queue,
@@ -2955,6 +2960,38 @@ export class MuseCodeIconController {
       this.toast("error", "Could not compact the context", errorMessage(error));
       return false;
     }
+  }
+
+  /** What a thread is doing: its own task mode, or the default new threads start with. */
+  taskMode(sessionId: string | null): TaskMode {
+    const prefs = this.state.prefs;
+    if (sessionId) {
+      const mode = prefs.threadModes[sessionId];
+      if (isTaskMode(mode)) {
+        return mode;
+      }
+    }
+    return isTaskMode(prefs.defaultTaskMode) ? prefs.defaultTaskMode : "build";
+  }
+
+  /**
+   * Frames a thread's prompts as build, plan, research or debug work. A null thread sets the
+   * default instead. Framing only, never permissions: approvals, YOLO and the sandbox stay as set.
+   */
+  setTaskMode(sessionId: string | null, mode: TaskMode): void {
+    if (!isTaskMode(mode)) {
+      return;
+    }
+    if (sessionId === null) {
+      if (this.state.prefs.defaultTaskMode !== mode) {
+        this.setPrefs({ defaultTaskMode: mode });
+      }
+      return;
+    }
+    if (this.state.prefs.threadModes[sessionId] === mode) {
+      return;
+    }
+    this.setPrefs({ threadModes: { ...this.state.prefs.threadModes, [sessionId]: mode } });
   }
 
   /**

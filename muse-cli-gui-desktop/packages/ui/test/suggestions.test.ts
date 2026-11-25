@@ -28,6 +28,14 @@ describe("suggestions", () => {
     assert.equal(fallbackSuggestions().length, 3);
   });
 
+  it("tunes fallbacks to the task mode", () => {
+    assert.equal(fallbackSuggestions("plan")[0], "Turn this plan into numbered build steps");
+    assert.equal(fallbackSuggestions("research")[0], "Go deeper on the first finding");
+    assert.equal(fallbackSuggestions("debug")[0], "Run the reproduction again to confirm");
+    assert.deepEqual(fallbackSuggestions("build"), fallbackSuggestions());
+    assert.deepEqual(fallbackSuggestions("supervised"), fallbackSuggestions());
+  });
+
   it("suffix instructs the model", () => {
     assert.match(SUGGEST_SUFFIX, /\[SUGGEST\]/);
   });

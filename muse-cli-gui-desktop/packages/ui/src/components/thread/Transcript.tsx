@@ -293,7 +293,7 @@ const TurnBlock = memo(
         <div key={turn.final.itemId} className={cn("group/final flex flex-col gap-1", rows.length > 0 && "mt-3")}>
           <Entry item={final} answers={null} sessionId={props.sessionId} />
           <TurnFooter turn={turn} speed={props.speed} cost={props.cost} />
-          <FollowUpChips turn={turn} readOnly={props.readOnly} />
+          <FollowUpChips turn={turn} readOnly={props.readOnly} sessionId={props.sessionId} />
         </div>,
       );
     }
@@ -369,14 +369,15 @@ const TurnBlock = memo(
 );
 
 /** Clickable follow-ups parsed from the closing reply; falls back to generic ones. Hidden while running or read-only. */
-function FollowUpChips(props: { turn: TurnView; readOnly: boolean }) {
+function FollowUpChips(props: { turn: TurnView; readOnly: boolean; sessionId: string }) {
   const controller = useController();
+  const mode = useApp((s) => s.prefs.threadModes[props.sessionId] ?? s.prefs.defaultTaskMode);
   const { turn } = props;
   if (props.readOnly || turn.running || !turn.final) {
     return null;
   }
   const parsed = parseSuggestions(turn.final.text ?? "");
-  const chips = parsed.length ? parsed : fallbackSuggestions();
+  const chips = parsed.length ? parsed : fallbackSuggestions(mode);
   return (
     <div data-testid="suggest-chips" className="flex flex-wrap gap-2 pt-1">
       {chips.map((suggestion) => (
