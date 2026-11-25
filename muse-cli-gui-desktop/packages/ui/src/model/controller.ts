@@ -3,6 +3,7 @@ import type {
   ApprovalMode,
   ApprovalRequest,
   AttachmentView,
+  DiagnosticReport,
   FeedSettings,
   GoalAction,
   MuseCodeIconEvent,
@@ -2228,6 +2229,27 @@ export class MuseCodeIconController {
       return share.url;
     } catch (error) {
       this.toast("error", "Could not share the thread", errorMessage(error));
+      return null;
+    }
+  }
+
+  /**
+   * Syntax-checks project files and hands back the report, or null when there is nothing to check
+   * or checking failed. The caller names the files: usually the thread's edited ones.
+   */
+  async diagnoseFiles(sessionId: string, paths: string[]): Promise<DiagnosticReport | null> {
+    const session = this.state.sessions[sessionId];
+    if (!session) {
+      return null;
+    }
+    if (paths.length === 0) {
+      this.toast("info", "Nothing to check", "This thread has not edited any files yet.");
+      return null;
+    }
+    try {
+      return await this.client.diagnose(session.cwd, paths);
+    } catch (error) {
+      this.toast("error", "Could not check the files", errorMessage(error));
       return null;
     }
   }

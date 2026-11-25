@@ -31,6 +31,7 @@ export { ChatCircleDotsIcon } from "@phosphor-icons/react/dist/csr/ChatCircleDot
 export { CheckCircleIcon } from "@phosphor-icons/react/dist/csr/CheckCircle";
 export { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 export { CircleIcon } from "@phosphor-icons/react/dist/csr/Circle";
+export { ChecksIcon } from "@phosphor-icons/react/dist/csr/Checks";
 export { ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/csr/ClockCounterClockwise";
 export { ClockIcon } from "@phosphor-icons/react/dist/csr/Clock";
 export { CodeIcon } from "@phosphor-icons/react/dist/csr/Code";

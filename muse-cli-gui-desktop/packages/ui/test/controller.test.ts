@@ -359,6 +359,18 @@ class FakeClient implements MuseCodeIconClient {
     return { path: "", outcome: "reverted" as const };
   }
 
+  diagnoses: { cwd: string; paths: string[] }[] = [];
+  diagnoseResult: import("../src/types.js").DiagnosticReport = { checked: 0, skipped: [], issues: [] };
+  diagnoseError: Error | null = null;
+  async diagnose(cwd: string, paths: string[]) {
+    if (this.diagnoseError) {
+      const error = this.diagnoseError;
+      this.diagnoseError = null;
+      throw error;
+    }
+    this.diagnoses.push({ cwd, paths });
+    return this.diagnoseResult;
+  }
   shares: { title: string; project: string; messages: { role: string; text: string }[] }[] = [];
   shareError: Error | null = null;
   async createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }) {
@@ -2095,6 +2107,34 @@ describe("MuseCodeIconController", () => {
     client.shareError = new Error("daemon away");
     assert.equal(await controller.shareThread("s1"), null);
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not share the thread");
+    stop();
+  });
+
+  it("checks a thread's edited files and hands back the report", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.diagnoseResult = { checked: 2, skipped: [], issues: [{ file: "bad.js", line: 1, message: "boom", tool: "node" }] };
+    const report = await controller.diagnoseFiles("s1", ["bad.js", "good.json"]);
+    assert.deepEqual(report, client.diagnoseResult);
+    assert.deepEqual(client.diagnoses, [{ cwd: "/work/app", paths: ["bad.js", "good.json"] }]);
+    stop();
+  });
+
+  it("checks nothing when the thread edited no files", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.diagnoseFiles("s1", []), null);
+    assert.deepEqual(client.diagnoses, []);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Nothing to check");
+    stop();
+  });
+
+  it("toasts when checking files fails", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.diagnoseError = new Error("daemon away");
+    assert.equal(await controller.diagnoseFiles("s1", ["a.js"]), null);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not check the files");
     stop();
   });
 

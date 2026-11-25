@@ -1,5 +1,6 @@
 import type {
   ApprovalMode,
+  DiagnosticReport,
   EnvironmentStatus,
   FeedSettings,
   FileContent,
@@ -180,6 +181,8 @@ export interface MuseCodeIconClient {
   fileUrl(cwd: string, path: string): string;
   /** Publishes a read-only replay page for a thread; the link dies with the daemon. */
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }>;
+  /** Syntax-checks project files and reports what each installed checker found. */
+  diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

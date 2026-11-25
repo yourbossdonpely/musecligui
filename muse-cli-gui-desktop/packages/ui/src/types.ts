@@ -554,6 +554,21 @@ export interface FileContent {
   truncated: boolean;
 }
 
+/** One syntax issue found by checking a project file: node, tsc, py_compile, PowerShell or JSON. */
+export interface DiagnosticIssue {
+  file: string;
+  line: number | null;
+  message: string;
+  tool: string;
+}
+
+/** What checking project files found; files no installed checker handles are skipped, never clean. */
+export interface DiagnosticReport {
+  checked: number;
+  skipped: string[];
+  issues: DiagnosticIssue[];
+}
+
 export type GoalAction = "set" | "edit" | "pause" | "resume" | "clear";
 export type SubagentAction = "interrupt" | "stop" | "close" | "resume" | "reopen" | "sendMessage" | "followupTask" | "readResult";
 export type TaskAction = "background" | "stop" | "stopAll";

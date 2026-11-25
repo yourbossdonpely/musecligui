@@ -10,6 +10,7 @@ import {
   type ApprovalDecisionInput,
   type ApprovalMode,
   type AttachmentView,
+  type DiagnosticReport,
   type DirectoryListing,
   type EnvironmentStatus,
   type EventHandler,
@@ -455,6 +456,10 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }> {
     return call("POST", "/api/shares", input);
+  }
+
+  diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport> {
+    return call("POST", "/api/diagnostics", { cwd, paths });
   }
 
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {

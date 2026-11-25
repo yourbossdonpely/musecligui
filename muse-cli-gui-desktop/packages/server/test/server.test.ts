@@ -2814,3 +2814,45 @@ describe("share links", () => {
     assert.equal(dropped.status, 400);
   });
 });
+
+describe("diagnostics", () => {
+  async function diagProject() {
+    const { mkdtemp, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const root = await mkdtemp(join(tmpdir(), "musecodeicon-diag-"));
+    await writeFile(join(root, "good.json"), '{"a":1}\n');
+    await writeFile(join(root, "bad.json"), "{oops\n");
+    await writeFile(join(root, "good.js"), 'console.log("hi");\n');
+    await writeFile(join(root, "bad.js"), "const = ;\n");
+    await writeFile(join(root, "notes.txt"), "hello\n");
+    const { base } = await start(new FakeConnection(), { platform: process.platform });
+    const added = await send(base, "/api/projects", { cwd: root });
+    return { base, cwd: added.json.project.cwd as string };
+  }
+
+  it("reports syntax issues per file and skips what no checker handles", async () => {
+    const { base, cwd } = await diagProject();
+    const res = await send(base, "/api/diagnostics", {
+      cwd,
+      paths: ["good.json", "bad.json", "good.js", "bad.js", "notes.txt", "missing.json"],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json.checked, 4);
+    assert.deepEqual(res.json.skipped, ["notes.txt", "missing.json"]);
+    const byFile = Object.fromEntries(res.json.issues.map((i: { file: string }) => [i.file, i]));
+    assert.equal(byFile["bad.json"].tool, "json");
+    assert.equal(byFile["bad.js"].tool, "node");
+    assert.ok(typeof byFile["bad.js"].line === "number");
+    assert.ok(!byFile["good.json"] && !byFile["good.js"], "clean files report nothing");
+  });
+
+  it("refuses unknown projects and paths outside them", async () => {
+    const { base, cwd } = await diagProject();
+    assert.equal((await send(base, "/api/diagnostics", { cwd: "/etc", paths: ["x"] })).status, 404);
+    const res = await send(base, "/api/diagnostics", { cwd, paths: ["../../etc/passwd"] });
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.json.skipped, ["../../etc/passwd"]);
+    assert.equal((await send(base, "/api/diagnostics", { cwd })).status, 400);
+  });
+});

@@ -42,6 +42,7 @@ import {
   type SubscriptionUsage,
   type TurnImage,
 } from "@musecodeicon/daemon";
+import { diagnoseFiles } from "./diagnostics.js";
 import { FileError, listFolder, readProjectFile, resolveInRoot, revertProjectFile, searchProjectFiles, serveProjectFile, writeProjectFile } from "./files.js";
 import { PathError, createDirectory, listDirectory, resolveUserPath, type DirectoryListing, type PathContext } from "./paths.js";
 import {
@@ -1311,6 +1312,28 @@ export class MuseCodeIconServer {
       }
       const host = req.headers.host ?? "127.0.0.1";
       this.json(res, 200, { id, url: `http://${host}/share/${id}` });
+      return true;
+    }
+    if (method === "POST" && path === "/api/diagnostics") {
+      const body = await this.readBody(req);
+      const cwd = str(body["cwd"]);
+      if (!cwd || !this.store.getProject(cwd)) {
+        throw new HttpError(404, "Unknown project folder.");
+      }
+      if (isSshCwd(cwd)) {
+        throw new HttpError(400, "Diagnostics are not available for SSH projects in this version.");
+      }
+      const paths = body["paths"];
+      if (!Array.isArray(paths)) {
+        throw new HttpError(400, "paths must be a list of project files.");
+      }
+      let root: string;
+      try {
+        root = resolveUserPath(cwd, await this.pathContext(cwd)).local;
+      } catch {
+        root = this.localPathFor(cwd);
+      }
+      this.json(res, 200, await diagnoseFiles(root, cwd, paths.map((p) => String(p ?? ""))));
       return true;
     }
     if (path.startsWith("/api/files/")) {

@@ -1,12 +1,13 @@
-import { ArrowUUpLeftIcon, CaretRightIcon, CheckIcon, EyeIcon, PencilSimpleLineIcon } from "../ui/icons.js";
-import { useMemo, useState } from "react";
+import { ArrowUUpLeftIcon, CaretRightIcon, CheckIcon, ChecksIcon, EyeIcon, PencilSimpleLineIcon, WarningCircleIcon } from "../ui/icons.js";
+import { useEffect, useMemo, useState } from "react";
 import { useApp, useController } from "../../app/context.js";
 import { basename } from "../../model/format.js";
+import type { DiagnosticReport } from "../../types.js";
 import { fileTarget } from "../../model/files.js";
 import { settledCount } from "../../model/changes.js";
 import { inheritedTurns, sideStart } from "../../model/fold.js";
 import { isSshPath } from "../../model/paths.js";
-import { cn } from "../ui/primitives.js";
+import { cn, Spinner } from "../ui/primitives.js";
 import { collectFileChanges, DiffBlock, DiffCount, type FileChanges } from "./items.js";
 
 /** The folder part of a path, without the file name; "" at the top level. */
@@ -44,6 +45,23 @@ export function ChangedFiles(props: { sessionId: string }) {
     );
   }, [fold, sideSince, settled, canAct, props.sessionId]);
   const pending = files;
+  const [diag, setDiag] = useState<{ running: boolean; report: DiagnosticReport | null }>({ running: false, report: null });
+  // A check covers exactly the files listed when it ran; new edits retire it.
+  const signature = pending.map((f) => `${f.path}:${f.total}`).join("\n");
+  useEffect(() => {
+    setDiag({ running: false, report: null });
+  }, [signature]);
+  const runDiag = async () => {
+    if (diag.running) {
+      return;
+    }
+    if (!open) {
+      controller.setCardOpen(key, true);
+    }
+    setDiag({ running: true, report: null });
+    const report = await controller.diagnoseFiles(props.sessionId, pending.map((f) => f.path));
+    setDiag({ running: false, report });
+  };
   if (pending.length === 0) {
     return null;
   }
@@ -84,6 +102,9 @@ export function ChangedFiles(props: { sessionId: string }) {
         </button>
         {canAct ? (
           <div className="flex shrink-0 items-center gap-0.5">
+            <ActionButton label={diag.running ? "Checking…" : "Check syntax"} onClick={() => void runDiag()}>
+              {diag.running ? <Spinner size={12} /> : <ChecksIcon size={12} />}
+            </ActionButton>
             <ActionButton
               label={review ? "Hide review" : "Review"}
               onClick={() => {
@@ -102,6 +123,7 @@ export function ChangedFiles(props: { sessionId: string }) {
           </div>
         ) : null}
       </div>
+      {open && (diag.running || diag.report) ? <DiagResults diag={diag} /> : null}
       {open ? (
         <ul id={listId} className={cn("overflow-y-auto px-1 pb-1", review ? "max-h-96" : "max-h-40")}>
           {pending.map((file) => {
@@ -149,6 +171,50 @@ export function ChangedFiles(props: { sessionId: string }) {
         </ul>
       ) : null}
     </section>
+  );
+}
+
+/** What the syntax check found: issues per file, or a clean bill for the files checked. */
+function DiagResults(props: { diag: { running: boolean; report: DiagnosticReport | null } }) {
+  const { diag } = props;
+  if (diag.running || !diag.report) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-subtle">
+        <Spinner size={12} />
+        Checking…
+      </div>
+    );
+  }
+  const { report } = diag;
+  if (report.issues.length === 0) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-subtle">
+        <CheckIcon size={12} className="shrink-0 text-ok" />
+        Clean — {report.checked} file{report.checked === 1 ? "" : "s"} checked
+        {report.skipped.length > 0 ? `, ${report.skipped.length} skipped` : ""}
+      </div>
+    );
+  }
+  return (
+    <ul className="max-h-40 space-y-0.5 overflow-y-auto px-1 pb-1">
+      {report.issues.map((issue, index) => (
+        <li
+          key={index}
+          className="flex items-start gap-1.5 rounded-lg px-1.5 py-1 text-xs"
+          title={`${issue.file}${issue.line ? `:${issue.line}` : ""} — ${issue.message} [${issue.tool}]`}
+        >
+          <WarningCircleIcon size={12} className="mt-0.5 shrink-0 text-warn-text" />
+          <span className="min-w-0">
+            <span className="font-mono text-[11.5px] text-fg">
+              {basename(issue.file)}
+              {issue.line ? `:${issue.line}` : ""}
+            </span>{" "}
+            <span className="text-muted">{issue.message}</span>{" "}
+            <span className="text-subtle">[{issue.tool}]</span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
