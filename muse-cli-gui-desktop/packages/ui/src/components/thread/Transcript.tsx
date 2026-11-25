@@ -1,4 +1,5 @@
-import { ArrowCounterClockwiseIcon, ArrowDownIcon, CaretRightIcon, EyeIcon, NotePencilIcon, SquareIcon, TerminalWindowIcon, WarningCircleIcon, XIcon } from "../ui/icons.js";
+import { ArrowCounterClockwiseIcon, ArrowDownIcon, CaretRightIcon, EyeIcon, NotePencilIcon, SpeakerHighIcon, SpeakerSlashIcon, SquareIcon, TerminalWindowIcon, WarningCircleIcon, XIcon } from "../ui/icons.js";
+import { speakText, speechState, stopSpeech, subscribeSpeech } from "../../app/speech.js";
 import { wakeLabels } from "../../model/monitor.js";
 import { memo, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useStickToBottom } from "use-stick-to-bottom";
@@ -590,6 +591,37 @@ function LiveStatus(props: { turn: TurnView; gates: GateMap }) {
   );
 }
 
+/** Reads one finished reply aloud, or stops it; only the reply being read shows the stop form. */
+function SpeakButton(props: { text: string; speechKey: string }) {
+  const controller = useController();
+  const voice = useApp((s) => s.prefs.voice);
+  const [, setTick] = useState(0);
+  useEffect(() => subscribeSpeech(() => setTick((t) => t + 1)), []);
+  const st = speechState();
+  const talking = st.speaking && st.key === props.speechKey;
+  const toggle = () => {
+    if (talking) {
+      stopSpeech();
+      return;
+    }
+    const ok = speakText(props.text, voice?.uri || undefined, voice?.rate ?? 0.95, props.speechKey);
+    if (!ok) {
+      controller.toast("info", "Speech unavailable", "This browser has no voice to read with.");
+    }
+  };
+  return (
+    <button
+      type="button"
+      aria-label={talking ? "Stop reading" : "Read aloud"}
+      title={talking ? "Stop reading" : "Read aloud"}
+      onClick={toggle}
+      className="inline-flex size-6 items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
+    >
+      {talking ? <SpeakerSlashIcon size={13} className="text-accent-text" /> : <SpeakerHighIcon size={13} />}
+    </button>
+  );
+}
+
 /** Under a reply: when it finished, how long it took when there was no work log, and its output speed. */
 function TurnFooter(props: { turn: TurnView; speed: TurnSpeed | null; cost: TurnCost | null }) {
   const duration = turnDuration(props.turn);
@@ -638,7 +670,8 @@ function TurnFooter(props: { turn: TurnView; speed: TurnSpeed | null; cost: Turn
           </Tip>
         </>
       ) : null}
-      <span className="ml-0.5 opacity-0 transition-opacity duration-150 group-hover/final:opacity-100 focus-within:opacity-100">
+      <span className="ml-0.5 flex items-center opacity-0 transition-opacity duration-150 group-hover/final:opacity-100 focus-within:opacity-100">
+        {props.turn.final ? <SpeakButton text={props.turn.final.text ?? ""} speechKey={props.turn.final.itemId} /> : null}
         <CopyButton text={props.turn.final?.text ?? ""} label="Copy reply" />
       </span>
     </div>

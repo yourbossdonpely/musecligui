@@ -19,6 +19,7 @@ import { resolveSteer } from "./keys.js";
 import { Popover, Slider, Switch } from "radix-ui";
 import { shallowEqual, useApp, useController } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
+import { stopSpeech } from "../../app/speech.js";
 import { useSampled } from "../../app/sampled.js";
 import { basename, formatDuration, formatSpeed, formatTokens, modelDisplayName } from "../../model/format.js";
 import { lastPrompt } from "../../model/fold.js";
@@ -367,6 +368,8 @@ export function Composer(props: ComposerProps) {
     }
     setText("");
     setFiles([]);
+    // A new prompt takes the floor: anything being read aloud stops.
+    stopSpeech();
     // @file mentions resolve to fenced context on the wire; the echo keeps what was typed.
     // Unreadable mentions stay literal so nothing is ever lost.
     let full = value;
@@ -408,6 +411,7 @@ export function Composer(props: ComposerProps) {
       return;
     }
     setText("");
+    stopSpeech();
     const sent = await controller.send(value, { raw });
     if (!sent) {
       consumedRef.current = null;
@@ -670,9 +674,10 @@ export function Composer(props: ComposerProps) {
               showStop ? "Stop the turn" : shell ? "Run command" : props.running ? (steerByDefault ? "Steer turn" : "Queue message") : "Send message"
             }
             disabled={showStop ? stopping : (!hasText && files.length === 0) || props.readOnly || starting}
-            onClick={() =>
-              showStop ? void controller.stop(props.sessionId as string) : void submit(resolveSteer(props.running, false, steerByDefault))
-            }
+            onClick={() => {
+              stopSpeech();
+              return showStop ? void controller.stop(props.sessionId as string) : void submit(resolveSteer(props.running, false, steerByDefault));
+            }}
             className={cn(
               "ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-[transform,background-color,color] duration-150 active:scale-95",
               showStop ? "bg-inverse text-inverse-fg" : "bg-accent text-accent-fg hover:bg-accent-hover disabled:bg-active disabled:text-subtle",

@@ -1,4 +1,5 @@
 import { copyText } from "../../app/clipboard.js";
+import { stopSpeech } from "../../app/speech.js";
 import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TreeStructureIcon } from "../ui/icons.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
@@ -182,7 +183,13 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
       ) : null}
       {props.running ? (
         <Tip label="Stop the turn" shortcut={["Esc"]}>
-          <IconButton label="Stop the turn" onClick={() => void controller.stop(session.sessionId)}>
+          <IconButton
+            label="Stop the turn"
+            onClick={() => {
+              stopSpeech();
+              return void controller.stop(session.sessionId);
+            }}
+          >
             <SquareIcon weight="fill" size={11} />
           </IconButton>
         </Tip>

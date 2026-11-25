@@ -3,6 +3,8 @@ import { Switch } from "radix-ui";
 import { useEffect, useState, type ReactNode } from "react";
 import { useApp, useController, useNow } from "../../app/context.js";
 import { useOverlayDragProps } from "../../app/frame.js";
+import { listVoices, onVoicesChanged, speakText, stopSpeech } from "../../app/speech.js";
+import type { VoiceLike } from "../../model/speech.js";
 import { modelDisplayName } from "../../model/format.js";
 import type { MuseCodeIconController } from "../../model/controller.js";
 import { CODE_THEMES, ZOOM_MAX, ZOOM_MIN, type AccountLoginState, type CodeTheme, type GroupBy, type ThemePref } from "../../model/store.js";
@@ -62,6 +64,64 @@ function Section(props: { title: string; children: ReactNode }) {
       <h2 className="mb-2 text-2xs font-semibold tracking-wide text-subtle uppercase">{props.title}</h2>
       <div className="overflow-hidden rounded-2xl bg-raised shadow-card">{props.children}</div>
     </section>
+  );
+}
+
+/** Which voice reads replies aloud, and how fast. Voices arrive late in some browsers, so the list refreshes when they do. */
+function VoiceSettings(props: { controller: MuseCodeIconController; voice: { uri: string; rate: number } | null }) {
+  const [voices, setVoices] = useState<VoiceLike[]>(() => listVoices());
+  useEffect(() => onVoicesChanged(() => setVoices(listVoices())), []);
+  const { controller, voice } = props;
+  const rate = voice?.rate ?? 0.95;
+  if (voices.length === 0) {
+    return (
+      <Row label="Voice" description="The speaker button under a finished reply reads it aloud.">
+        <p className="text-xs text-subtle">No speech voices in this browser.</p>
+      </Row>
+    );
+  }
+  return (
+    <>
+      <Row label="Voice" description="The speaker button under a finished reply reads it aloud. Automatic prefers a female English voice.">
+        <select
+          aria-label="Read-aloud voice"
+          value={voice?.uri ?? ""}
+          onChange={(e) => controller.setPrefs({ voice: { uri: e.target.value, rate } })}
+          className="h-7 max-w-full rounded-md bg-sunken px-2 text-xs text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <option value="">Automatic</option>
+          {voices.map((v) => (
+            <option key={v.voiceURI} value={v.voiceURI}>
+              {v.name} ({v.lang})
+            </option>
+          ))}
+        </select>
+      </Row>
+      <Row label="Speed" description="How fast replies are read.">
+        <div className="flex items-center gap-2">
+          <input
+            aria-label="Read-aloud speed"
+            type="range"
+            min={0.6}
+            max={1.5}
+            step={0.05}
+            value={rate}
+            onChange={(e) => controller.setPrefs({ voice: { uri: voice?.uri ?? "", rate: Number(e.target.value) } })}
+            className="w-32 accent-accent"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              stopSpeech();
+              speakText("Hello! I am Muse, your coding assistant.", voice?.uri || undefined, rate, "voice-test");
+            }}
+          >
+            Test
+          </Button>
+        </div>
+      </Row>
+    </>
   );
 }
 
@@ -509,6 +569,10 @@ export function SettingsPage() {
               onChange={(on) => controller.setPrefs({ steerByDefault: on })}
             />
           </Row>
+        </Section>
+
+        <Section title="Read aloud">
+          <VoiceSettings controller={controller} voice={prefs.voice} />
         </Section>
 
         <Section title="Thread titles">

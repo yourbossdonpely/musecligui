@@ -120,6 +120,8 @@ export interface Prefs {
    * restores them instead of falling back to onRequest. Null when YOLO has never been armed here.
    */
   preYolo: { defaultMode: ApprovalMode; threads: Record<string, ApprovalMode | null> } | null;
+  /** Read-aloud voice: null means automatic, which prefers a female English voice. */
+  voice: { uri: string; rate: number } | null;
 }
 
 export const DEFAULT_FILES_WIDTH = 480;
@@ -176,6 +178,7 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     expandWork: false,
     steerByDefault: false,
     preYolo: null,
+    voice: null,
   };
 }
 
@@ -396,5 +399,16 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
     expandWork: pick("expandWork", (v) => typeof v === "boolean"),
     steerByDefault: pick("steerByDefault", (v) => typeof v === "boolean"),
     preYolo: pick("preYolo", isPreYolo),
+    voice: pick(
+      "voice",
+      (v) =>
+        v === null ||
+        (typeof v === "object" &&
+          v !== null &&
+          typeof (v as { uri?: unknown }).uri === "string" &&
+          typeof (v as { rate?: unknown }).rate === "number" &&
+          (v as { rate: number }).rate >= 0.6 &&
+          (v as { rate: number }).rate <= 1.5),
+    ),
   };
 }

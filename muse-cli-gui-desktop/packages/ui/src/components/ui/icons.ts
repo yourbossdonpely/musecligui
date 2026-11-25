@@ -91,6 +91,8 @@ export { ShieldWarningIcon } from "@phosphor-icons/react/dist/csr/ShieldWarning"
 export { SidebarSimpleIcon } from "@phosphor-icons/react/dist/csr/SidebarSimple";
 export { SignInIcon } from "@phosphor-icons/react/dist/csr/SignIn";
 export { SkipForwardIcon } from "@phosphor-icons/react/dist/csr/SkipForward";
+export { SpeakerHighIcon } from "@phosphor-icons/react/dist/csr/SpeakerHigh";
+export { SpeakerSlashIcon } from "@phosphor-icons/react/dist/csr/SpeakerSlash";
 export { SquareHalfBottomIcon } from "@phosphor-icons/react/dist/csr/SquareHalfBottom";
 export { SquareHalfIcon } from "@phosphor-icons/react/dist/csr/SquareHalf";
 export { SquareIcon } from "@phosphor-icons/react/dist/csr/Square";
