@@ -2644,8 +2644,7 @@ describe("manual update checks", () => {
     const stop = controller.start();
     await settle();
     controller.checkForUpdates();
-    await flushMicrotasks();
-    await settle();
+    await flushMicrotasks(50);
     assert.match(controller.store.get().toasts.at(-1)?.title ?? "", /You're up to date/);
     stop();
   });
@@ -2661,8 +2660,7 @@ describe("manual update checks", () => {
     const stop = controller.start();
     await settle();
     controller.checkForUpdates();
-    await flushMicrotasks();
-    await settle();
+    await flushMicrotasks(50);
     assert.match(controller.store.get().toasts.at(-1)?.title ?? "", /Update check failed/);
     stop();
   });
