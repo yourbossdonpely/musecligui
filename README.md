@@ -41,11 +41,11 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 
 | Platform | File |
 |----------|------|
-| Windows | [`MuseCodeIcon_0.23.7_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_x64-portable.zip), unzip and run |
+| Windows | [`MuseCodeIcon_0.23.8_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-portable.zip), unzip and run |
 | macOS | [`MuseCodeIcon_0.23.7_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal.dmg) — universal, ad-hoc signed (not notarized). Or the `.app` in [`…universal-macos.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal-macos.zip) |
 | Linux | [`.AppImage`, `.deb`, `.rpm`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7); the AppImage is also in [`…amd64-linux-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_amd64-linux-portable.zip) |
 
-All of them, plus `SHA256SUMS`, are on the [`v0.23.7` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7).
+Windows is on the [`v0.23.8` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8) (self-updating from here on); macOS and Linux follow on the next full CI run and stay on [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until then.
 
 > ⚠️ **Do not download `MuseCLIGUI.exe` for this app.** The 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases is the *bridge GUI's launcher*, not MuseCodeIcon, and it is not standalone: it needs `muse-bridge.js` and `gui/` from `MuseCLIGUI-v2.6.2-win-x64.zip` next to it, so run on its own it stops with `Missing file: …\muse-bridge.js`. Use the installer in the table above.
 
@@ -60,7 +60,7 @@ A real window, not a browser tab: the UI, a Node sidecar and one `muse serve` pe
 - **Your real plan meter** and a **usage page** with what each thread would have cost
 - **Goals, background workflows, slash commands, skills, reasoning effort, command palette**
 - **Gold on black by default** on every platform — the window, splash and first paint are dark, so a light desktop never shows it light; light and system are one click away in Settings → Appearance
-- **No auto-update**: this copy has no updater at all, so it never contacts a release server or pulls another project's releases
+- **Self-updating**: checks on launch and every six hours against its own signed feed, dot on the sidebar icon, Settings → Updates, install on close
 
 How the copy was assembled and built is in [`BUILD-LOG.md`](BUILD-LOG.md).
 
@@ -78,10 +78,10 @@ npm run build
 
 | Output | Path |
 |--------|------|
-| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.7_x64-setup.exe` (≈27 MB) |
+| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.8_x64-setup.exe` (≈27 MB) |
 | App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
 
-The installer is **not code signed**, so SmartScreen shows "Windows protected your PC" → More info → Run anyway. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. CI also launches every bundle it ships: the macOS `.app` and the extracted AppImage are started headlessly and must answer their own UI on the server port the app publishes, so a release cannot go out compiled-but-never-started. What CI cannot do is click through them: no one has driven the macOS or Linux builds on a real desktop.
+The installer is signed with the author's certificate (DigiCert timestamped), so SmartScreen names the publisher instead of "unknown"; it may still ask on unfamiliar machines until the signature builds reputation. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. CI also launches every bundle it ships: the macOS `.app` and the extracted AppImage are started headlessly and must answer their own UI on the server port the app publishes, so a release cannot go out compiled-but-never-started. What CI cannot do is click through them: no one has driven the macOS or Linux builds on a real desktop.
 
 Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
 

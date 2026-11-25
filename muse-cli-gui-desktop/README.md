@@ -79,7 +79,7 @@ apps/web         same UI against a remote daemon
 - [x] PRD + UX spec (sidebar, session view, diffs, approvals) — upstream docs not included in this copy
 - [x] `packages/daemon` - MSP connect, list/resume sessions, send/steer, approvals
 - [x] `packages/ui` - projects sidebar, session chat, inline diffs, slash commands and skills, goals
-- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation (no updater in this copy: it never pulls another project's releases)
+- [x] `apps/desktop` - Tauri shell + WSL2 routing + path translation + in-app updater (own `latest.json` feed and signing key)
 - [x] `apps/web` - the same UI in a browser against the local server
 - [x] `apps/web` - remote daemon mode
 - [x] Windows end to end (native Muse Code for Windows, or WSL2 Ubuntu)
@@ -91,7 +91,7 @@ apps/web         same UI against a remote daemon
 
 ## Install
 
-Windows: download [`MuseCodeIcon_0.23.8_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-setup.exe) from the [v0.23.8 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
+Windows: download [`MuseCodeIcon_0.23.8_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-setup.exe) from the [v0.23.8 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It has been signed since v2.6.0, so SmartScreen names its publisher. From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
@@ -148,7 +148,7 @@ npm run dev --workspace musecodeicon-desktop
 
 Releases ride on tags: pushing a `v*` tag that matches `tauri.conf.json` runs `.github/workflows/release.yml`, which builds the Windows installer first, then the universal macOS build and the Linux bundles side by side, and attaches all of them to a GitHub Release. Every release gets a tag; notable merged PRs bump at least the patch version.
 
-This build has no auto-update at all — there is no updater code in it, so it never pulls another project's releases. Ship new versions by downloading new installers manually.
+From 0.23.8 on, the desktop app checks for updates on launch and every six hours (Settings → Updates, sidebar menu, command palette) against its own `latest.json` feed, signed with its own key — it never pulls another project's releases. Coming from 0.23.7? Install 0.23.8 once manually; that version cannot update itself.
 
 ## Remote daemon
 
@@ -173,7 +173,7 @@ Browsers only accept cross-site cookies over HTTPS, so a daemon reached from ano
 Your code, prompts, threads and files stay where they are: MuseCodeIcon talks to the `muse` CLI on your own computer, with
 your own login, and keeps its state in SQLite beside it. There is no account and no analytics in the app.
 
-This build makes no update-check requests at all: no updater ships with it, so it never contacts a release server, and there is no install-counting telemetry.
+The desktop app contacts the GitHub release server only to check for updates (on launch and every six hours, pausable in Settings → Updates). Those requests carry no identity, and there is no install-counting telemetry.
 
 ## Legal
 

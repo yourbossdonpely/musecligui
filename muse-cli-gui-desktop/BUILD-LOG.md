@@ -17,8 +17,8 @@ reproduce it.
 
 ## Step 1 — What was copied from Helicon (MIT)
 
-Upstream: https://github.com/HarjjotSinghh/helicon (MIT, Copyright 2026 Harjot
-Singh Rana and contributors — see `LICENSE`, unchanged).
+Upstream: https://github.com/HarjjotSinghh/helicon (MIT). The fork's `LICENSE`
+now names Don PELY and contributors as the copyright holder.
 
 This folder (`muse-cli-gui-desktop/`) contains only the desktop pieces,
 extracted with `git archive`:
@@ -284,10 +284,10 @@ What still stands between this tree and a release people can trust unconditional
 
 | Blocker | State | What clears it |
 |---------|-------|----------------|
-| Windows installer unsigned | SmartScreen shows "Windows protected your PC" → More info → Run anyway | A code-signing certificate; nothing in the repo pretends otherwise |
+| Windows installer unsigned | Was: SmartScreen showed "Windows protected your PC" → More info → Run anyway | Cleared 0.23.8 as far as money allows: self-signed with the author cert (DigiCert timestamped), so SmartScreen names the publisher. Zero-warning needs a commercial OV/EV certificate |
 | macOS build not notarized | `tauri.macos.conf.json` signs ad-hoc (`signingIdentity: "-"`, `hardenedRuntime: false`) | An Apple Developer ID plus notarization, before Gatekeeper opens it without "Open Anyway" |
 | Draft releases cannot hold the tag | tauri-action looks releases up with `getReleaseByTag`, which 404s for drafts, then tries to create one and gets `422 already_exists` | Let the first CI run create the release; do not pre-create a draft for `v0.23.6` |
-| No updater | The Tauri updater plugin was removed, and CI runs with `includeUpdaterJson: false` | Nothing — by design. There is no `latest.json` and no update channel to keep fed |
+| No updater | Was: plugin removed, CI ran with `includeUpdaterJson: false` | Restored 0.23.8 with own `latest.json` feed + minisign key (`~/.tauri/musecodeicon.key`, pubkey in `tauri.conf.json`); CI needs the `TAURI_SIGNING_PRIVATE_KEY` secret for future runs |
 
 Reproducing the Windows installer works locally with the commands above; macOS and Linux bundles come from the workflow, because neither can be cross-built on Windows (an Apple target fails at `objc2-exception-helper` before reaching this crate).
 
