@@ -111,6 +111,15 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 | **Token counts** | Real input/output tokens per run from the CLI event stream |
 | **Demo Mode** | GUI stays usable with scripted replies when the bridge is down |
 | **Proxy API** | OpenAI-compatible `POST /v1/chat/completions` (+ `/v1/models`, `/health`) on localhost:8766 — use the subscription from OpenCode or FreeBuff |
+| **Follow-ups** | Three clickable next-step chips under every reply (in-band, zero extra cost) |
+| **@ mentions** | Type `@` in the composer for file autocomplete; mentioned files auto-attach |
+| **Checkpoints** | Every run snapshots git state; review the diff and Undo with one click |
+| **Share links** | Localhost replay page per session, copy-link from the More tab |
+| **Compact** | One-click session summarization into a fresh session at 80% context |
+| **Parallel runs** | Up to 3 concurrent agent runs, each with its own card and stop button |
+| **Read aloud** | Speaker button on every reply; female-English voice preferred, picker in More |
+| **Diagnostics** | Post-run syntax checks (JS/JSON/Python/PS1/TS) with issue list + manual re-run |
+| **OpenCode modes** | Build/Supervised/Plan/Research/Debug agents in OpenCode map to matching execution modes |
 
 ## 📸 Screenshots
 
@@ -137,9 +146,9 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 <details>
 <summary><b>Bridge protocol (for hackers)</b></summary>
 
-Client sends `{id, action, ...}`. Requests get `{id, type:'result', ok, data|error}`; `exec` streams `exec-start / exec-delta / exec-tool / exec-log / exec-usage / exec-done`.
+Client sends `{id, action, ...}`. Requests get `{id, type:'result', ok, data|error}`; `exec` streams `exec-start / exec-delta / exec-tool / exec-log / exec-usage / exec-diagnostics / exec-done`. Up to 3 concurrent `exec` runs per socket; `stop` takes an optional `runId` (omit to stop all).
 
-Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxSteps, flags, history, context, provider), `stop`, `ping` (now reports `paused`), `bridge-stop`, `bridge-start`, `bridge-shutdown`, `opencode-wire`, `opencode-status`, `skills-list`, `skills-set`, `models-list`, `usage`, `mcp-list`, `sessions-list`, `fs-list`, `fs-read`, `git-status`.
+Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxSteps, flags, history, context, provider), `stop`, `ping` (now reports `paused`), `bridge-stop`, `bridge-start`, `bridge-shutdown`, `opencode-wire`, `opencode-status`, `checkpoint-create`, `checkpoint-undo`, `share-create`, `summarize`, `diagnose`, `skills-list`, `skills-set`, `models-list`, `usage`, `mcp-list`, `sessions-list`, `fs-list`, `fs-read`, `git-status`.
 
 `MUSE_CMD` may point at a `.js` stub (run with node) — the test suite uses this. `MUSE_BRIDGE_PORT` overrides the port.
 
@@ -190,6 +199,8 @@ Set the `MUSE_BRIDGE_API_KEY` env var to the key, then fully restart OpenCode (d
 FreeBuff / other clients: add a custom OpenAI-compatible provider with the endpoint + key above. (FreeBuff custom-provider support is unconfirmed - your client runs locally, so the localhost endpoint is reachable; try it and see.)
 
 Cost note: every API call spends subscription prompts (one agent run per call).
+
+**Execution modes in OpenCode:** the setup installs `supervised`, `research`, and `debug` primary agents into `~/.config/opencode/agents/` (built-in `build` and `plan` work as-is). The `muse-cwd` plugin sends the session agent as an `x-muse-mode` header, and the bridge applies the matching mode: same prompt framing plus matching CLI flags (plan is read-only via `--disable-write`/`--disable-shell`; supervised/research keep the sandbox on). Per-request `{"metadata": {"mode": "plan"}}` overrides the header.
 
 ## Development (GUI source + tests)
 
@@ -248,6 +259,19 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - Multi-run queue and parallel sessions
 
 ## Changelog
+
+## [v2.7.0] - 2026-11-25
+
+- **Follow-up suggestion chips**: every reply ends with 3 clickable next steps (parsed from an in-band block — zero extra subscription prompts), with mode-aware fallback chips when the model omits them.
+- **`@` file mentions**: autocomplete in the composer, nested paths included; mentioned files auto-attach on send.
+- **Checkpoints + undo**: each run snapshots git state before starting; checkpoint entries show the diff and offer two-click Undo (tracked files restored, new untracked files safely block).
+- **Share links**: one-click localhost replay page per session from the More tab (expires on bridge restart).
+- **Auto-compact**: Compact button plus an 80%-context nudge; summarizes into a fresh session, history preserved.
+- **Parallel runs**: up to 3 concurrent agent runs with per-run cards and stop buttons; `stop` takes `runId`.
+- **Read aloud**: speaker button on every reply (Web Speech, female English preferred, voice/speed picker in More, code-aware text cleaning).
+- **Post-run diagnostics**: zero-install syntax checks (JS/JSON/Python/PS1/TS-when-present) over git-changed files after each run, plus a manual button.
+- **OpenCode modes**: supervised/research/debug primary agents auto-installed; the plugin maps the session agent to matching bridge execution flags (built-in plan/build work with no config).
+- Full suites green: 76/76 protocol, 113/113 GUI unit, 5/5 GUI e2e.
 
 ## [v2.6.2] - 2026-11-21
 

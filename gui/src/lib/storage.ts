@@ -54,7 +54,7 @@ export function saveProjects(store: KV | undefined, projects: Project[]): void {
 export function loadSettings(store?: KV): Settings {
   const d = defaultSettings();
   const raw = read<Partial<Settings>>(store, 'muse_settings', {});
-  return { ...d, ...raw, flags: { ...d.flags, ...(raw.flags ?? {}) }, contextWindows: { ...d.contextWindows, ...(raw.contextWindows ?? {}) } };
+  return { ...d, ...raw, flags: { ...d.flags, ...(raw.flags ?? {}) }, contextWindows: { ...d.contextWindows, ...(raw.contextWindows ?? {}) }, voice: { ...d.voice, ...((raw as Partial<Settings>).voice ?? {}) } };
 }
 export function saveSettings(store: KV | undefined, settings: Settings): void {
   write(store, 'muse_settings', settings);

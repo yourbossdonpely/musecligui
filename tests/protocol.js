@@ -46,24 +46,39 @@ function waitBridge(ms) {
 
 async function main() {
   const proj = makeProj();
+  const stubDump = path.join(os.tmpdir(), 'muse-stub-args-' + process.pid + '.jsonl');
+  try { fs.unlinkSync(stubDump); } catch (e) {}
+  try {
+    for (const f of fs.readdirSync(path.join(ROOT, 'api-runs'))) {
+      if (/^run-/.test(f)) fs.rmSync(path.join(ROOT, 'api-runs', f), { recursive: true, force: true });
+    }
+  } catch (e) {}
   const proc = spawn(process.execPath, [path.join(ROOT, 'muse-bridge.js')], {
-    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js'), MUSE_PICKER_CMD: 'echo C:\\\\picked', MUSE_API_PORT: '18766', MUSE_API_KEY: 'test-key-123' },
-    cwd: ROOT, stdio: 'ignore',
+    env: { ...process.env, MUSE_BRIDGE_PORT: '18765', MUSE_CMD: path.join(__dirname, 'stub-muse.js'), MUSE_PICKER_CMD: 'echo C:\\\\picked', MUSE_API_PORT: '18766', MUSE_API_KEY: 'test-key-123', STUB_DUMP_ARGS: stubDump },
+    cwd: ROOT, stdio: process.env.MUSE_BRIDGE_LOG ? ['ignore', 'pipe', 'pipe'] : 'ignore',
   });
+  if (process.env.MUSE_BRIDGE_LOG) {
+    const blogPath = path.join(os.tmpdir(), 'muse-bridge-log-' + process.pid + '.txt');
+    try { fs.unlinkSync(blogPath); } catch (e) {}
+    proc.stdout.on('data', (dd) => { try { fs.appendFileSync(blogPath, dd); } catch (e) {} });
+    proc.stderr.on('data', (dd) => { try { fs.appendFileSync(blogPath, dd); } catch (e) {} });
+    console.log("bridge log: " + blogPath);
+  }
   try {
     await waitBridge(15000);
-    await runTests(proj);
+    await runTests(proj, stubDump);
   } catch (e) {
     check('harness', false, (e && e.stack) || e);
   } finally {
     try { proc.kill(); } catch (e) {}
+    try { fs.unlinkSync(stubDump); } catch (e) {}
   }
   const fails = results.filter((r) => !r).length;
   console.log('SUMMARY pass=' + (results.length - fails) + ' fail=' + fails);
   process.exit(fails ? 1 : 0);
 }
 
-async function runTests(proj) {
+async function runTests(proj, stubDump) {
   const ws = await new Promise((resolve, reject) => {
     const s = new WebSocket('ws://localhost:18765');
     s.on('open', () => resolve(s));
@@ -90,9 +105,9 @@ async function runTests(proj) {
       setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error('rpc timeout ' + action)); } }, 20000);
     });
   }
-  function execStream(payload) {
+  function execStream(payload, fixedId) {
     return new Promise((resolve, reject) => {
-      const id = 'e' + ++reqId;
+      const id = fixedId || ('e' + ++reqId);
       const events = [];
       streamHandlers.set(id, (m) => { events.push(m); if (m.type === 'exec-done') { streamHandlers.delete(id); resolve(events); } });
       const o = { id, action: 'exec' };
@@ -112,7 +127,7 @@ async function runTests(proj) {
   }
 
   const ping = await rpc('ping');
-  check('ping', ping.ok && ping.data.version === '2.6.1' && ping.data.paused === false, JSON.stringify(ping));
+  check('ping', ping.ok && ping.data.version === '2.7.0' && ping.data.paused === false, JSON.stringify(ping));
   const pick = await rpc('pick-folder', {});
   check('pick-folder', pick.ok && pick.data.path === 'C:\\\\picked', JSON.stringify(pick));
   const drives = await rpc('fs-drives');
@@ -174,6 +189,17 @@ async function runTests(proj) {
   check('stop-busy', st1.ok && st1.data.stopped === true, JSON.stringify(st1));
   const sevs = await slowP;
   check('stop-exec-done-arrives', sevs[sevs.length - 1].type === 'exec-done', sevs.map((e) => e.type).join(','));
+  const parA = execStream({ command: '[SLOW] par A', cwd: proj, flags: {} }, 'parA');
+  const parB = execStream({ command: '[SLOW] par B', cwd: proj, flags: {} }, 'parB');
+  await new Promise((r) => setTimeout(r, 1500));
+  const stOne = await rpc('stop', { runId: 'parA' });
+  check('parallel-stop-one', stOne.ok && stOne.data.stopped === true && stOne.data.count === 1, JSON.stringify(stOne));
+  const evA = await parA;
+  check('parallel-one-done', evA[evA.length - 1].type === 'exec-done', evA.map((e) => e.type).join(','));
+  const stRest = await rpc('stop');
+  check('parallel-stop-rest', stRest.ok && stRest.data.count === 1, JSON.stringify(stRest));
+  const evB = await parB;
+  check('parallel-rest-done', evB[evB.length - 1].type === 'exec-done', evB.map((e) => e.type).join(','));
   const http = require('http');
   function httpReq(method, pth, body, key, extraHeaders) {
     return new Promise((resolve, reject) => {
@@ -219,7 +245,12 @@ async function runTests(proj) {
   check('api-stream', sse.status === 200 && sseText === 'Hello from stub!' && sse.raw.includes('[DONE]'), sse.raw.slice(0, 200));
   check('api-stream-finish', sse.raw.indexOf('"finish_reason":"stop"') >= 0, sse.raw.slice(-250));
   check('api-stream-usage', sse.raw.indexOf('"prompt_tokens"') >= 0, sse.raw.slice(-250));
-  const leftovers = fs.readdirSync(path.join(ROOT, 'api-runs'));
+  let leftovers = [];
+  for (let i = 0; i < 10; i++) {
+    leftovers = fs.readdirSync(path.join(ROOT, 'api-runs'));
+    if (!leftovers.length) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
   check('api-scratch-clean', leftovers.length === 0, JSON.stringify(leftovers));
   const bad1 = await httpReq('POST', '/v1/chat/completions', { messages: [] }, KEY);
   check('api-400-empty', bad1.status === 400, bad1.raw.slice(0, 120));
@@ -227,6 +258,18 @@ async function runTests(proj) {
   check('api-400-relcwd', bad2.status === 400, bad2.raw.slice(0, 120));
   const nf = await httpReq('GET', '/nope', null, KEY);
   check('api-404', nf.status === 404, nf.raw.slice(0, 120));
+  const shr = await rpc('share-create', { title: 'T', project: 'P', messages: [{ role: 'user', text: 'hello <b>share</b>' }, { role: 'muse', text: 'hi' }] });
+  check('share-create', shr.ok && /\/share\/sh-/.test(shr.data.url || ''), JSON.stringify(shr).slice(0, 200));
+  const shPage = await httpReq('GET', new URL(shr.data.url).pathname);
+  check('share-page', shPage.status === 200 && shPage.raw.includes('&lt;b&gt;share&lt;/b&gt;') && shPage.raw.indexOf('<b>share</b>') < 0, shPage.raw.slice(0, 200));
+  const sh404 = await httpReq('GET', '/share/sh-nope');
+  check('share-404', sh404.status === 404, sh404.raw.slice(0, 80));
+  const shBig = await rpc('share-create', { title: 'T', messages: new Array(600).fill({ role: 'user', text: 'x' }) });
+  check('share-cap', shBig.ok === false, JSON.stringify(shBig).slice(0, 200));
+  const sum = await rpc('summarize', { text: 'User: hi\n\nMuse: hello there' });
+  check('summarize', sum.ok && sum.data.summary === 'Hello from stub!', JSON.stringify(sum).slice(0, 200));
+  const sumEmpty = await rpc('summarize', { text: '   ' });
+  check('summarize-empty', sumEmpty.ok === false, JSON.stringify(sumEmpty).slice(0, 200));
   const leg = await new Promise((resolve) => { legacyHandler = resolve; ws.send(JSON.stringify({ command: 'legacy hi' })); setTimeout(() => resolve({ timeout: true }), 15000); });
   check('legacy-output', leg.type === 'output' && leg.text === 'Hello from stub!', JSON.stringify(leg).slice(0, 200));
   legacyHandler = null;
@@ -236,6 +279,19 @@ async function runTests(proj) {
   check('api-header-cwd', hdrChatOk, hdrChat.raw.slice(0, 200));
   const hdrBad = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }] }, KEY, { 'x-muse-cwd': 'relative/path' });
   check('api-400-relheader', hdrBad.status === 400, hdrBad.raw.slice(0, 120));
+  try { fs.unlinkSync(stubDump); } catch (e) {}
+  const planChat = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }] }, KEY, { 'x-muse-mode': 'plan' });
+  let planFlagsOk = false;
+  try {
+    const lastArgs = JSON.parse(fs.readFileSync(stubDump, 'utf8').trim().split('\n').pop());
+    planFlagsOk = planChat.status === 200 && lastArgs.includes('--disable-write') && lastArgs.includes('--disable-shell') && lastArgs.indexOf('--yolo') < 0;
+  } catch (e) {}
+  check('api-mode-plan-flags', planFlagsOk, planChat.raw.slice(0, 120));
+  const badMode = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }], metadata: { mode: 'evil' } }, KEY);
+  check('api-400-badmode', badMode.status === 400, badMode.raw.slice(0, 120));
+  check('api-400-no-leak', fs.readdirSync(path.join(ROOT, 'api-runs')).length === 0, 'scratch leaked on 400');
+  const unkMode = await httpReq('POST', '/v1/chat/completions', { model: 'muse-spark-1.3', messages: [{ role: 'user', content: 'hi' }] }, KEY, { 'x-muse-mode': 'oracle' });
+  check('api-mode-unknown-header-ignored', unkMode.status === 200, unkMode.raw.slice(0, 120));
   const wireDir = fs.mkdtempSync(path.join(os.tmpdir(), 'muse-wire-'));
   const wire1 = await rpc('opencode-wire', { path: wireDir });
   let wire1Ok = wire1.ok && wire1.data.status === 'wrote';
@@ -248,6 +304,25 @@ async function runTests(proj) {
   const ostat = await rpc('opencode-status');
   check('opencode-status', ostat.ok && typeof ostat.data.pluginInstalled === 'boolean', JSON.stringify(ostat).slice(0, 200));
   try { fs.rmSync(wireDir, { recursive: true, force: true }); } catch (e) {}
+  const cpre = await rpc('checkpoint-create', { cwd: proj });
+  check('checkpoint-create', cpre.ok && cpre.data.repo === true && /^cp-/.test(cpre.data.id || ''), JSON.stringify(cpre).slice(0, 200));
+  fs.appendFileSync(path.join(proj, 'a.txt'), '-AGENT-EDIT');
+  const cundo = await rpc('checkpoint-undo', { checkpointId: cpre.data.id });
+  check('checkpoint-undo', cundo.ok === true, JSON.stringify(cundo).slice(0, 200));
+  check('checkpoint-restored', fs.readFileSync(path.join(proj, 'a.txt'), 'utf8') === 'hello-fs-CHANGED', 'pre-run state not restored');
+  const cundo2 = await rpc('checkpoint-undo', { checkpointId: cpre.data.id });
+  check('checkpoint-undo-once', cundo2.ok === false, JSON.stringify(cundo2).slice(0, 200));
+  const cplain = fs.mkdtempSync(path.join(os.tmpdir(), 'muse-norepo-'));
+  const cnr = await rpc('checkpoint-create', { cwd: cplain });
+  check('checkpoint-nonrepo', cnr.ok && cnr.data.repo === false, JSON.stringify(cnr).slice(0, 200));
+  try { fs.rmSync(cplain, { recursive: true, force: true }); } catch (e) {}
+  fs.writeFileSync(path.join(proj, 'bad.js'), 'const x = ;\n');
+  fs.writeFileSync(path.join(proj, 'bad.json'), '{oops');
+  const dg = await rpc('diagnose', { cwd: proj });
+  const dgFiles = (dg.ok && dg.data.issues.map((x) => x.file).sort().join(',')) || '';
+  check('diagnose', dg.ok && dg.data.repo === true && dgFiles.indexOf('bad.js') >= 0 && dgFiles.indexOf('bad.json') >= 0, JSON.stringify(dg).slice(0, 300));
+  fs.unlinkSync(path.join(proj, 'bad.js'));
+  fs.unlinkSync(path.join(proj, 'bad.json'));
   const bst = await rpc('bridge-stop');
   check('bridge-stop', bst.ok && bst.data.paused === true, JSON.stringify(bst));
   const pingP = await rpc('ping');

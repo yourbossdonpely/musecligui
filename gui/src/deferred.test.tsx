@@ -56,17 +56,36 @@ test('queue sends after run finishes', async () => {
   mock.execImpl = (id) => {
     n += 1;
     mock.emitExec(id, { type: 'exec-start' });
-    if (n > 1) mock.emitExec(id, { type: 'exec-done', text: 'B-done', exitCode: 0, terminal: 'completed' });
+    if (n > 3) mock.emitExec(id, { type: 'exec-done', text: 'D-done', exitCode: 0, terminal: 'completed' });
   };
   send('A');
   send('B');
+  send('C');
+  await waitFor(() => expect(screen.getAllByTestId('live-run')).toHaveLength(3));
+  send('D');
   await waitFor(() => expect(screen.getByTestId('queued-chip')).toBeInTheDocument());
   const idA = (mock.sent[0] as Record<string, unknown>)['id'] as string;
   mock.emitExec(idA, { type: 'exec-done', text: 'A-done', exitCode: 0, terminal: 'completed' });
-  await waitFor(() => expect(mock.sent.length).toBe(2));
-  expect((mock.sent[1] as Record<string, unknown>)['command']).toBe('B');
-  await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('B-done'));
+  await waitFor(() => expect(mock.sent.length).toBe(4));
+  expect(String((mock.sent[3] as Record<string, unknown>)['command']).startsWith('D')).toBe(true);
+  await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('D-done'));
   expect(screen.queryByTestId('queued-chip')).not.toBeInTheDocument();
+});
+
+test('parallel runs each stop independently', async () => {
+  const mock = setup();
+  const stops: unknown[] = [];
+  mock.rpcImpl['stop'] = (p) => { stops.push(p); return { stopped: true }; };
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+  };
+  send('A');
+  send('B');
+  await waitFor(() => expect(screen.getAllByTestId('live-run')).toHaveLength(2));
+  const idA = (mock.sent[0] as Record<string, unknown>)['id'] as string;
+  fireEvent.click(screen.getAllByTestId('run-stop')[0]);
+  await waitFor(() => expect(stops).toEqual([{ runId: idA }]));
+  expect(screen.getAllByTestId('live-run')).toHaveLength(2);
 });
 
 test('import markdown creates session', async () => {

@@ -1,4 +1,4 @@
-// muse-bridge.js v2.6.1 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
+// muse-bridge.js v2.7.0 — WebSocket bridge + OpenAI-compatible HTTP API for the Muse CLI.
 // WS protocol: client sends {id, action, ...}; server replies {id, type:'result', ...}
 // for requests, and streams {id, type:'exec-*'} events for agent runs.
 // HTTP API (localhost only, bearer key): GET /v1/models, POST /v1/chat/completions.
@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const http = require('http');
 
 const PORT = process.env.MUSE_BRIDGE_PORT || 8765;
-const VERSION = '2.6.1';
+const VERSION = '2.7.0';
 // Name the console window so it is obvious what it is and that closing it stops the bridge.
 try { process.title = 'Muse Bridge :' + PORT + ' (close this window to stop)'; } catch (e) {}
 // Paused from the GUI footer (bridge-stop): runs are refused, process stays up for bridge-start.
@@ -112,11 +112,16 @@ function fail(socket, msg, action, error) {
 }// ---------------- shared agent runner ----------------
 // Spawns `muse exec --json` and parses the JSONL stream. Used by BOTH the
 // WebSocket bridge and the HTTP API so behavior can never drift apart.
+function modePrefix(mode) {
+  if (mode === 'plan') return 'MODE: You are in READ-ONLY PLANNING mode. Explore the codebase and propose a concrete plan. Do not modify any files and do not run shell commands that change state.';
+  if (mode === 'research') return 'MODE: Deep-research mode. Use your web tools to research thoroughly. Answer with findings and cite sources as URLs for key claims.';
+  if (mode === 'debug') return 'MODE: Debugging. Reproduce the reported issue, find the root cause, apply the smallest correct fix, then verify with tests or a reproduction. Explain what was wrong.';
+  return '';
+}
 function buildPrompt(msg, cmd) {
   const parts = [];
-  if (msg.mode === 'plan') parts.push('MODE: You are in READ-ONLY PLANNING mode. Explore the codebase and propose a concrete plan. Do not modify any files and do not run shell commands that change state.');
-  if (msg.mode === 'research') parts.push('MODE: Deep-research mode. Use your web tools to research thoroughly. Answer with findings and cite sources as URLs for key claims.');
-  if (msg.mode === 'debug') parts.push('MODE: Debugging. Reproduce the reported issue, find the root cause, apply the smallest correct fix, then verify with tests or a reproduction. Explain what was wrong.');
+  const pre = modePrefix(msg.mode);
+  if (pre) parts.push(pre);
   if (Array.isArray(msg.history) && msg.history.length) {
     parts.push('[Previous conversation — for context only]');
     for (const h of msg.history.slice(-12)) {
@@ -301,30 +306,48 @@ function apiUsage(promptText, replyText) {
   const prompt_tokens = estTokens(promptText);
   const completion_tokens = estTokens(replyText);
   return { prompt_tokens, completion_tokens, total_tokens: prompt_tokens + completion_tokens };
+}
+// Execution modes for API clients (mirrors the GUI modes). The muse-cwd
+// OpenCode plugin sends the session agent as x-muse-mode; per-request
+// metadata.mode overrides it.
+const API_MODES = { build: 1, supervised: 1, plan: 1, research: 1, debug: 1 };
+function apiFlagsForMode(mode, model) {
+  const rest = [];
+  if (mode === 'build' || mode === 'debug') rest.push('--yolo', '--trust-workspace');
+  else if (mode === 'supervised' || mode === 'research') rest.push('--approval-mode', 'never', '--trust-workspace', '--sandbox-network', 'proxy-only');
+  else if (mode === 'plan') rest.push('--approval-mode', 'never', '--trust-workspace', '--disable-write', '--disable-shell');
+  if (model) rest.push('--model', model);
+  return rest;
 }// ---------------- exec (streaming, over WebSocket) ----------------
-const running = new Map(); // socket -> { id, legacy, kill }
+const running = new Map(); // execId -> { socket, kill }
+const MAX_WS_RUNS = 3;
+function socketRunCount(socket) {
+  let n = 0;
+  for (const r of running.values()) if (r.socket === socket) n++;
+  return n;
+}
 
-function finishExec(socket, rec, end) {
+function finishExec(socket, id, legacy, end) {
   const text = end.text;
   const failed = end.terminal === 'failed';
-  if (rec.legacy) {
+  if (legacy) {
     send(socket, failed ? { type: 'error', text: end.reason || ('exit code ' + end.exitCode) } : { type: 'output', text });
     return;
   }
-  send(socket, { id: rec.id, type: 'exec-done', text, exitCode: end.exitCode, terminal: end.terminal, reason: end.reason, usage: end.usage, stats: end.stats });
+  send(socket, { id, type: 'exec-done', text, exitCode: end.exitCode, terminal: end.terminal, reason: end.reason, usage: end.usage, stats: end.stats });
 }
 
 async function handleExec(socket, msg) {
-  const id = msg.id || null;
   const legacy = !msg.action;
+  const id = msg.id || ('legacy-' + crypto.randomBytes(4).toString('hex'));
   if (bridgePaused) {
     const err = 'Bridge is stopped. Click Start in the GUI footer to resume.';
     legacy ? send(socket, { type: 'error', text: err }) : fail(socket, msg, 'exec', err);
     return;
   }
-  if (running.has(socket)) {
-    if (legacy) send(socket, { type: 'error', text: 'An agent run is already in progress. Stop it first.' });
-    else send(socket, { id, type: 'result', action: 'exec', ok: false, error: 'An agent run is already in progress. Stop it first.' });
+  if (socketRunCount(socket) >= MAX_WS_RUNS) {
+    const err = 'Maximum ' + MAX_WS_RUNS + ' concurrent runs. Stop one first.';
+    legacy ? send(socket, { type: 'error', text: err }) : send(socket, { id: msg.id || null, type: 'result', action: 'exec', ok: false, error: err });
     return;
   }
   const cmd = typeof msg.command === 'string' ? msg.command.trim() : '';
@@ -370,15 +393,16 @@ async function handleExec(socket, msg) {
   if (f.webTools === false) rest.push('--disable-web-tools');
 
   console.log('exec: "' + cmd.slice(0, 100) + '" | cwd=' + cwd + ' | model=' + (model || 'default') + ' | mode=' + (msg.mode || 'build'));
-  const rec = { id, legacy, kill: () => {} };
-  running.set(socket, rec);
+  const cpId = await makeCheckpoint(cwd);
+  const rec = { socket, kill: () => {} };
+  running.set(id, rec);
   const { promise, kill } = runAgentRun({
     commandArgs: rest,
     cwd,
     promptText: prompt,
     onEvent: (ev) => {
       if (legacy) return;
-      if (ev.t === 'start') send(socket, { id, type: 'exec-start', pid: ev.pid });
+      if (ev.t === 'start') send(socket, { id, type: 'exec-start', pid: ev.pid, checkpoint: cpId });
       else if (ev.t === 'delta') send(socket, { id, type: 'exec-delta', text: ev.text });
       else if (ev.t === 'tool') send(socket, { id, type: 'exec-tool', taskId: ev.taskId, name: ev.name, event: ev.event, raw: ev.raw });
       else if (ev.t === 'usage') send(socket, { id, type: 'exec-usage', usage: ev.usage });
@@ -387,17 +411,166 @@ async function handleExec(socket, msg) {
   });
   rec.kill = kill;
   const end = await promise;
-  if (running.get(socket) === rec) running.delete(socket);
+  if (running.get(id) === rec) running.delete(id);
+  if (!legacy) {
+    try {
+      const dg = await diagnoseFolder(cwd);
+      if (dg.repo && dg.issues.length) send(socket, { id, type: 'exec-diagnostics', issues: dg.issues, checked: dg.checked });
+    } catch (e) {}
+  }
   console.log('exec done: terminal=' + end.terminal + ' exit=' + (end.exitCode != null ? end.exitCode : '?') + ' deltas=' + end.stats.deltas + ' tools=' + end.stats.tools + (end.reason && end.terminal === 'failed' ? ' error=' + String(end.reason).slice(0, 200) : ''));
-  finishExec(socket, rec, end);
+  finishExec(socket, id, legacy, end);
 }
 
 function handleStop(socket, msg) {
-  const rec = running.get(socket);
-  if (!rec) { send(socket, { id: msg.id || null, type: 'result', action: 'stop', ok: true, data: { stopped: false } }); return; }
-  try { rec.kill(); } catch (e) {}
-  setTimeout(() => { try { if (running.get(socket) === rec) rec.kill('SIGKILL'); } catch (e) {} }, 3000);
-  send(socket, { id: msg.id || null, type: 'result', action: 'stop', ok: true, data: { stopped: true } });
+  const only = typeof msg.runId === 'string' && msg.runId ? msg.runId : null;
+  const targets = [];
+  for (const [eid, rec] of running) {
+    if (only ? eid === only : rec.socket === socket) targets.push([eid, rec]);
+  }
+  if (!targets.length) { send(socket, { id: msg.id || null, type: 'result', action: 'stop', ok: true, data: { stopped: false } }); return; }
+  for (const [eid, rec] of targets) {
+    try { rec.kill(); } catch (e) {}
+    setTimeout(() => { try { if (running.get(eid) === rec) rec.kill('SIGKILL'); } catch (e) {} }, 3000);
+  }
+  send(socket, { id: msg.id || null, type: 'result', action: 'stop', ok: true, data: { stopped: true, count: targets.length } });
+}
+
+// ---------------- diagnostics (fast post-run syntax checks) ----------------
+// Zero-install checkers over git-changed files: node --check for JS, in-house
+// JSON parse, py_compile for Python, one PowerShell parse pass for .ps1, and
+// tsc when it is already available. This is syntax-level triage, not full LSP.
+async function diagnoseFolder(cwd) {
+  const st = await runCmd('git', ['status', '--short'], { cwd, timeout: 15000 });
+  if (st.code !== 0) return { repo: false };
+  const files = [];
+  for (const line of st.stdout.split('\n')) {
+    const t = line.trim();
+    if (!t) continue;
+    const rel = t.slice(2).trim().replace(/"/g, '');
+    if (!rel || rel.endsWith('/')) continue;
+    const arrow = rel.indexOf(' -> ');
+    files.push(arrow >= 0 ? rel.slice(arrow + 4) : rel);
+  }
+  const issues = [];
+  const skipped = [];
+  let checked = 0;
+  const push = (file, line, message, tool) => {
+    if (issues.length < 50) issues.push({ file, line: line || null, message: String(message).slice(0, 300), tool });
+  };
+  const ps1batch = [];
+  for (const rel of files.slice(0, 20)) {
+    if (rel.length > 500 || rel.startsWith('-')) { skipped.push(rel); continue; }
+    const full = path.resolve(cwd, rel);
+    if (!inside(cwd, rel)) { skipped.push(rel); continue; }
+    let stat = null;
+    try { stat = fs.statSync(full); } catch (e) { continue; }
+    if (!stat.isFile() || stat.size > 1024 * 1024) { skipped.push(rel); continue; }
+    const ext = path.extname(rel).toLowerCase();
+    if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
+      checked++;
+      const r = await runCmd(process.execPath, ['--check', full], { cwd, timeout: 15000 });
+      if (r.code !== 0) {
+        const m = (r.stderr || '').match(/([^:\n]+):(\d+)\n([\s\S]{1,300})/);
+        push(rel, m ? parseInt(m[2], 10) : null, (m ? m[3].trim() : (r.stderr || 'syntax error').trim()).slice(0, 300), 'node');
+      }
+    } else if (ext === '.json') {
+      checked++;
+      try { JSON.parse(fs.readFileSync(full, 'utf8')); } catch (e) { push(rel, null, e.message, 'json'); }
+    } else if (ext === '.py') {
+      checked++;
+      let r = await runCmd('py', ['-m', 'py_compile', full], { cwd, timeout: 15000 });
+      if (r.code !== 0 && /ENOENT|not recognized|not found/i.test(r.stderr || '')) r = await runCmd('python', ['-m', 'py_compile', full], { cwd, timeout: 15000 });
+      if (r.code !== 0 && !/ENOENT|not recognized|not found/i.test(r.stderr || '')) {
+        const m = (r.stderr || '').match(/line (\d+)/i);
+        const last = (r.stderr || '').trim().split('\n').pop();
+        push(rel, m ? parseInt(m[1], 10) : null, last || 'compile error', 'py_compile');
+      } else if (r.code !== 0) { checked--; skipped.push(rel); }
+    } else if (ext === '.ps1') {
+      ps1batch.push(rel);
+    } else if (ext === '.ts' || ext === '.tsx' || ext === '.mts' || ext === '.cts') {
+      const localTsc = path.join(cwd, 'node_modules', 'typescript', 'bin', 'tsc');
+      const tsc = fs.existsSync(localTsc) ? localTsc : 'tsc';
+      const args = fs.existsSync(localTsc) ? [localTsc, '--noEmit', '--skipLibCheck', full] : ['--noEmit', '--skipLibCheck', full];
+      const bin = fs.existsSync(localTsc) ? process.execPath : tsc;
+      checked++;
+      const r = await runCmd(bin, args, { cwd, timeout: 60000 });
+      if (r.code !== 0 && /ENOENT|not recognized|not found/i.test(r.stderr || '')) { checked--; skipped.push(rel); continue; }
+      if (r.code !== 0) {
+        const lines = (r.stdout + '\n' + (r.stderr || '')).split('\n').filter((l) => /error TS/i.test(l)).slice(0, 10);
+        if (!lines.length) push(rel, null, 'typecheck failed', 'tsc');
+        for (const l of lines) {
+          const m = l.match(/\((\d+),\d+\):\s*(.*)/);
+          push(rel, m ? parseInt(m[1], 10) : null, (m ? m[2] : l).trim(), 'tsc');
+        }
+      }
+    } else {
+      skipped.push(rel);
+    }
+  }
+  if (ps1batch.length) {
+    checked += ps1batch.length;
+    const list = ps1batch.slice(0, 20).map((r) => r.replace(/'/g, "''")).join("','");
+    const ps = "$errs=@(); foreach ($f in @('" + list + "')) { $e=$null; [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path '" + cwd.replace(/'/g, "''") + "' $f), [ref]$null, [ref]$e); foreach ($x in @($e)) { $errs += ($f + '|' + $x.Extent.StartLineNumber + '|' + $x.Message) } }; $errs -join \"`n\"";
+    const r = await runCmd('powershell.exe', ['-NoProfile', '-Command', ps], { cwd, timeout: 60000 });
+    if (r.code === 0 && r.stdout.trim()) {
+      for (const line of r.stdout.trim().split('\n').slice(0, 20)) {
+        const parts = line.split('|');
+        if (parts.length >= 3) push(parts[0], parseInt(parts[1], 10) || null, parts.slice(2).join('|'), 'powershell');
+      }
+    }
+  }
+  return { repo: true, checked, skipped: skipped.slice(0, 20), issues };
+}
+
+// ---------------- checkpoints (per-run undo points) ----------------
+// Captures the pre-run git state so the GUI can offer one-click undo of an
+// agent run. Undo restores tracked files to the pre-run diff; new untracked
+// files block undo (listed, never auto-deleted). Memory-only: a bridge
+// restart drops old checkpoints.
+const checkpoints = new Map(); // id -> { cwd, diff, truncated, files, time }
+async function makeCheckpoint(cwd) {
+  if (typeof cwd !== 'string' || !cwd) return null;
+  const st = await runCmd('git', ['status', '--short'], { cwd, timeout: 15000 });
+  if (st.code !== 0) return null;
+  const d = await runCmd('git', ['diff', '--no-color'], { cwd, timeout: 20000 });
+  if (d.code !== 0) return null;
+  const cd = await runCmd('git', ['diff', '--cached', '--quiet'], { cwd, timeout: 15000 });
+  const id = 'cp-' + crypto.randomBytes(8).toString('hex');
+  const files = st.stdout.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 60);
+  checkpoints.set(id, { cwd, diff: d.stdout, truncated: d.stdout.length > 200000, staged: cd.code !== 0, files, time: Date.now() });
+  if (checkpoints.size > 50) {
+    const oldest = checkpoints.keys().next().value;
+    checkpoints.delete(oldest);
+  }
+  return id;
+}
+async function undoCheckpoint(id) {
+  const cp = checkpoints.get(id);
+  if (!cp) throw new Error('Checkpoint not found (bridge may have restarted)');
+  if (cp.truncated) throw new Error('Checkpoint diff was too large to be reversible');
+  if (cp.staged) throw new Error('There were staged changes at checkpoint time — unstage to use undo');
+  const st = await runCmd('git', ['status', '--short'], { cwd: cp.cwd, timeout: 15000 });
+  if (st.code !== 0) throw new Error('Not a git repo anymore: ' + cp.cwd);
+  const nowFiles = st.stdout.split('\n').map((s) => s.trim()).filter(Boolean);
+  const before = new Set(cp.files);
+  const fresh = nowFiles.filter((l) => l.startsWith('??') && !before.has(l));
+  if (fresh.length) throw new Error('New untracked files since checkpoint (delete or move them first): ' + fresh.slice(0, 5).join(', '));
+  await runCmd('git', ['reset', '-q'], { cwd: cp.cwd, timeout: 30000 });
+  const cl = await runCmd('git', ['checkout', '--', '.'], { cwd: cp.cwd, timeout: 30000 });
+  if (cl.code !== 0) throw new Error('git checkout failed: ' + (cl.stderr || ('exit ' + cl.code)).slice(0, 300));
+  if (cp.diff.trim()) {
+    const pf = path.join(os.tmpdir(), 'muse-undocp-' + crypto.randomBytes(8).toString('hex') + '.diff');
+    try {
+      fs.writeFileSync(pf, cp.diff, 'utf8');
+      const ap = await runCmd('git', ['apply', pf], { cwd: cp.cwd, timeout: 30000 });
+      if (ap.code !== 0) throw new Error('Could not restore pre-run changes (tree is clean, checkpoint kept): ' + (ap.stderr || ('exit ' + ap.code)).slice(0, 300));
+    } finally {
+      try { fs.unlinkSync(pf); } catch (e) {}
+    }
+  }
+  checkpoints.delete(id);
+  return { cwd: cp.cwd, restored: cp.files.length };
 }
 
 // ---------------- buffered actions ----------------
@@ -543,6 +716,64 @@ async function handleBuffered(socket, msg, action) {
       if (content.indexOf('\0') >= 0) throw new Error('Binary file — cannot preview as text');
       return ok({ path: full, size: st.size, content });
     }
+    if (action === 'checkpoint-create') {
+      const cwd = typeof msg.cwd === 'string' && msg.cwd ? msg.cwd : null;
+      if (!cwd) throw new Error('No folder');
+      const id = await makeCheckpoint(cwd);
+      if (!id) return ok({ repo: false });
+      const cp = checkpoints.get(id);
+      return ok({ repo: true, id, files: cp.files });
+    }
+    if (action === 'checkpoint-undo') {
+      if (!/^cp-[0-9a-f]{16}$/.test(String(msg.checkpointId || ''))) throw new Error('Invalid checkpoint id');
+      return ok(await undoCheckpoint(String(msg.checkpointId)));
+    }
+    if (action === 'share-create') {
+      const msgs = msg.messages;
+      if (!Array.isArray(msgs) || !msgs.length || msgs.length > 500) throw new Error('Provide 1-500 messages');
+      const clean = [];
+      let total = 0;
+      for (const m of msgs) {
+        const role = m && (m.role === 'user' || m.role === 'muse' || m.role === 'system') ? m.role : null;
+        const text = m && typeof m.text === 'string' ? m.text.slice(0, 50000) : '';
+        if (!role || !text) continue;
+        total += text.length;
+        if (total > 1000000) throw new Error('Session too large to share (1MB cap)');
+        clean.push({ role, text });
+      }
+      if (!clean.length) throw new Error('Nothing shareable in this session');
+      const id = 'sh-' + crypto.randomBytes(8).toString('hex');
+      shares.set(id, {
+        title: String(msg.title || 'Shared session').slice(0, 120),
+        project: String(msg.project || '').slice(0, 120),
+        time: new Date().toISOString(),
+        messages: clean,
+      });
+      if (shares.size > 20) shares.delete(shares.keys().next().value);
+      return ok({ id, url: 'http://127.0.0.1:' + apiPort + '/share/' + id });
+    }
+    if (action === 'summarize') {
+      const text = typeof msg.text === 'string' ? msg.text.slice(0, 100000) : '';
+      if (!text.trim()) throw new Error('Nothing to summarize');
+      const prompt = 'Summarize this coding-session transcript into a compact handoff for continuing the work. ' +
+        'Cover: goals, key decisions, files changed and why, current state, and next steps. Under 1500 words. ' +
+        'Output ONLY the summary, no preamble.\n\n[Transcript]\n' + text;
+      const { promise } = runAgentRun({
+        commandArgs: ['--approval-mode', 'never', '--disable-shell', '--disable-write', '--disable-web-tools'],
+        cwd: __dirname,
+        promptText: prompt,
+        timeoutMs: 300000,
+        onEvent: () => {},
+      });
+      const end = await promise;
+      if (end.terminal === 'failed' || !end.text || end.text === '(no output)') throw new Error(end.reason || 'Summarizer produced no output');
+      return ok({ summary: end.text.slice(0, 20000) });
+    }
+    if (action === 'diagnose') {
+      const cwd = typeof msg.cwd === 'string' && msg.cwd ? msg.cwd : null;
+      if (!cwd) throw new Error('No folder');
+      return ok(await diagnoseFolder(cwd));
+    }
     if (action === 'git-status') {
       const cwd = typeof msg.cwd === 'string' && msg.cwd ? msg.cwd : null;
       if (!cwd) throw new Error('No folder');
@@ -657,6 +888,30 @@ function apiJson(res, code, obj) {
 function apiErr(res, code, message, type) {
   apiJson(res, code, { error: { message: String(message).slice(0, 2000), type: type || 'api_error', code: null } });
 }
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+// Session share pages (localhost only, no key — same trust as /health).
+// Memory-only: a bridge restart drops old shares.
+const shares = new Map(); // id -> { title, project, time, messages }
+function renderShare(sh) {
+  const rows = sh.messages.map((m) => {
+    const who = m.role === 'muse' ? 'Muse' : m.role === 'user' ? 'You' : 'System';
+    const cls = m.role === 'muse' ? 'm' : m.role === 'user' ? 'u' : 's';
+    return '<div class="msg ' + cls + '"><div class="who">' + who + '</div><pre>' + escHtml(m.text) + '</pre></div>';
+  }).join('\n');
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + escHtml(sh.title) + ' — Muse CLI GUI share</title><style>' +
+    'body{background:#101010;color:#fafafa;font:14px/1.6 Inter,system-ui,sans-serif;margin:0}' +
+    '.wrap{max-width:820px;margin:0 auto;padding:32px 20px}' +
+    'h1{font-size:20px;margin:0 0 4px}.sub{color:#808080;font-size:12px;margin-bottom:24px}' +
+    '.msg{border:1px solid #282828;border-radius:12px;padding:12px 16px;margin-bottom:12px;background:#161616}' +
+    '.msg.u{border-color:#3b5cf6}.who{font-size:11px;font-weight:700;color:#aeaeae;margin-bottom:6px}' +
+    '.msg pre{margin:0;white-space:pre-wrap;word-break:break-word;font:13px/1.65 Consolas,monospace}' +
+    '</style></head><body><div class="wrap"><h1>' + escHtml(sh.title) + '</h1>' +
+    '<div class="sub">' + escHtml(sh.project) + ' · shared ' + escHtml(sh.time) + ' · read-only replay from Muse CLI GUI (localhost)</div>' +
+    rows + '</div></body></html>';
+}
 function readBody(req, cap) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -679,6 +934,18 @@ async function handleApi(req, res) {
   const url = new URL(req.url || '/', 'http://127.0.0.1');
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
     return apiJson(res, 200, { status: 'ok', app: 'muse-cli-gui', version: VERSION });
+  }
+  if (req.method === 'GET' && url.pathname.startsWith('/share/')) {
+    const sh = shares.get(url.pathname.slice(7));
+    if (!sh) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Share not found (links expire when the bridge restarts)');
+      return;
+    }
+    const html = renderShare(sh);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': Buffer.byteLength(html) });
+    res.end(html);
+    return;
   }
   const auth = String(req.headers['authorization'] || '');
   if (auth !== 'Bearer ' + API_KEY) return apiErr(res, 401, 'Invalid API key', 'auth_error');
@@ -705,6 +972,15 @@ async function handleApi(req, res) {
     if (!Array.isArray(messages) || !messages.length) return apiErr(res, 400, 'messages must be a non-empty array', 'invalid_request');
     const model = body.model ? cleanSlug(String(body.model)) : null;
     if (body.model && !model) return apiErr(res, 400, 'Invalid model id', 'invalid_request');
+    let apiMode = 'build';
+    const metaMode = body.metadata && body.metadata.mode;
+    const hdrMode = typeof req.headers['x-muse-mode'] === 'string' ? req.headers['x-muse-mode'] : null;
+    if (typeof metaMode === 'string' && metaMode) {
+      if (!Object.prototype.hasOwnProperty.call(API_MODES, metaMode)) return apiErr(res, 400, 'metadata.mode must be one of build/supervised/plan/research/debug', 'invalid_request');
+      apiMode = metaMode;
+    } else if (hdrMode && Object.prototype.hasOwnProperty.call(API_MODES, hdrMode)) {
+      apiMode = hdrMode;
+    }
     if (apiActiveRuns >= API_MAX_RUNS) {
       res.setHeader('Retry-After', '30');
       return apiErr(res, 429, 'Too many concurrent agent runs (max ' + API_MAX_RUNS + ')', 'rate_limit');
@@ -729,23 +1005,46 @@ async function handleApi(req, res) {
       try { fs.mkdirSync(API_SCRATCH_ROOT, { recursive: true }); } catch (e) { return apiErr(res, 500, 'Cannot create API scratch dir', 'server_error'); }
       try { cwd = fs.mkdtempSync(path.join(API_SCRATCH_ROOT, 'run-')); } catch (e) { return apiErr(res, 500, 'Cannot create API run dir', 'server_error'); }
     }
-    if (tempInside(cwd)) return apiErr(res, 400, 'Refusing cwd: the OS temp folder is inside it (the Muse runtime fails there)', 'invalid_request');
-    const prompt = promptFromMessages(messages);
-    if (!prompt.trim()) return apiErr(res, 400, 'messages contain no text', 'invalid_request');
+    // Any 400 past this point must drop a scratch dir it just made.
+    const dropScratch = () => { if (scratch && cwd) { try { fs.rmSync(cwd, { recursive: true, force: true }); } catch (e) {} } };
+    if (tempInside(cwd)) { dropScratch(); return apiErr(res, 400, 'Refusing cwd: the OS temp folder is inside it (the Muse runtime fails there)', 'invalid_request'); }
+    let prompt = promptFromMessages(messages);
+    if (!prompt.trim()) { dropScratch(); return apiErr(res, 400, 'messages contain no text', 'invalid_request'); }
+    const pre = modePrefix(apiMode);
+    if (pre) prompt = pre + '\n\n' + prompt;
     if (process.env.MUSE_DEBUG_API === '1') {
       let toolsBytes = 0;
       try { toolsBytes = Array.isArray(body.tools) ? JSON.stringify(body.tools).length : 0; } catch (e) {}
       const comp = messages.map((m) => (m.role || '?') + ':' + textOfContent(m.content).length).join(' ');
       console.log('api debug: body=' + (req.headers['content-length'] || '?') + ' msgs=' + messages.length + ' [' + comp + '] tools=' + (Array.isArray(body.tools) ? body.tools.length : 0) + 'x' + toolsBytes + 'B promptChars=' + prompt.length);
     }
-    const rest = ['--yolo', '--trust-workspace'];
-    if (model) rest.push('--model', model);
+    const rest = apiFlagsForMode(apiMode, model);
     const t0 = Date.now();
-    console.log('api chat: model=' + (model || 'default') + ' msgs=' + messages.length + ' stream=' + (!!body.stream) + ' cwd=' + cwd + ' src=' + cwdSrc);
+    console.log('api chat: model=' + (model || 'default') + ' mode=' + apiMode + ' msgs=' + messages.length + ' stream=' + (!!body.stream) + ' cwd=' + cwd + ' src=' + cwdSrc);
     apiActiveRuns++;
+    // Best-effort immediate cleanup, run BEFORE the final bytes flush so a
+    // client can never observe a completed response with the scratch dir
+    // still present.
+    const finishSync = () => {
+      if (scratch && cwd) { try { fs.rmSync(cwd, { recursive: true, force: true }); } catch (e) {} }
+    };
     const finish = () => {
       apiActiveRuns = Math.max(0, apiActiveRuns - 1);
-      if (scratch && cwd) { try { fs.rmSync(cwd, { recursive: true, force: true }); } catch (e) {} }
+      if (scratch && cwd) {
+        const dir = cwd;
+        let tries = 0;
+        const attempt = () => {
+          try {
+            fs.rmSync(dir, { recursive: true, force: true });
+          } catch (e) {
+            if (e && e.code === 'ENOENT') return;
+            // Windows often holds fresh dirs briefly (AV scan, handle release).
+            if (++tries < 4) setTimeout(attempt, 150);
+            else console.log('api scratch cleanup failed for ' + dir + ': ' + ((e && e.message) || e));
+          }
+        };
+        attempt();
+      }
     };
     if (body.stream) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
@@ -779,6 +1078,7 @@ async function handleApi(req, res) {
         if (!settled) {
           settled = true;
           clearInterval(hb);
+          finishSync();
           const sUsage = apiUsage(prompt, end.text);
           if (end.terminal === 'failed') sendChunk({ content: '(agent run failed: ' + (end.reason || 'unknown error').slice(0, 300) + ')' });
           sendChunk({}, 'stop', sUsage);
@@ -809,6 +1109,7 @@ async function handleApi(req, res) {
     try {
       const end = await promise;
       settled = true;
+      finishSync();
       finish();
       if (res.writableEnded || res.destroyed) return;
       const u = sumUsage(end.usage);
@@ -871,10 +1172,11 @@ wss.on('connection', (socket) => {
     } catch (e) { fail(socket, msg, msg.action || '?', (e && e.message) || e); }
   });
   socket.on('close', () => {
-    const rec = running.get(socket);
-    if (rec) {
-      try { rec.kill(); } catch (e) {}
-      running.delete(socket);
+    for (const [eid, rec] of running) {
+      if (rec.socket === socket) {
+        try { rec.kill(); } catch (e) {}
+        running.delete(eid);
+      }
     }
   });
 });

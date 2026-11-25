@@ -92,3 +92,73 @@ test('copy button copies code block', async () => {
   (screen.getByTestId('message-list').querySelector('[data-md-copy]') as HTMLElement).click();
   await waitFor(() => expect(written).toEqual(['HELLO']));
 });
+
+test('follow-up chips render from reply and click sends', async () => {
+  const mock = setup();
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-done', text: 'Fixed it.\n[SUGGEST]\nRun the tests\nReview the diff\nShip it\n[/SUGGEST]', exitCode: 0, terminal: 'completed' });
+  };
+  send(mock, 'fix footer');
+  await waitFor(() => expect(screen.getByTestId('suggest-chips')).toBeInTheDocument());
+  expect(screen.getByTestId('message-list')).not.toHaveTextContent('[SUGGEST]');
+  expect(screen.getAllByTestId('suggest-chip')).toHaveLength(3);
+  fireEvent.click(screen.getAllByTestId('suggest-chip')[0]);
+  await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('Run the tests'));
+});
+
+test('fallback chips appear when reply has no block', async () => {
+  const mock = setup();
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-done', text: 'plain reply', exitCode: 0, terminal: 'completed' });
+  };
+  send(mock, 'hi');
+  await waitFor(() => expect(screen.getByTestId('suggest-chips')).toBeInTheDocument());
+});
+
+test('checkpoint undo restores via bridge', async () => {
+  const mock = setup();
+  let undone: unknown = null;
+  mock.rpcImpl['git-status'] = () => ({ repo: true, lines: [' M a.txt'] });
+  mock.rpcImpl['checkpoint-undo'] = (p) => { undone = p; return { cwd: 'C:\\p', restored: 1 }; };
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start', checkpoint: 'cp-abc' });
+    mock.emitExec(id, { type: 'exec-done', text: 'ok', exitCode: 0, terminal: 'completed' });
+  };
+  send(mock, 'hi');
+  await waitFor(() => expect(screen.getByTestId('checkpoint-undo')).toBeInTheDocument());
+  fireEvent.click(screen.getByTestId('checkpoint-undo'));
+  expect(screen.getByTestId('checkpoint-undo')).toHaveTextContent('Sure?');
+  fireEvent.click(screen.getByTestId('checkpoint-undo'));
+  await waitFor(() => expect(undone).toEqual({ checkpointId: 'cp-abc' }));
+  await waitFor(() => expect(screen.getByTestId('toast-stack')).toHaveTextContent('Undone'));
+});
+
+test('compact summarizes into a fresh session', async () => {
+  const mock = setup();
+  mock.rpcImpl['summarize'] = () => ({ summary: 'prior work summary' });
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-done', text: 'ok', exitCode: 0, terminal: 'completed' });
+  };
+  send(mock, 'one');
+  await waitFor(() => expect(screen.getByTestId('thought-summary')).toBeInTheDocument());
+  send(mock, 'two');
+  await waitFor(() => expect(screen.getByTestId('compact-btn')).toBeInTheDocument());
+  fireEvent.click(screen.getByTestId('compact-btn'));
+  await waitFor(() => expect(screen.getByTestId('toast-stack')).toHaveTextContent('compacted'));
+  await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('prior work summary'));
+});
+
+test('diagnostics event renders issue list', async () => {
+  const mock = setup();
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-diagnostics', issues: [{ file: 'a.js', line: 3, message: 'Unexpected token', tool: 'node' }], checked: 1 });
+    mock.emitExec(id, { type: 'exec-done', text: 'ok', exitCode: 0, terminal: 'completed' });
+  };
+  send(mock, 'hi');
+  await waitFor(() => expect(screen.getByTestId('diagnostics')).toBeInTheDocument());
+  expect(screen.getByTestId('diagnostics')).toHaveTextContent('a.js:3');
+});

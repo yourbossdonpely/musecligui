@@ -44,7 +44,8 @@ test('exec streams deltas and tools then finalizes', async () => {
   expect(screen.getByTestId('run-text')).toHaveTextContent('none');
   const sent = mock.sent[0] as Record<string, unknown>;
   expect(sent['action']).toBe('exec');
-  expect(sent['command']).toBe('hi');
+  expect(String(sent['command']).startsWith('hi')).toBe(true);
+  expect(String(sent['command'])).toContain('[SUGGEST]');
   expect(sent['cwd']).toBe('C:\\p');
 });
 

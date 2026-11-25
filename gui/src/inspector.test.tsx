@@ -105,3 +105,27 @@ test('opencode section shows plugin status and wires project', async () => {
   fireEvent.click(screen.getByTestId('opencode-wire-btn'));
   await waitFor(() => expect(screen.getByTestId('toast-stack')).toHaveTextContent('Wrote OpenCode wiring'));
 });
+test('share button copies localhost link', async () => {
+  const mock = setup();
+  mock.rpcImpl['share-create'] = () => ({ id: 'sh-1', url: 'http://127.0.0.1:8766/share/sh-1' });
+  const written: string[] = [];
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t: string) => { written.push(t); return Promise.resolve(); } }, configurable: true });
+  mock.execImpl = (id) => {
+    mock.emitExec(id, { type: 'exec-start' });
+    mock.emitExec(id, { type: 'exec-done', text: 'ok', exitCode: 0, terminal: 'completed' });
+  };
+  fireEvent.change(screen.getByTestId('composer-input'), { target: { value: 'hi' } });
+  fireEvent.click(screen.getByTestId('send-btn'));
+  await waitFor(() => expect(screen.getByTestId('thought-summary')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('More'));
+  fireEvent.click(screen.getByTestId('share-btn'));
+  await waitFor(() => expect(written).toEqual(['http://127.0.0.1:8766/share/sh-1']));
+  await waitFor(() => expect(screen.getByTestId('toast-stack')).toHaveTextContent('Share link copied'));
+});
+test('diagnose button shows results', async () => {
+  const mock = setup();
+  mock.rpcImpl['diagnose'] = () => ({ repo: true, checked: 2, issues: [{ file: 'x.js', line: 1, message: 'bad', tool: 'node' }] });
+  fireEvent.click(screen.getByText('More'));
+  fireEvent.click(screen.getByTestId('diagnose-btn'));
+  await waitFor(() => expect(screen.getByTestId('more-pane')).toHaveTextContent('x.js:1'));
+});

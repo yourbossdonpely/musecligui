@@ -1,14 +1,76 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../state/store';
 import { MODES, permsSummary } from '../../lib/modes';
 import { fmtTokens, usageParts } from '../../lib/protocol';
+import { applyMention, findMentionToken, splitMentionQuery } from '../../lib/mentions';
 import { ToggleGroup } from '../ui/overlay';
 
+interface MentionItem { rel: string; dir: boolean }
+interface MentionState { token: { start: number; query: string }; items: MentionItem[]; active: number }
+
 export function Composer() {
-  const { settings, setMode, send, stop, run, attached, removeAttach, openModal, draft, setDraft, queue, clearQueue, session, lastTokens, usage } = useApp();
+  const { settings, setMode, send, stop, run, attached, removeAttach, openModal, draft, setDraft, queue, clearQueue, session, lastTokens, usage, client, project, status, compactSession } = useApp();
   const taRef = useRef<HTMLTextAreaElement>(null);
   const value = draft;
   const setValue = setDraft;
+  const [caret, setCaret] = useState(0);
+  const [mention, setMention] = useState<MentionState | null>(null);
+  const seqRef = useRef(0);
+
+  useEffect(() => {
+    const token = findMentionToken(value, caret);
+    if (!token || !project || status !== 'open') {
+      setMention(null);
+      return;
+    }
+    const seq = ++seqRef.current;
+    const t = setTimeout(() => {
+      const { dir, file } = splitMentionQuery(token.query);
+      client.rpc('fs-list', { root: project.path, rel: dir }, 15000).then(
+        (r) => {
+          if (seqRef.current !== seq) return;
+          const ents = ((r as { entries?: Array<{ name?: string; type?: string }> }).entries) ?? [];
+          const q = file.toLowerCase();
+          const items: MentionItem[] = [];
+          for (const e of ents) {
+            const name = String(e.name ?? '');
+            if (!name || !name.toLowerCase().includes(q)) continue;
+            const isDir = e.type === 'dir';
+            items.push({ rel: (dir ? dir + '/' : '') + name + (isDir ? '/' : ''), dir: isDir });
+            if (items.length >= 8) break;
+          }
+          setMention(items.length ? { token, items, active: 0 } : null);
+        },
+        () => { if (seqRef.current === seq) setMention(null); },
+      );
+    }, 150);
+    return () => clearTimeout(t);
+  }, [value, caret, project, status, client]);
+
+  function trackCaret() {
+    const el = taRef.current;
+    if (el) setCaret(el.selectionStart ?? value.length);
+  }
+
+  function pickMention(item: MentionItem) {
+    if (!mention) return;
+    const r = applyMention(value, caret, mention.token.start, item.rel);
+    const dirValue = r.value.slice(0, r.caret - 1) + r.value.slice(r.caret);
+    setValue(item.dir ? dirValue : r.value);
+    const nc = item.dir ? r.caret - 1 : r.caret;
+    setCaret(nc);
+    if (!item.dir) {
+      setMention(null);
+    }
+    requestAnimationFrame(() => {
+      const el = taRef.current;
+      if (el) {
+        el.focus();
+        try { el.setSelectionRange(nc, nc); } catch { /* noop */ }
+      }
+      autosize();
+    });
+  }
 
   function autosize() {
     const el = taRef.current;
@@ -50,13 +112,31 @@ export function Composer() {
           </div>
         ) : null}
         {queue.length ? <button data-testid="queued-chip" onClick={clearQueue} title="Click to clear queue" className="mx-3.5 mb-1 mt-2 rounded-lg border border-flare/40 bg-flare/10 px-3 py-1 text-left text-[11.5px] font-semibold text-flare">{queue.length} queued — click to clear</button> : null}
-        <div className="flex items-end gap-2.5 p-3.5">
-          <textarea ref={taRef} data-testid="composer-input" rows={1} value={value} placeholder="Ask Muse to plan, build, edit, or research..." aria-label="Message Muse"
-            onChange={(e) => { setValue(e.target.value); autosize(); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
+        <div className="relative flex items-end gap-2.5 p-3.5">
+          {mention && mention.items.length ? (
+            <div data-testid="mention-list" className="absolute bottom-full left-3.5 z-30 mb-1 w-72 overflow-hidden rounded-xl border border-edge bg-base1 shadow-2xl">
+              {mention.items.map((it, i) => (
+                <button key={it.rel} data-testid="mention-item" onMouseDown={(e) => { e.preventDefault(); pickMention(it); }} onMouseEnter={() => setMention((m) => (m ? { ...m, active: i } : m))} className={'flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-[12px] ' + (i === mention.active ? 'bg-flare/20 text-flare' : 'text-dim')}>
+                  <span>{it.dir ? '📁' : '📄'}</span><span className="truncate">{it.rel}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <textarea ref={taRef} data-testid="composer-input" rows={1} value={value} placeholder="Ask Muse to plan, build, edit, or research... (type @ to mention files)" aria-label="Message Muse"
+            onChange={(e) => { setValue(e.target.value); setCaret(e.target.selectionStart ?? e.target.value.length); autosize(); }}
+            onSelect={trackCaret} onClick={trackCaret} onKeyUp={trackCaret}
+            onKeyDown={(e) => {
+              if (mention && mention.items.length) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setMention((m) => (m ? { ...m, active: (m.active + 1) % m.items.length } : m)); return; }
+                if (e.key === 'ArrowUp') { e.preventDefault(); setMention((m) => (m ? { ...m, active: (m.active + m.items.length - 1) % m.items.length } : m)); return; }
+                if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mention.items[mention.active]); return; }
+                if (e.key === 'Escape') { e.preventDefault(); setMention(null); return; }
+              }
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+            }}
             className="max-h-[150px] min-h-[26px] flex-1 resize-none bg-transparent px-1 py-1 text-[13.5px] leading-relaxed outline-none placeholder:text-faint" />
           {run ? (
-            <button data-testid="stop-btn" onClick={() => stop()} title="Stop" aria-label="Stop run" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-rose text-[13px] font-bold text-white">■</button>
+            <button data-testid="stop-btn" onClick={() => stop()} title="Stop all runs" aria-label="Stop all runs" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-rose text-[13px] font-bold text-white">■</button>
           ) : null}
           <button data-testid="send-btn" onClick={submit} disabled={!value.trim()} title="Send" aria-label="Send message" className="flex size-[38px] shrink-0 items-center justify-center rounded-xl bg-accent text-[16px] font-bold text-white transition-shadow hover:shadow-[0_0_20px_rgba(59,92,246,0.45)] disabled:opacity-40">↑</button>
         </div>
@@ -69,6 +149,9 @@ export function Composer() {
           </button>
           <span className="font-mono text-faint">Sub <span data-testid="usage-value" className="font-bold text-dim">{usageParts(usage?.window).pct != null ? usageParts(usage?.window).pct + '%' : '—'}</span></span>
           <span className="ml-auto font-mono text-faint">Tokens <span data-testid="tokens-value" className="font-bold text-dim">{lastTokens ? lastTokens.inp + ' in / ' + lastTokens.out + ' out' : '—'}</span></span>
+          {session && session.messages.filter((m) => m.type === 'user' || m.type === 'muse').length >= 4 ? (
+            <button data-testid="compact-btn" onClick={compactSession} title="Summarize this session and continue in a fresh one" className="rounded-md border border-edge px-1.5 py-0.5 text-[10.5px] font-bold text-dim hover:border-flare hover:text-flare">Compact</button>
+          ) : null}
           <button data-testid="context-status" onClick={() => { if (!win) openModal({ kind: 'model' }); }} title={win ? 'Session context used' : 'Set the context window for this model'} className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-faint hover:bg-base2">
             {win ? (
               <><span className="h-1.5 w-16 overflow-hidden rounded-full bg-base2"><span className="block h-full rounded-full bg-flare" style={{ width: pct + '%' }} /></span><b className="text-dim">{fmtTokens(used)} / {fmtTokens(win)} ({pct}%)</b></>

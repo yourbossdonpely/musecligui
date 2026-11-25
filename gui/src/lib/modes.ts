@@ -27,7 +27,7 @@ export const DEFAULT_CONTEXT_WINDOWS: Record<string, number> = {
   'muse-ember-1.0': 1048576,
 };
 export function defaultSettings(): Settings {
-  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags }, contextWindows: { ...DEFAULT_CONTEXT_WINDOWS } };
+  return { mode: 'build', model: '', effort: '', contributor: 'off', flags: { ...MODES.build.flags }, contextWindows: { ...DEFAULT_CONTEXT_WINDOWS }, voice: { uri: '', rate: 0.95 } };
 }
 export function permsPreview(s: Settings): string {
   const f = s.flags;

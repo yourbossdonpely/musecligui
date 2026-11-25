@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useApp } from '../../state/store';
+import { listVoices, speakText, stopSpeech, type VoiceLike } from '../../lib/speech';
 
 interface Row { h: string; t: string }
 function KvList({ rows }: { rows: Row[] }) {
@@ -27,10 +28,24 @@ function Section({ title, onReload, children }: { title: string; onReload?: () =
 }
 
 export function MorePanel() {
-  const { client, status, project, runsDone, exportCurrentSession, openModal, toast } = useApp();
+  const { client, status, project, session, settings, updateSettings, runsDone, exportCurrentSession, openModal, toast } = useApp();
+  const [voices, setVoices] = useState<VoiceLike[]>(() => listVoices());
+  useEffect(() => {
+    try {
+      const synth = (window as unknown as { speechSynthesis?: { addEventListener?: (t: string, f: () => void) => void; removeEventListener?: (t: string, f: () => void) => void } }).speechSynthesis;
+      if (!synth) return;
+      const load = () => setVoices(listVoices());
+      load();
+      if (synth.addEventListener) {
+        synth.addEventListener('voiceschanged', load);
+        return () => { try { synth.removeEventListener?.('voiceschanged', load); } catch { /* noop */ } };
+      }
+    } catch { /* speech unavailable */ }
+  }, []);
   const [mcp, setMcp] = useState<Row[]>([]);
   const [sess, setSess] = useState<Row[]>([]);
   const [git, setGit] = useState<Row[]>([]);
+  const [diag, setDiag] = useState<Row[] | null>(null);
   const [bridge, setBridge] = useState<Row[]>([]);
   const [api, setApi] = useState<{ enabled: boolean; url?: string; key?: string } | null>(null);
   const [ocode, setOcode] = useState<{ pluginInstalled: boolean; pluginCurrent: boolean; pluginPath?: string } | null>(null);
@@ -98,8 +113,36 @@ export function MorePanel() {
       } else toast('Clipboard unavailable.');
     } catch { toast('Copy unavailable.'); }
   }
+  async function runDiagnose() {
+    if (status !== 'open') { toast('Bridge not connected.'); return; }
+    if (!project) { toast('Select a project first.'); return; }
+    try {
+      const r = (await client.rpc('diagnose', { cwd: project.path }, 120000)) as { repo?: boolean; checked?: number; issues?: Array<{ file?: string; line?: number; message?: string; tool?: string }> };
+      if (!r.repo) { setDiag([{ h: 'Not a git repo', t: project.path }]); return; }
+      const list = r.issues ?? [];
+      setDiag(list.length
+        ? list.slice(0, 30).map((x) => ({ h: (x.file || '?') + (x.line ? ':' + x.line : ''), t: (x.message || 'issue') + ' [' + (x.tool || '?') + ']' }))
+        : [{ h: 'Clean', t: (r.checked ?? 0) + ' file(s) checked, no issues' }]);
+    } catch (e) { toast('Diagnose failed: ' + (e instanceof Error ? e.message : String(e))); }
+  }
   function okCopy() { toast('API key copied.'); }
   function badCopy() { toast('Copy failed.'); }
+  async function shareSession() {
+    if (!project || !session) { toast('No session selected.'); return; }
+    const messages = session.messages
+      .filter((m) => m.type === 'user' || m.type === 'muse')
+      .slice(-500)
+      .map((m) => ({ role: m.type, text: m.text.slice(0, 50000) }));
+    if (!messages.length) { toast('Nothing shareable in this session.'); return; }
+    try {
+      const r = (await client.rpc('share-create', { title: session.name, project: project.name, messages }, 15000)) as { url?: string };
+      const nav = navigator as unknown as { clipboard?: { writeText?: (t: string) => Promise<void> } };
+      if (nav.clipboard && nav.clipboard.writeText && r.url) {
+        await nav.clipboard.writeText(r.url);
+        toast('Share link copied (localhost, expires on bridge restart).');
+      } else toast('Share link: ' + (r.url ?? '(none)'));
+    } catch (e) { toast('Share failed: ' + (e instanceof Error ? e.message : String(e))); }
+  }
   async function wireProject() {
     if (!project) { toast('Select a project first.'); return; }
     try {
@@ -115,7 +158,10 @@ export function MorePanel() {
         <button onClick={() => openModal({ kind: 'mcp' })} className="mt-1.5 w-full rounded-lg border border-edge px-2 py-1.5 text-[11px] font-bold text-dim hover:border-flare hover:text-flare">Manage MCP</button>
       </Section>
       <Section title="Running sessions"><KvList rows={sess} /></Section>
-      <Section title="Git changes"><KvList rows={git} /></Section>
+      <Section title="Git changes"><KvList rows={git} />
+        <button data-testid="diagnose-btn" onClick={() => void runDiagnose()} className="mt-1.5 w-full rounded-lg border border-edge px-2 py-1.5 text-[11px] font-bold text-dim hover:border-flare hover:text-flare">Run diagnostics on changed files</button>
+        {diag ? <div className="mt-1.5"><KvList rows={diag} /></div> : null}
+      </Section>
       <Section title="Bridge"><KvList rows={bridge} /></Section>
       <Section title="OpenCode" onReload={() => void refresh()}>
         {!ocode ? <p className="text-[11px] text-faint">Loading...</p> : (
@@ -138,6 +184,26 @@ export function MorePanel() {
       <button onClick={exportCurrentSession} className="w-full rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] font-semibold text-dim hover:border-flare hover:text-flare">
         Export current session (.md)
       </button>
+      <button data-testid="share-btn" onClick={() => void shareSession()} title="Get a localhost replay link for this session" className="mt-1.5 w-full rounded-lg border border-dashed border-edge px-3 py-2 text-[12px] font-semibold text-dim hover:border-flare hover:text-flare">
+        Share current session (link)
+      </button>
+      <Section title="Voice (read aloud)">
+        {!voices.length ? <p className="text-[11px] text-faint">No speech voices in this browser.</p> : (
+          <div data-testid="voice-section" className="flex flex-col gap-1.5">
+            <select data-testid="voice-select" value={settings.voice?.uri || ''} onChange={(e) => updateSettings({ voice: { uri: e.target.value, rate: settings.voice?.rate ?? 0.95 } })} className="w-full rounded-lg border border-edge bg-base0 px-2.5 py-2 text-[12px] outline-none focus:border-flare">
+              <option value="">Auto (prefer female English)</option>
+              {voices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>{v.name} ({v.lang})</option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-faint">Speed</span>
+              <input data-testid="voice-rate" type="range" min="0.6" max="1.5" step="0.05" value={settings.voice?.rate ?? 0.95} onChange={(e) => updateSettings({ voice: { uri: settings.voice?.uri || '', rate: Number(e.target.value) } })} className="flex-1" />
+              <button data-testid="voice-test" onClick={() => { stopSpeech(); speakText('Hello! I am Muse, your coding assistant.', settings.voice?.uri || undefined, settings.voice?.rate ?? 0.95, 'voice-test'); }} className="rounded-md border border-edge px-2 py-1 text-[10.5px] font-bold text-dim hover:border-flare hover:text-flare">Test</button>
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

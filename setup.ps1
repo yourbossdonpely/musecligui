@@ -125,6 +125,7 @@ function Stage2 {
   $rmfile = Join-Path $AppDir '.setup-opencode-restart'
   if (Test-Path $rmfile) { Remove-Item $rmfile -Force }
   Install-CwdPlugin
+  Install-ModeAgents
   $keyFile = Join-Path $AppDir '.muse-api-key'
   $key = $null
   for ($i = 0; $i -lt 30; $i++) {
@@ -213,6 +214,26 @@ function Install-CwdPlugin {
     try { Add-Content -Path (Join-Path $AppDir '.setup-opencode-restart') -Value 'cwd plugin' } catch {}
     Log 'cwd-plugin: installed'
   } catch { Warn ('Could not install the OpenCode cwd plugin: ' + $_.Exception.Message) }
+}
+function Install-ModeAgents {
+  $srcDir = Join-Path $AppDir 'opencode-agents'
+  if (-not (Test-Path $srcDir)) { Log 'mode-agents: source missing, skip'; return }
+  $destDir = Join-Path $env:USERPROFILE '.config\opencode\agents'
+  try {
+    if (-not (Test-Path $destDir)) { New-Item -ItemType Directory $destDir -Force | Out-Null }
+    $added = 0
+    foreach ($f in @('supervised.md', 'research.md', 'debug.md')) {
+      $src = Join-Path $srcDir $f
+      $dest = Join-Path $destDir $f
+      if (-not (Test-Path $src)) { continue }
+      if (Test-Path $dest) { Log ('mode-agents: keep existing ' + $f); continue }
+      Copy-Item $src $dest -Force
+      try { Add-Content -Path (Join-Path $AppDir '.setup-opencode-restart') -Value ('agent ' + $f) } catch {}
+      Log ('mode-agents: installed ' + $f)
+      $added++
+    }
+    if ($added -eq 0) { Log 'mode-agents: all present' }
+  } catch { Warn ('Could not install the OpenCode mode agents: ' + $_.Exception.Message) }
 }
 function Wire-Projects {
   $node = Join-Path $AppDir 'node.exe'

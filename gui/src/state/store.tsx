@@ -4,12 +4,14 @@ import type { AttachedFile, ChatMsg, Project, Session, Settings } from '../lib/t
 import { loadProjects, saveProjects, loadSettings, saveSettings, loadSelection, saveSelection, type Selection } from '../lib/storage';
 import { MODES, defaultSettings } from '../lib/modes';
 import { cmpVersions, uuid } from '../lib/protocol';
+import { extractMentions } from '../lib/mentions';
+import { stopSpeech } from '../lib/speech';
 import { buildSessionMarkdown } from '../lib/export-session';
 import { parseSessionFile } from '../lib/import-session';
-import { useRunEngine, type RunState } from './run';
+import { MAX_RUNS, useRunEngine, type RunState } from './run';
 
 export const BRIDGE_URL = String(import.meta.env.VITE_BRIDGE_URL || 'ws://localhost:8765');
-export const MIN_BRIDGE = '2.6.0';
+export const MIN_BRIDGE = '2.7.0';
 export type ConnStatus = 'connecting' | 'open' | 'closed';
 export interface ToastMsg { id: number; text: string }
 export type ModalKind = 'project' | 'picker' | 'model' | 'perms' | 'file' | 'mcp' | null;
@@ -24,6 +26,9 @@ interface AppValue {
   settings: Settings;
   attached: AttachedFile[];
   run: RunState | null;
+  runs: RunState[];
+  stopRun: (id: string) => void;
+  liveCount: () => number;
   toasts: ToastMsg[];
   modal: ModalState;
   runsDone: number;
@@ -64,6 +69,7 @@ interface AppValue {
   stopBridge: () => void;
   startBridge: () => void;
   quitBridge: () => void;
+  compactSession: () => void;
 }
 
 const AppCtx = createContext<AppValue | null>(null);
@@ -136,7 +142,7 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     if (sid == null) return;
     setProjects((prev) => prev.map((p) => ({ ...p, sessions: p.sessions.map((s) => (s.id === sid ? { ...s, tokensUsed: (s.tokensUsed ?? 0) + n } : s)) })));
   }, []);
-  const { run, send: engineSend, stop, isLive } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens, addSessionTokens });
+  const { run, runs, send: engineSend, stop, stopRun, liveCount } = useRunEngine({ client, getSnap, appendMessage, toast, bumpRuns, clearAttached, setLastTokens: setTokens, addSessionTokens });
 
   const stopBridge = useCallback(() => {
     client.rpc('bridge-stop', {}, 15000).then(
@@ -201,6 +207,16 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
 
   const project = useMemo(() => projects.find((p) => p.id === sel.p) ?? null, [projects, sel.p]);
   const session = useMemo(() => project?.sessions.find((s) => s.id === sel.s) ?? null, [project, sel.s]);
+  const compactWarned = useRef<number | null>(null);
+  useEffect(() => {
+    if (session?.id == null) return;
+    const win = settings.contextWindows?.[settings.model] ?? 0;
+    const used = session.tokensUsed ?? 0;
+    if (win > 0 && used / win >= 0.8 && compactWarned.current !== session.id) {
+      compactWarned.current = session.id;
+      toast('Session context is over 80% — press Compact to continue fresh.');
+    }
+  }, [session, settings, toast]);
   const currentMessages = useMemo(() => session?.messages ?? ephemeral, [session, ephemeral]);
 
   const selectProject = useCallback((idx: number) => {
@@ -405,14 +421,43 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
     }
     toast('Unknown command "' + cmd + '". Try /help.');
   }, [setMode, exportCurrentSession, addSession, appendMessage, toast]);
+  const sendResolved = useCallback((text: string) => {
+    const proj = snap.current.projects.find((x) => x.id === snap.current.sel.p);
+    if (!proj || !client.connected) {
+      engineSend(text);
+      return;
+    }
+    const rels = extractMentions(text);
+    if (!rels.length) {
+      engineSend(text);
+      return;
+    }
+    void (async () => {
+      const failed: string[] = [];
+      for (const rel of rels.slice(0, 5)) {
+        try {
+          const r = (await client.rpc('fs-read', { root: proj.path, rel }, 15000)) as { content?: string };
+          if (typeof r?.content === 'string') attachFile(rel, r.content);
+          else failed.push(rel);
+        } catch {
+          failed.push(rel);
+        }
+      }
+      if (failed.length) toast('Could not attach: ' + failed.join(', '));
+      // Let React flush the attach state so the engine sees it.
+      await new Promise((r) => setTimeout(r, 0));
+      engineSend(text);
+    })();
+  }, [client, attachFile, engineSend, toast]);
   const send = useCallback((text: string) => {
     const t = text.trim();
     if (!t) return;
+    stopSpeech();
     if (t.startsWith('/')) {
       handleSlash(t);
       return;
     }
-    if (isLive()) {
+    if (liveCount() >= MAX_RUNS) {
       if (queueRef.current.length >= 3) {
         toast('Queue is full (3).');
         return;
@@ -421,25 +466,49 @@ export function AppProvider({ client: injected, children }: { client?: IBridge; 
       toast('Queued — sends when the run finishes.');
       return;
     }
-    engineSend(text);
-  }, [engineSend, isLive, handleSlash, toast]);
+    sendResolved(text);
+  }, [sendResolved, liveCount, handleSlash, toast]);
+  const compactSession = useCallback(() => {
+    const { projects: ps, sel: s } = snap.current;
+    const pIdx = ps.findIndex((x) => x.id === s.p);
+    const p = pIdx >= 0 ? ps[pIdx] : null;
+    const sess = p?.sessions.find((x) => x.id === s.s);
+    if (!p || !sess) { toast('No session selected.'); return; }
+    const turns = sess.messages.filter((m) => m.type === 'user' || m.type === 'muse');
+    if (turns.length < 4) { toast('Session is still short — nothing to compact.'); return; }
+    if (!client.connected) { toast('Bridge not connected.'); return; }
+    const text = turns.map((m) => (m.type === 'muse' ? 'Muse: ' : 'User: ') + m.text).join('\n\n').slice(0, 80000);
+    toast('Compacting session…');
+    client.rpc('summarize', { text }, 300000).then(
+      (r) => {
+        const summary = String((r as { summary?: string } | null)?.summary || '');
+        if (!summary) { toast('Compaction produced no summary.'); return; }
+        addSession(pIdx);
+        setTimeout(() => {
+          appendMessage({ type: 'system', text: 'Compacted from "' + sess.name + '". Prior context:\n\n' + summary });
+          toast('Session compacted — continuing fresh.');
+        }, 50);
+      },
+      (e) => toast('Compaction failed: ' + (e instanceof Error ? e.message : String(e))),
+    );
+  }, [client, toast, appendMessage, addSession]);
   const clearQueue = useCallback(() => setQueue([]), []);
   useEffect(() => {
-    if (!run && queue.length) {
+    if (liveCount() < MAX_RUNS && queue.length) {
       const next = queue[0];
       setQueue((q) => q.slice(1));
-      engineSend(next);
+      sendResolved(next);
     }
-  }, [run, queue, engineSend]);
+  }, [runs, queue, sendResolved, liveCount]);
   const openModal = useCallback((m: ModalState) => setModal(m), []);
   const closeModal = useCallback(() => setModal({ kind: null }), []);
 
   const value: AppValue = {
-    client, status, bridgeOutdated, projects, sel, settings, attached, run, toasts, modal, usage, refreshUsage,
+    client, status, bridgeOutdated, projects, sel, settings, attached, run, runs, toasts, modal, usage, refreshUsage,
     runsDone, lastTokens, inspectorTab, setInspectorTab, draft, setDraft, queue, clearQueue, importSession, exportCurrentSession, project, session, currentMessages, reconnect, toast, openModal, closeModal,
     appendMessage, selectProject, toggleProject, addProject, updateProject, deleteProject,
     addSession, selectSession, deleteSession, updateSettings, setMode, attachFile,
-    removeAttach, send, stop, bridgePaused, stopBridge, startBridge, quitBridge,
+    removeAttach, send, stop, stopRun, liveCount, bridgePaused, stopBridge, startBridge, quitBridge, compactSession,
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }

@@ -2,6 +2,7 @@ const fs = require('fs');
 const args = process.argv.slice(2);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function main() {
+  if (process.env.STUB_DUMP_ARGS) { try { fs.appendFileSync(process.env.STUB_DUMP_ARGS, JSON.stringify(args) + '\n'); } catch (e) {} }
   if (args[0] === 'exec' && args.includes('--list-models')) { console.log('muse-spark-1.3\nmuse-ember-1.0'); return; }
   if (args[0] === 'exec') {
     const i = args.indexOf('--prompt-file');
