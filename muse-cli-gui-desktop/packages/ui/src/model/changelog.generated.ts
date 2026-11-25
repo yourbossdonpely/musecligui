@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "0.23.10",
+    "body": "### Added\n\n- **Follow-up chips.** Finished replies end with clickable suggestions, so one tap sends the next prompt.\n- **@file mentions.** Type @ in the composer to pick a project file; its contents ride along with the prompt.\n- **Share links.** The thread menu's Copy share link publishes a read-only replay page on the local daemon.\n- **Read aloud.** A speaker button under every finished reply reads it with your chosen voice (Settings → Read aloud).\n- **Check syntax.** The files-changed card checks the thread's edited files and lists issues per file.\n- **Task modes.** The composer picks Build, Supervised, Plan, Research or Debug framing per thread, and the fallback chips follow suit."
+  },
+  {
     "version": "0.23.9",
     "body": "### Fixed\n\n- Checking for updates now tells you the result: a toast confirms you're up to date, or shows the error when the check fails.\n- The What's-new dialog's changelog link opens the release notes instead of a dead page.\n- Standardized the display name to **MuseCodeIcon by Don Peli** everywhere (installer, window title, sidebar, docs)."
   },

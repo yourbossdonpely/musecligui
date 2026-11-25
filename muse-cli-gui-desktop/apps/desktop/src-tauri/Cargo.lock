@@ -2213,7 +2213,7 @@ dependencies = [
 
 [[package]]
 name = "musecodeicon"
-version = "0.23.8"
+version = "0.23.10"
 dependencies = [
  "serde",
  "serde_json",
