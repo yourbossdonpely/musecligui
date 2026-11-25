@@ -41,11 +41,11 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 
 | Platform | File |
 |----------|------|
-| Windows | [`MuseCodeIcon_0.23.8_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-portable.zip), unzip and run |
+| Windows | [`MuseCodeIcon_0.23.9_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.9/MuseCodeIcon_0.23.9_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.9/MuseCodeIcon_0.23.9_x64-portable.zip), unzip and run |
 | macOS | [`MuseCodeIcon_0.23.7_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal.dmg) — universal, ad-hoc signed (not notarized). Or the `.app` in [`…universal-macos.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_universal-macos.zip) |
-| Linux | [`MuseCodeIcon_0.23.8_amd64.AppImage`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_amd64.AppImage), [`.deb`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_amd64.deb), [`.rpm`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon-0.23.8-1.x86_64.rpm) |
+| Linux | [`MuseCodeIcon_0.23.9_amd64.AppImage`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.9/MuseCodeIcon_0.23.9_amd64.AppImage), [`.deb`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.9/MuseCodeIcon_0.23.9_amd64.deb), [`.rpm`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.9/MuseCodeIcon-0.23.9-1.x86_64.rpm) |
 
-Windows and Linux are on the [`v0.23.8` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8) (self-updating from here on); macOS follows on the next full CI run and stays on [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until then.
+Windows and Linux are on the [`v0.23.9` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.9) (self-updating from here on); macOS follows on the next full CI run and stays on [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until then.
 
 > ⚠️ **Do not download `MuseCLIGUI.exe` for this app.** The 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases is the *bridge GUI's launcher*, not MuseCodeIcon, and it is not standalone: it needs `muse-bridge.js` and `gui/` from `MuseCLIGUI-v2.6.2-win-x64.zip` next to it, so run on its own it stops with `Missing file: …\muse-bridge.js`. Use the installer in the table above.
 
@@ -78,7 +78,7 @@ npm run build
 
 | Output | Path |
 |--------|------|
-| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.8_x64-setup.exe` (≈27 MB) |
+| Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_0.23.9_x64-setup.exe` (≈27 MB) |
 | App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
 
 The installer is signed with the author's certificate (DigiCert timestamped), so SmartScreen names the publisher instead of "unknown"; it may still ask on unfamiliar machines until the signature builds reputation. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. CI also launches every bundle it ships: the macOS `.app` and the extracted AppImage are started headlessly and must answer their own UI on the server port the app publishes, so a release cannot go out compiled-but-never-started. What CI cannot do is click through them: no one has driven the macOS or Linux builds on a real desktop.
@@ -361,3 +361,4 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 ---
 
 **Projects:** **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/` ([its README](muse-cli-gui-desktop/README.md)) — and Muse CLI GUI, the portable bridge GUI in this folder. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
+
