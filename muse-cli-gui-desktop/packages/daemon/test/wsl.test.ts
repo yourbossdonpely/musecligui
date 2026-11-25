@@ -144,7 +144,8 @@ describe("environment probe", () => {
       assert.deepEqual(args.slice(0, 3), ["-d", "Ubuntu", "--"]);
       return { stdout: "/home/harjot/.local/bin/muse\n", exitCode: 0 };
     };
-    const probe = await probeEnvironment(exec, "win32");
+    // No native Muse here: this scenario is about the WSL lookup, on any machine.
+    const probe = await probeEnvironment(exec, "win32", { findNative: () => null });
     assert.equal(probe.wslAvailable, true);
     assert.equal(probe.defaultDistro, "Ubuntu");
     assert.equal(probe.musePath, "/home/harjot/.local/bin/muse");
@@ -187,7 +188,8 @@ describe("environment probe", () => {
 
   it("reports missing WSL cleanly", async () => {
     const exec: ExecFn = async () => ({ stdout: "", exitCode: 1 });
-    const probe = await probeEnvironment(exec, "win32");
+    // No native Muse here either, so a missing WSL leaves no runtime at all.
+    const probe = await probeEnvironment(exec, "win32", { findNative: () => null });
     assert.equal(probe.wslAvailable, false);
     assert.equal(probe.musePath, null);
   });
