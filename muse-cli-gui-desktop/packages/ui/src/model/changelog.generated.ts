@@ -10,7 +10,7 @@ export interface ChangelogEntry {
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     "version": "0.23.8",
-    "body": "### Added\n\n- **In-app updates are back.** MuseCodeIcon checks for new versions on launch and every six hours, shows a dot on the sidebar icon when one waits, and downloads it in the background when automatic updates are on. Check any time from Settings → Updates, the sidebar menu, or the command palette (`Check for updates`)."
+    "body": "### Added\n\n- **In-app updates are back.** MuseCodeIcon checks for new versions on launch and every six hours, shows a dot on the sidebar icon when one waits, and downloads it in the background when automatic updates are on. Check any time from Settings → Updates, the sidebar menu, or the command palette (`Check for updates`).\n\n### Changed\n\n- The app is now **MuseCodeIcon by Don PELY** in the installer (with a license page to accept), the window title, and the sidebar header. Shortcuts and the installed app name stay MuseCodeIcon."
   },
   {
     "version": "0.23.6",

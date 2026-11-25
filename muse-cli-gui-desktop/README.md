@@ -2,7 +2,7 @@
 
 <img src="docs/assets/app-icon.png" alt="MuseCodeIcon app icon" width="112" />
 
-# MuseCodeIcon
+# MuseCodeIcon by Don PELY
 
 **A free, MIT-licensed desktop app (Windows, macOS, Linux) for Meta's Muse Code CLI.**
 **Gold on black, on every platform.**
@@ -13,7 +13,7 @@
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
-**Download:** [MuseCodeIcon v0.23.7](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) — `MuseCodeIcon_0.23.7_x64-setup.exe` for Windows, `MuseCodeIcon_0.23.7_universal.dmg` for macOS (Apple Silicon and Intel), and `MuseCodeIcon_0.23.7_amd64.AppImage` plus `.deb` and `.rpm` for Linux, all built by CI from that tag. Windows is unsigned and macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
+**Download:** [MuseCodeIcon v0.23.8](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8) — `MuseCodeIcon_0.23.8_x64-setup.exe` for Windows. macOS (`MuseCodeIcon_0.23.7_universal.dmg`, Apple Silicon and Intel) and Linux (`MuseCodeIcon_0.23.7_amd64.AppImage` plus `.deb` and `.rpm`) are on the [v0.23.7 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until the next full CI run. From 0.23.8 on, the Windows app updates itself in-app (Settings → Updates). Windows is unsigned and macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
@@ -86,11 +86,12 @@ apps/web         same UI against a remote daemon
 - [x] GitHub Releases with a Windows installer (`v0.23.7`; unsigned, so SmartScreen warns)
 - [x] macOS releases (universal binary for Apple Silicon and Intel; `v0.23.7`, ad-hoc signed, not notarized)
 - [x] Linux builds and releases (`v0.23.7`: AppImage, `.deb`, `.rpm`)
+- [x] In-app updates (`v0.23.8`: launch + six-hour checks, sidebar dot, Settings → Updates, install on close)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
 
-Windows: download [`MuseCodeIcon_0.23.7_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.7/MuseCodeIcon_0.23.7_x64-setup.exe) from the [v0.23.7 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. This build does not auto-update — download new versions manually.
+Windows: download [`MuseCodeIcon_0.23.8_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.8/MuseCodeIcon_0.23.8_x64-setup.exe) from the [v0.23.8 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It is not code signed, so SmartScreen may show "Windows protected your PC": click More info, then Run anyway. From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
