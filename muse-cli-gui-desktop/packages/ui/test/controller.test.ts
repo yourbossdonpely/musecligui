@@ -1133,6 +1133,17 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("asks for follow-up suggestions on the wire while the echo stays clean", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.send("fix the footer"), true);
+    const sent = client.sent.at(-1);
+    assert.match(sent?.text ?? "", /\[SUGGEST\]/);
+    assert.equal(sent?.displayText, "fix the footer");
+    assert.equal(controller.store.get().threads["s1"]!.fold.echoes[0]?.text, "fix the footer");
+    stop();
+  });
+
   it("turns a double-pressed Enter into one send, and the duplicate still reports sent", async () => {
     const client = new FakeClient();
     const releases: ((ack: { turnId: string | null; disposition: string | null }) => void)[] = [];
@@ -1458,7 +1469,8 @@ describe("MuseCodeIconController", () => {
     assert.equal(await controller.send("/deploy now", { raw: true }), true);
     assert.equal(client.sent.at(-1)?.text, "/deploy now");
     assert.equal(await controller.send("/usr/bin/node crashes on start"), true, "a path is a prompt, not a command");
-    assert.equal(client.sent.at(-1)?.text, "/usr/bin/node crashes on start");
+    assert.match(client.sent.at(-1)?.text ?? "", /^\/usr\/bin\/node crashes on start/);
+    assert.match(client.sent.at(-1)?.text ?? "", /\[SUGGEST\]/);
     stop();
   });
 

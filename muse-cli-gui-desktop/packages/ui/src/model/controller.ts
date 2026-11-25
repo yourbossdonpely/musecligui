@@ -70,6 +70,7 @@ import {
 } from "./store.js";
 import { NotificationManager, type Notifier } from "./notify.js";
 import { UpdateManager, type AppUpdater } from "./updates.js";
+import { SUGGEST_SUFFIX } from "./suggestions.js";
 
 /** The environment the controller runs in; injectable so the logic stays testable without a DOM. */
 export interface Platform {
@@ -1115,7 +1116,17 @@ export class MuseCodeIconController {
         });
       }
     }
-    return this.deliver(trimmed, { steer: options.steer, queue: options.queue, attachments: files, previews: options.previews });
+    // Follow-up chips come from the same turn at no extra cost: plain prompts ask the
+    // model to end every reply with suggestions, while the echo keeps the clean text.
+    // Raw sends and slash, skill and shell expansions keep their exact bytes.
+    const prompt = options.raw ? trimmed : trimmed + SUGGEST_SUFFIX;
+    return this.deliver(prompt, {
+      steer: options.steer,
+      queue: options.queue,
+      attachments: files,
+      previews: options.previews,
+      displayText: options.displayText ?? trimmed,
+    });
   }
 
   /** The project a new thread starts in: the new-thread screen's, else the last one used. */

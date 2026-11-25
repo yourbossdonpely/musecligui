@@ -17,6 +17,7 @@ import {
   toolKind,
 } from "../../model/format.js";
 import { streamingSpeed, turnCosts, turnSpeeds, type TurnCost, type TurnSpeed } from "../../model/usage.js";
+import { fallbackSuggestions, parseSuggestions, stripSuggestions } from "../../model/suggestions.js";
 import { formatCost } from "../../model/pricing.js";
 import { signedOut, stuckThread } from "../../model/errors.js";
 import { HelpLink, MUSE_HELP_URL } from "../home/Home.js";
@@ -283,10 +284,15 @@ const TurnBlock = memo(
     }
     if (turn.final) {
       // Same key and wrapper as when it streamed in as the last entry, so the reply's node carries over.
+      // The follow-up block is stripped for display; FollowUpChips renders it as clickable chips.
+      const final = stripSuggestions(turn.final.text ?? "") === (turn.final.text ?? "")
+        ? turn.final
+        : { ...turn.final, text: stripSuggestions(turn.final.text ?? "") };
       rows.push(
         <div key={turn.final.itemId} className={cn("group/final flex flex-col gap-1", rows.length > 0 && "mt-3")}>
-          <Entry item={turn.final} answers={null} sessionId={props.sessionId} />
+          <Entry item={final} answers={null} sessionId={props.sessionId} />
           <TurnFooter turn={turn} speed={props.speed} cost={props.cost} />
+          <FollowUpChips turn={turn} readOnly={props.readOnly} />
         </div>,
       );
     }
@@ -360,6 +366,33 @@ const TurnBlock = memo(
     a.cost?.cost === b.cost?.cost &&
     a.speed?.tokensPerSecond === b.speed?.tokensPerSecond,
 );
+
+/** Clickable follow-ups parsed from the closing reply; falls back to generic ones. Hidden while running or read-only. */
+function FollowUpChips(props: { turn: TurnView; readOnly: boolean }) {
+  const controller = useController();
+  const { turn } = props;
+  if (props.readOnly || turn.running || !turn.final) {
+    return null;
+  }
+  const parsed = parseSuggestions(turn.final.text ?? "");
+  const chips = parsed.length ? parsed : fallbackSuggestions();
+  return (
+    <div data-testid="suggest-chips" className="flex flex-wrap gap-2 pt-1">
+      {chips.map((suggestion) => (
+        <Button
+          key={suggestion}
+          size="sm"
+          variant="secondary"
+          data-testid="suggest-chip"
+          title="Send this follow-up"
+          onClick={() => void controller.send(suggestion)}
+        >
+          {suggestion}
+        </Button>
+      ))}
+    </div>
+  );
+}
 
 function parseTime(iso: string | undefined): number | null {
   if (!iso) {
