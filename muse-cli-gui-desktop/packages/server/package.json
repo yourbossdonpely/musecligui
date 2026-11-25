@@ -1,6 +1,6 @@
 {
   "name": "@musecodeicon/server",
-  "version": "0.23.8",
+  "version": "0.23.9",
   "description": "MuseCodeIcon local server: REST + SSE bridge between the shared UI and Muse MSP hosts",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -25,4 +25,5 @@
     "node": ">=22"
   }
 }
+
 

@@ -1,7 +1,7 @@
 {
   "name": "musecodeicon-desktop",
   "private": true,
-  "version": "0.23.8",
+  "version": "0.23.9",
   "description": "MuseCodeIcon desktop shell (Tauri): window plus local server sidecar",
   "scripts": {
     "dev": "tauri dev",
@@ -15,4 +15,5 @@
     "esbuild": "^0.24.0"
   }
 }
+
 

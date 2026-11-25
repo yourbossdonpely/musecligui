@@ -1,7 +1,7 @@
 {
   "name": "@musecodeicon/web",
   "private": true,
-  "version": "0.23.8",
+  "version": "0.23.9",
   "description": "MuseCodeIcon web app: shared UI wired to the local server over REST and SSE",
   "type": "module",
   "scripts": {
@@ -36,4 +36,5 @@
     "vite": "^6.0.0"
   }
 }
+
 

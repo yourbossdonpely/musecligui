@@ -1,6 +1,6 @@
 [package]
 name = "musecodeicon"
-version = "0.23.8"
+version = "0.23.9"
 description = "MuseCodeIcon: desktop ADE for the Muse Code CLI"
 edition = "2021"
 
@@ -27,4 +27,5 @@ windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gd
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
 
