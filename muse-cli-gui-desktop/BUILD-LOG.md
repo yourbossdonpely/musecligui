@@ -18,7 +18,7 @@ reproduce it.
 ## Step 1 — What was copied from Helicon (MIT)
 
 Upstream: https://github.com/HarjjotSinghh/helicon (MIT). The fork's `LICENSE`
-now names Don PELY and contributors as the copyright holder.
+now names Don Peli and contributors as the copyright holder.
 
 This folder (`muse-cli-gui-desktop/`) contains only the desktop pieces,
 extracted with `git archive`:

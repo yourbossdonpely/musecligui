@@ -84,7 +84,7 @@ function SidebarTop(props: { newThreadRef: Ref<HTMLButtonElement> }) {
     <div data-drag-region {...drag} className="flex flex-col gap-px px-2 pt-2 pb-1.5">
       <div className="mb-2 flex h-8 items-center gap-2 pr-0.5 pl-1.5">
         <Logo size={20} />
-        <span className="truncate text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap text-fg">MuseCodeIcon by Don PELY</span>
+        <span className="truncate text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap text-fg">MuseCodeIcon by Don Peli</span>
         <span className="flex-1" />
         <Tip label="Hide sidebar" shortcut={[MOD, "B"]}>
           <IconButton label="Hide sidebar" onClick={() => controller.toggleSidebar()}>
