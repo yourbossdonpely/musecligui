@@ -1,5 +1,5 @@
 import { copyText } from "../../app/clipboard.js";
-import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TreeStructureIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TreeStructureIcon } from "../ui/icons.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
 import { useApp, useController, useNow } from "../../app/context.js";
@@ -106,6 +106,18 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
   const drag = useOverlayDragProps();
   const noDrag = useOverlayDragProps("off");
   const filesOpen = useApp((s) => s.prefs.filesOpen);
+  const copyShareLink = async () => {
+    const url = await controller.shareThread(session.sessionId);
+    if (!url) {
+      return;
+    }
+    try {
+      await copyText(url);
+      controller.toast("success", "Share link copied", "The replay page stays up while this app runs.");
+    } catch {
+      controller.toast("info", "Share link ready", url);
+    }
+  };
   return (
     <header data-drag-region {...drag} className="@container flex h-12 shrink-0 items-center gap-1.5 overflow-hidden border-b border-line px-3">
       <TrafficLightSpacer />
@@ -208,6 +220,9 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
           </MenuItem>
           <MenuItem icon={<CopyIcon size={14} />} onSelect={() => void copyText(session.sessionId)}>
             Copy session ID
+          </MenuItem>
+          <MenuItem icon={<LinkIcon size={14} />} onSelect={() => void copyShareLink()}>
+            Copy share link
           </MenuItem>
           <MenuSeparator />
           <MenuItem icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(session.sessionId)}>

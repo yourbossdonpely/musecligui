@@ -358,6 +358,18 @@ class FakeClient implements MuseCodeIconClient {
   async revertChanges() {
     return { path: "", outcome: "reverted" as const };
   }
+
+  shares: { title: string; project: string; messages: { role: string; text: string }[] }[] = [];
+  shareError: Error | null = null;
+  async createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }) {
+    if (this.shareError) {
+      const error = this.shareError;
+      this.shareError = null;
+      throw error;
+    }
+    this.shares.push(input);
+    return { id: "demo", url: "http://127.0.0.1:3127/share/demo" };
+  }
   fileUrl(cwd: string, path: string) {
     return `/raw?${cwd}&${path}`;
   }
@@ -2044,6 +2056,45 @@ describe("MuseCodeIconController", () => {
     assert.deepEqual(state.route, { kind: "thread", sessionId: "s2" });
     assert.equal(state.sessions["s2"]?.title, "Probe (fork)");
     assert.equal(state.toasts.at(-1)?.title, "Forked into a new thread");
+    stop();
+  });
+
+  it("shares a thread and hands back its link", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    const url = await controller.shareThread("s1");
+    assert.equal(url, "http://127.0.0.1:3127/share/demo");
+    assert.equal(client.shares.length, 1);
+    const share = client.shares[0]!;
+    assert.equal(share.title, "Probe");
+    assert.equal(share.project, "/work/app");
+    assert.deepEqual(share.messages.slice(0, 2), [
+      { role: "user", text: "Reply with exactly one word: pong" },
+      { role: "assistant", text: "pong" },
+    ]);
+    for (const message of share.messages) {
+      assert.ok(message.role === "user" || message.role === "assistant");
+      assert.ok(message.text.trim(), "no blank message is shared");
+    }
+    stop();
+  });
+
+  it("shares nothing when the thread has no conversation yet", async () => {
+    const client = new FakeClient();
+    client.transcript = async () => load({ events: [] });
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.shareThread("s1"), null);
+    assert.deepEqual(client.shares, []);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Nothing to share yet");
+    stop();
+  });
+
+  it("toasts when publishing a share fails", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.shareError = new Error("daemon away");
+    assert.equal(await controller.shareThread("s1"), null);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not share the thread");
     stop();
   });
 

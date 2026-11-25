@@ -70,6 +70,7 @@ import {
 } from "./store.js";
 import { NotificationManager, type Notifier } from "./notify.js";
 import { UpdateManager, type AppUpdater } from "./updates.js";
+import { shareMessages } from "./shares.js";
 import { SUGGEST_SUFFIX } from "./suggestions.js";
 
 /** The environment the controller runs in; injectable so the logic stays testable without a DOM. */
@@ -2203,6 +2204,31 @@ export class MuseCodeIconController {
     } catch (error) {
       this.upsertSession(current);
       this.toast("error", "Could not archive the thread", errorMessage(error));
+    }
+  }
+
+  /**
+   * Publishes a read-only replay page for the thread and hands back its link, or null when there
+   * is nothing to share or publishing failed. The caller copies the link: the model never touches
+   * the clipboard.
+   */
+  async shareThread(sessionId: string): Promise<string | null> {
+    const session = this.state.sessions[sessionId];
+    const thread = this.state.threads[sessionId];
+    if (!session || !thread) {
+      return null;
+    }
+    const messages = shareMessages(thread.fold);
+    if (messages.length === 0) {
+      this.toast("info", "Nothing to share yet", "Send a message first, then share the thread.");
+      return null;
+    }
+    try {
+      const share = await this.client.createShare({ title: session.title, project: session.cwd, messages });
+      return share.url;
+    } catch (error) {
+      this.toast("error", "Could not share the thread", errorMessage(error));
+      return null;
     }
   }
 

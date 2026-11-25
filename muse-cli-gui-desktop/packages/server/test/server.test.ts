@@ -2773,3 +2773,44 @@ describe("wire helpers", () => {
     assert.equal(normalizeIso(42), undefined);
   });
 });
+
+describe("share links", () => {
+  const payload = {
+    title: "Probe",
+    project: "/work/app",
+    messages: [
+      { role: "user", text: "Fix the footer" },
+      { role: "assistant", text: "Fixed <b>it</b>." },
+    ],
+  };
+
+  it("publishes a replay page and serves it back as escaped HTML", async () => {
+    const { base } = await start(new FakeConnection());
+    const created = await send(base, "/api/shares", payload);
+    assert.equal(created.status, 200);
+    assert.match(created.json.id, /^[0-9a-f]{16}$/);
+    assert.equal(created.json.url, `${base}/share/${created.json.id}`);
+
+    const page = await fetch(`${base}/share/${created.json.id}`);
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
+    const html = await page.text();
+    assert.ok(html.includes("<h1>Probe</h1>"));
+    assert.ok(html.includes("Fix the footer"));
+    assert.ok(html.includes("Fixed &lt;b&gt;it&lt;/b&gt;."), "message HTML is escaped, never rendered");
+    assert.ok(!html.includes("<b>it</b>"));
+  });
+
+  it("answers 404 for a share that was never published", async () => {
+    const { base } = await start(new FakeConnection());
+    assert.equal((await fetch(`${base}/share/0123456789abcdef`)).status, 404);
+  });
+
+  it("refuses empty and unshareable payloads", async () => {
+    const { base } = await start(new FakeConnection());
+    assert.equal((await send(base, "/api/shares", { ...payload, messages: [] })).status, 400);
+    assert.equal((await send(base, "/api/shares", {})).status, 400);
+    const dropped = await send(base, "/api/shares", { ...payload, messages: [{ role: "nobody", text: "x" }] });
+    assert.equal(dropped.status, 400);
+  });
+});

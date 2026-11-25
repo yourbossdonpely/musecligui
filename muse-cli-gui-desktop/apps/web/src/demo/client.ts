@@ -752,6 +752,10 @@ export class DemoClient implements MuseCodeIconClient {
   async revertChanges(): Promise<{ path: string; outcome: "reverted" | "deleted" }> {
     throw new Error("Undoing changes is disabled in this demo.");
   }
+
+  async createShare(): Promise<{ id: string; url: string }> {
+    throw new Error("Sharing is disabled in this demo.");
+  }
   async searchFiles(cwd: string, query: string) {
     return this.files.search(cwd, query);
   }

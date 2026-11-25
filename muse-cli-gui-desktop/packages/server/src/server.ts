@@ -755,6 +755,41 @@ interface PreparedAttachment {
   bytes: Buffer;
 }
 
+interface SharedThread {
+  title: string;
+  project: string;
+  time: string;
+  messages: { role: string; text: string }[];
+}
+
+function escHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function renderShare(share: SharedThread): string {
+  const rows = share.messages
+    .map((m) => {
+      const muse = m.role === "muse" || m.role === "assistant";
+      const who = muse ? "Muse" : m.role === "user" ? "You" : "System";
+      const cls = muse ? "m" : m.role === "user" ? "u" : "s";
+      return `<div class="msg ${cls}"><div class="who">${who}</div><pre>${escHtml(m.text)}</pre></div>`;
+    })
+    .join("\n");
+  return (
+    "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+    `<title>${escHtml(share.title)} — MuseCodeIcon share</title><style>` +
+    "body{background:#101010;color:#fafafa;font:14px/1.6 Inter,system-ui,sans-serif;margin:0}" +
+    ".wrap{max-width:820px;margin:0 auto;padding:32px 20px}" +
+    "h1{font-size:20px;margin:0 0 4px}.sub{color:#808080;font-size:12px;margin-bottom:24px}" +
+    ".msg{border:1px solid #282828;border-radius:12px;padding:12px 16px;margin-bottom:12px;background:#161616}" +
+    ".msg.u{border-color:#3b5cf6}.who{font-size:11px;font-weight:700;color:#aeaeae;margin-bottom:6px}" +
+    ".msg pre{margin:0;white-space:pre-wrap;word-break:break-word;font:13px/1.65 Consolas,monospace}" +
+    `</style></head><body><div class="wrap"><h1>${escHtml(share.title)}</h1>` +
+    `<div class="sub">${escHtml(share.project)} · shared ${escHtml(share.time)} · read-only replay from MuseCodeIcon (localhost)</div>` +
+    `${rows}</div></body></html>`
+  );
+}
+
 export class MuseCodeIconServer {
   private readonly server: Server;
   private readonly store: MuseCodeIconStore;
@@ -806,6 +841,11 @@ export class MuseCodeIconServer {
   private unroutedByMethod = new Map<string, number>();
   /** Where Muse runs, once known; see `museRuntime`. */
   private runtimeKnown: MuseRuntime | null = null;
+  /**
+   * Session share pages served publicly-by-link at /share/:id. Memory-only: a daemon
+   * restart drops old shares. Ids are unguessable UUIDs; the daemon only listens locally.
+   */
+  private readonly shares = new Map<string, SharedThread>();
   private closed = false;
   private readonly options: Required<
     Omit<
@@ -1036,6 +1076,18 @@ export class MuseCodeIconServer {
     }
   }
 
+  private serveShare(id: string, res: ServerResponse): void {
+    const share = this.shares.get(id);
+    if (!share) {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Share not found (links expire when the daemon restarts)");
+      return;
+    }
+    const html = renderShare(share);
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-length": Buffer.byteLength(html) });
+    res.end(html);
+  }
+
   private async readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -1067,6 +1119,11 @@ export class MuseCodeIconServer {
       return;
     }
     // The handshake is how a browser earns its cookie, so it cannot itself demand one.
+    // Share replays are public-by-link: anyone holding the unguessable id can read them.
+    if (method === "GET" && path.startsWith("/share/")) {
+      this.serveShare(path.slice("/share/".length), res);
+      return;
+    }
     if (!(method === "POST" && path === "/api/auth") && !this.authorized(req)) {
       this.fail(res, 401, "Missing or invalid token.");
       return;
@@ -1213,6 +1270,47 @@ export class MuseCodeIconServer {
         return true;
       }
       this.json(res, 200, await listDirectory(target, await this.pathContext(target)));
+      return true;
+    }
+    if (method === "POST" && path === "/api/shares") {
+      const body = await this.readBody(req);
+      const raw = body["messages"];
+      if (!Array.isArray(raw) || !raw.length || raw.length > 500) {
+        throw new HttpError(400, "Provide 1-500 messages.");
+      }
+      const messages: { role: string; text: string }[] = [];
+      let total = 0;
+      for (const item of raw) {
+        const record = asRecord(item);
+        const role = record ? str(record["role"]) : "";
+        const text = record ? str(record["text"] ?? "") : "";
+        if ((role !== "user" && role !== "muse" && role !== "assistant" && role !== "system") || !text) {
+          continue;
+        }
+        total += text.length;
+        if (total > 1_000_000) {
+          throw new HttpError(400, "That session is too large to share (1MB cap).");
+        }
+        messages.push({ role, text: text.slice(0, 50000) });
+      }
+      if (!messages.length) {
+        throw new HttpError(400, "Nothing shareable in this session.");
+      }
+      const id = randomUUID().replace(/-/g, "").slice(0, 16);
+      this.shares.set(id, {
+        title: (str(body["title"]) ?? "Shared thread").slice(0, 120),
+        project: (str(body["project"]) ?? "").slice(0, 120),
+        time: new Date().toISOString(),
+        messages,
+      });
+      if (this.shares.size > 20) {
+        const oldest = this.shares.keys().next().value;
+        if (oldest) {
+          this.shares.delete(oldest);
+        }
+      }
+      const host = req.headers.host ?? "127.0.0.1";
+      this.json(res, 200, { id, url: `http://${host}/share/${id}` });
       return true;
     }
     if (path.startsWith("/api/files/")) {

@@ -178,6 +178,8 @@ export interface MuseCodeIconClient {
   openFileExternally(cwd: string, path: string): Promise<void>;
   /** Where the browser loads a project file's bytes from, for images, video, audio and PDFs. */
   fileUrl(cwd: string, path: string): string;
+  /** Publishes a read-only replay page for a thread; the link dies with the daemon. */
+  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

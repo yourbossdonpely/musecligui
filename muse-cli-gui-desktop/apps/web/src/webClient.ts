@@ -453,6 +453,10 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call("POST", "/api/files/revert", { cwd, path, steps });
   }
 
+  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }> {
+    return call("POST", "/api/shares", input);
+  }
+
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {
     return (await call<{ files: FileEntry[] }>("GET", `/api/files/search?cwd=${enc(cwd)}&q=${enc(query)}`)).files;
   }
