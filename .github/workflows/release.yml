@@ -74,7 +74,8 @@ jobs:
           # and TAURI_SIGNING_PRIVATE_KEY_PASSWORD repo secrets (the minisign key
           # in ~/.tauri/musecodeicon.key and its password file).
           includeUpdaterJson: true
-          args: --target x86_64-pc-windows-msvc
+          # CI has no code-signing cert; releases are signed on the release machine.
+          args: --target x86_64-pc-windows-msvc --no-sign
       # A zip of the same runtime the installer lays down: exe, sidecar Node.js and resources. Unzip
       # anywhere and run musecodeicon.exe, no install and no admin rights.
       - name: Package and upload the Windows portable zip

@@ -33,6 +33,11 @@
     "createUpdaterArtifacts": true,
     "copyright": "Copyright © 2026 Don PELY",
     "licenseFile": "../../../LICENSE",
+    "windows": {
+      "certificateThumbprint": "E000F884357A673D6EF117A72CEEE9FFBDCB7189",
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    },
     "targets": [
       "nsis"
     ],
