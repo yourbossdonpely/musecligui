@@ -13,7 +13,7 @@
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
-**Download:** [MuseCodeIcon v0.23.8](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8) — `MuseCodeIcon_0.23.8_x64-setup.exe` for Windows. macOS (`MuseCodeIcon_0.23.7_universal.dmg`, Apple Silicon and Intel) and Linux (`MuseCodeIcon_0.23.7_amd64.AppImage` plus `.deb` and `.rpm`) are on the [v0.23.7 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until the next full CI run. From 0.23.8 on, the Windows app updates itself in-app (Settings → Updates). Windows is unsigned and macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
+**Download:** [MuseCodeIcon v0.23.8](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8) — `MuseCodeIcon_0.23.8_x64-setup.exe` for Windows and `MuseCodeIcon_0.23.8_amd64.AppImage` plus `.deb` and `.rpm` for Linux. macOS (`MuseCodeIcon_0.23.7_universal.dmg`, Apple Silicon and Intel) is on the [v0.23.7 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) until the next full CI run. From 0.23.8 on, the app updates itself in-app (Settings → Updates). The Windows installer is signed; macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
@@ -99,7 +99,7 @@ macOS: download `MuseCodeIcon_0.23.7_universal.dmg` from the [v0.23.7 release](h
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-Linux: download `MuseCodeIcon_0.23.7_amd64.AppImage` from the [v0.23.7 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
+Linux: download `MuseCodeIcon_0.23.8_amd64.AppImage` from the [v0.23.8 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.8); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
