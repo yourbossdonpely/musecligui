@@ -405,7 +405,17 @@ export class MuseCodeIconController {
   }
 
   checkForUpdates(): void {
-    void this.updates?.check(true);
+    const updates = this.updates;
+    if (!updates) return;
+    void updates.check(true).then(() => {
+      const state = this.state.updates;
+      if (!state) return;
+      if (state.status === "upToDate") {
+        this.toast("info", "You're up to date", `MuseCodeIcon ${state.currentVersion ?? ""} is the latest version.`);
+      } else if (state.status === "error") {
+        this.toast("error", "Update check failed", state.error || "Could not reach the release server.");
+      }
+    });
   }
 
   downloadUpdate(): void {

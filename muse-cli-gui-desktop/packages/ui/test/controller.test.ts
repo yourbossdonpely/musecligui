@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { MuseCodeIconError, type EventHandler, type MuseCodeIconClient } from "../src/client.js";
 import { MuseCodeIconController, staleThreadReason, type Platform } from "../src/model/controller.js";
+import type { AppUpdater, AvailableUpdate } from "../src/model/updates.js";
 import { buildTurns } from "../src/model/fold.js";
 import { ZOOM_MAX, ZOOM_MIN } from "../src/model/store.js";
 import type { SessionSummary, SkillEntry, TranscriptLoad, UserInputRequest } from "../src/types.js";
@@ -2622,6 +2623,47 @@ describe("stale thread watchdog", () => {
     await loading;
     await settle();
     assert.equal(loads, 2, "a reload never piles onto a load already in flight");
+    stop();
+  });
+});
+
+describe("manual update checks", () => {
+  const fakeUpdater = (check: () => Promise<AvailableUpdate | null>): AppUpdater => ({
+    currentVersion: async () => "0.23.8",
+    check,
+    download: async () => {},
+    install: async () => {},
+    relaunch: async () => {},
+    onClose: () => () => {},
+  });
+
+  it("toasts when already up to date", async () => {
+    const client = new FakeClient();
+    const controller = new MuseCodeIconController(client, platform("#/"));
+    controller.attachUpdater(fakeUpdater(async () => null));
+    const stop = controller.start();
+    await settle();
+    controller.checkForUpdates();
+    await flushMicrotasks();
+    await settle();
+    assert.match(controller.store.get().toasts.at(-1)?.title ?? "", /You're up to date/);
+    stop();
+  });
+
+  it("toasts when the check fails", async () => {
+    const client = new FakeClient();
+    const controller = new MuseCodeIconController(client, platform("#/"));
+    controller.attachUpdater(
+      fakeUpdater(async () => {
+        throw new Error("dns down");
+      }),
+    );
+    const stop = controller.start();
+    await settle();
+    controller.checkForUpdates();
+    await flushMicrotasks();
+    await settle();
+    assert.match(controller.store.get().toasts.at(-1)?.title ?? "", /Update check failed/);
     stop();
   });
 });

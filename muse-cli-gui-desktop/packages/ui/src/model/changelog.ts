@@ -45,7 +45,7 @@ export function newEntries(
 }
 
 /** Where the full notes live; the in-app card only carries a few lines of them. */
-export const CHANGELOG_URL = "https://github.com/yourbossdonpely/musecligui/changelog";
+export const CHANGELOG_URL = "https://github.com/yourbossdonpely/musecligui/releases";
 
 /**
  * The version running now. A desktop shell that can update itself reports its own, and until it

@@ -80,7 +80,7 @@ export function WhatsNew() {
                 ))}
               </ul>
               <a
-                href={`${CHANGELOG_URL}#v${version}`}
+                href={`${CHANGELOG_URL}/tag/v${version}`}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="mt-2.5 inline-flex h-7 items-center gap-1.5 rounded-full bg-active px-3 text-xs font-medium text-fg transition-colors hover:bg-hover"
