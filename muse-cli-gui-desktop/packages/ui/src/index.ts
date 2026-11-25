@@ -9,4 +9,5 @@ export { MuseCodeIconController, browserPlatform, hashToRoute, routeToHash, type
 export { MuseCodeIconApp, type MuseCodeIconAppProps } from "./app/MuseCodeIconApp.js";
 export type { WindowFrame } from "./app/frame.js";
 export { catchOutsideLinks, externalHref } from "./app/links.js";
+export * from "./model/updates.js";
 export * from "./model/notify.js";

@@ -48,10 +48,17 @@ export function newEntries(
 export const CHANGELOG_URL = "https://github.com/yourbossdonpely/musecligui/changelog";
 
 /**
- * The version running now. Every host runs the interface it was built with, so the newest built-in
- * entry is that version: the changelog test keeps the two in step.
+ * The version running now. A desktop shell that can update itself reports its own, and until it
+ * has, there is nothing to compare. Every other host runs the interface it was built with, and
+ * the newest built-in entry is that version: the changelog test keeps the two in step.
  */
-export function runningVersion(entries: readonly ChangelogEntry[] = CHANGELOG): string | null {
+export function runningVersion(
+  updates: { currentVersion: string | null } | null | undefined,
+  entries: readonly ChangelogEntry[] = CHANGELOG,
+): string | null {
+  if (updates) {
+    return updates.currentVersion;
+  }
   return entries[0]?.version ?? null;
 }
 

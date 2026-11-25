@@ -18,6 +18,7 @@ import {
   type SidebarEntry,
 } from "../../model/status.js";
 import { CODE_THEMES, DEFAULT_SIDEBAR_WIDTH, type CodeTheme } from "../../model/store.js";
+import type { UpdateState } from "../../model/updates.js";
 import type { ProjectView, SessionSummary } from "../../types.js";
 import { Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
 import { IconButton, Logo, MOD, NEW_THREAD_KEYS, Shortcut, Spinner, cn, isMac } from "../ui/primitives.js";
@@ -904,8 +905,103 @@ function SidebarFooter() {
           <GearSixIcon size={14} />
         </IconButton>
       </Tip>
+      <UpdatesMenu />
       <ThemeMenu />
     </div>
+  );
+}
+
+export function updateSummary(updates: UpdateState, autoUpdate: boolean, paused: boolean, now: number): string {
+  const version = updates.update?.version ?? "";
+  switch (updates.status) {
+    case "checking":
+      return "Checking for updates";
+    case "available":
+      return paused ? `Version ${version} is available. Updates are paused.` : `Version ${version} is available`;
+    case "downloading":
+      return `Downloading version ${version}${updates.progress !== null ? `, ${Math.round(updates.progress * 100)}%` : ""}`;
+    case "ready":
+      return autoUpdate && !paused ? `Version ${version} installs when you close MuseCodeIcon` : `Version ${version} is ready to install`;
+    case "installing":
+      return "Installing the update";
+    case "error":
+      return "Could not check for updates";
+    case "upToDate": {
+      const ago = updates.checkedAt ? relativeTime(new Date(updates.checkedAt).toISOString(), now) : "";
+      return paused ? "Up to date. Updates are paused." : ago && ago !== "now" ? `Up to date, checked ${ago} ago` : "Up to date";
+    }
+    default:
+      return paused ? "Updates are paused" : autoUpdate ? "MuseCodeIcon updates itself" : "Automatic updates are off";
+  }
+}
+
+/** Desktop app updates. The footer icon carries a dot while a new version waits. */
+function UpdatesMenu() {
+  const controller = useController();
+  const updates = useApp((s) => s.updates);
+  const autoUpdate = useApp((s) => s.prefs.autoUpdate);
+  const paused = useApp((s) => s.prefs.updatesPaused);
+  const now = useNow(60_000);
+  if (!updates) {
+    return null;
+  }
+  const { status } = updates;
+  const version = updates.update?.version ?? "";
+  const waiting = status === "available" || status === "downloading" || status === "ready";
+  const busy = status === "checking" || status === "downloading" || status === "installing";
+  return (
+    <Menu>
+      <Tip label={status === "ready" ? `MuseCodeIcon ${version} is ready to install` : waiting ? `MuseCodeIcon ${version} is available` : "Updates"} side="top">
+        <MenuTrigger asChild>
+          <IconButton label="Updates" className="relative">
+            <DownloadSimpleIcon size={15} />
+            {waiting ? (
+              <span
+                aria-hidden="true"
+                className={cn("absolute top-1.5 right-1.5 size-1.5 rounded-full", status === "ready" ? "bg-accent" : "bg-accent/50")}
+              />
+            ) : null}
+          </IconButton>
+        </MenuTrigger>
+      </Tip>
+      <MenuContent side="top" align="start" className="w-[290px]">
+        <div className="px-2 pt-1.5 pb-2">
+          <p className="text-sm font-medium text-fg">MuseCodeIcon {updates.currentVersion ?? ""}</p>
+          <p className="mt-0.5 text-xs text-muted">{updateSummary(updates, autoUpdate, paused, now)}</p>
+          {status === "downloading" && updates.progress !== null ? (
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-active" role="progressbar" aria-valuenow={Math.round(updates.progress * 100)}>
+              <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${updates.progress * 100}%` }} />
+            </div>
+          ) : null}
+          {updates.error ? <p className="mt-1.5 text-xs break-words text-danger-text">{updates.error}</p> : null}
+        </div>
+        <MenuSeparator />
+        {status === "ready" ? (
+          <MenuItem icon={<ArrowClockwiseIcon size={14} />} onSelect={() => controller.restartToUpdate()}>
+            Restart to update
+          </MenuItem>
+        ) : null}
+        {status === "available" ? (
+          <MenuItem icon={<ArrowLineDownIcon size={14} />} onSelect={() => controller.downloadUpdate()}>
+            Download version {version}
+          </MenuItem>
+        ) : null}
+        <MenuItem icon={<ArrowsClockwiseIcon size={14} />} disabled={busy} onSelect={() => controller.checkForUpdates()}>
+          Check for updates
+        </MenuItem>
+        <MenuSeparator />
+        <MenuCheck
+          checked={autoUpdate}
+          onChange={(on) => controller.setAutoUpdate(on)}
+          description="Download new versions in the background and install them when MuseCodeIcon closes"
+        >
+          Automatic updates
+        </MenuCheck>
+        <MenuItem icon={paused ? <PlayIcon size={14} /> : <PauseIcon size={14} />} onSelect={() => controller.setUpdatesPaused(!paused)}>
+          {paused ? "Resume updates" : "Pause updates"}
+        </MenuItem>
+      </MenuContent>
+    </Menu>
   );
 }
 

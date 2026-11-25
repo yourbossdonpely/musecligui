@@ -1,14 +1,14 @@
 import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowLineDownIcon, ArrowSquareOutIcon, ArrowsClockwiseIcon, CheckCircleIcon, MinusIcon, PencilSimpleIcon, PlusIcon, ScrollIcon, SignInIcon, TrashIcon, WarningIcon } from "../ui/icons.js";
 import { Switch } from "radix-ui";
 import { useEffect, useState, type ReactNode } from "react";
-import { useApp, useController } from "../../app/context.js";
+import { useApp, useController, useNow } from "../../app/context.js";
 import { useOverlayDragProps } from "../../app/frame.js";
 import { modelDisplayName } from "../../model/format.js";
 import type { MuseCodeIconController } from "../../model/controller.js";
 import { CODE_THEMES, ZOOM_MAX, ZOOM_MIN, type AccountLoginState, type CodeTheme, type GroupBy, type ThemePref } from "../../model/store.js";
 import type { AccountView, ApprovalMode, ReasoningEffort } from "../../types.js";
 import { LEVELS, MODES } from "../composer/Composer.js";
-import { CODE_THEME_LABELS } from "../sidebar/Sidebar.js";
+import { CODE_THEME_LABELS, updateSummary } from "../sidebar/Sidebar.js";
 import { Modal } from "../ui/overlays.js";
 import { TopBar } from "../chrome.js";
 import { Button, IconButton, MOD, cn } from "../ui/primitives.js";
@@ -324,6 +324,7 @@ export function SettingsPage() {
   const sandboxSettings = useApp((s) => s.sandboxSettings);
   const feedSettings = useApp((s) => s.feedSettings);
   const env = useApp((s) => s.env);
+  const updates = useApp((s) => s.updates);
   const bypassAll = useApp((s) => s.bypassAll);
   const armedThreads = useApp((s) => s.bypassThreads.length);
   const [confirmBypass, setConfirmBypass] = useState(false);
@@ -333,6 +334,8 @@ export function SettingsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [renaming, setRenaming] = useState<AccountView | null>(null);
   const [removing, setRemoving] = useState<AccountView | null>(null);
+  const now = useNow(60_000);
+  const busy = updates?.status === "checking" || updates?.status === "downloading" || updates?.status === "installing";
   const drag = useOverlayDragProps();
   const collapsed = useApp((s) => s.prefs.sidebarCollapsed);
 
@@ -639,8 +642,37 @@ export function SettingsPage() {
           </Row>
         </Section>
 
+        {updates ? (
+          <Section title="Updates">
+            <Row label={`MuseCodeIcon ${updates.currentVersion ?? ""}`} description={updateSummary(updates, prefs.autoUpdate, prefs.updatesPaused, now)}>
+              <div className="flex flex-wrap items-center gap-2">
+                {updates.status === "ready" ? (
+                  <Button size="sm" variant="primary" onClick={() => controller.restartToUpdate()}>
+                    <ArrowClockwiseIcon size={13} /> Restart to update
+                  </Button>
+                ) : null}
+                {updates.status === "available" ? (
+                  <Button size="sm" variant="secondary" onClick={() => controller.downloadUpdate()}>
+                    <ArrowLineDownIcon size={13} /> Download
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="secondary" disabled={busy} onClick={() => controller.checkForUpdates()}>
+                  <ArrowsClockwiseIcon size={13} className={cn(updates.status === "checking" && "animate-spin")} /> Check now
+                </Button>
+              </div>
+            </Row>
+            {updates.error ? <Row label="Last error" description={updates.error} /> : null}
+            <Row label="Automatic updates" description="Download new versions in the background and install them when MuseCodeIcon closes.">
+              <Toggle checked={prefs.autoUpdate} label="Automatic updates" onChange={(on) => controller.setAutoUpdate(on)} />
+            </Row>
+            <Row label="Pause updates" description="No checking, downloading or installing until you resume.">
+              <Toggle checked={prefs.updatesPaused} label="Pause updates" onChange={(on) => controller.setUpdatesPaused(on)} />
+            </Row>
+          </Section>
+        ) : null}
+
         <Section title="Environment">
-          <Row label="What's new" description="The release notes for this version.">
+          <Row label="What's new" description="The release notes for this version, as they appear after MuseCodeIcon updates itself.">
             <Button size="sm" variant="secondary" onClick={() => controller.setWhatsNewOpen(true)}>
               <ScrollIcon size={13} /> Read
             </Button>

@@ -12,6 +12,7 @@ import { cn, isMac } from "../components/ui/primitives.js";
 import { Toasts } from "../components/ui/Toasts.js";
 import { MuseCodeIconController, type Platform } from "../model/controller.js";
 import type { Notifier } from "../model/notify.js";
+import type { AppUpdater } from "../model/updates.js";
 import { zoomStepFromKey, type ZoomStep } from "../model/zoom-shortcut.js";
 import { ControllerProvider, useApp, useController } from "./context.js";
 import { FrameProvider, FrameStrip, WindowControls, type WindowFrame } from "./frame.js";
@@ -34,6 +35,8 @@ export interface MuseCodeIconAppProps {
   titlebarOverlay?: boolean;
   /** How this shell raises a system notification; absent where it cannot. */
   notifier?: Notifier;
+  /** Present when the shell can update itself. */
+  updater?: AppUpdater;
 }
 
 export type MenuCommand = "new-thread" | "settings";
@@ -44,6 +47,9 @@ export function MuseCodeIconApp(props: MuseCodeIconAppProps) {
     const created = new MuseCodeIconController(props.client, props.platform);
     if (props.notifier) {
       created.attachNotifier(props.notifier);
+    }
+    if (props.updater) {
+      created.attachUpdater(props.updater);
     }
     return created;
   });

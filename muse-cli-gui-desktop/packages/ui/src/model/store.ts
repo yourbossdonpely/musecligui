@@ -16,6 +16,7 @@ import type {
   YoloSettings,
 } from "../types.js";
 import type { EchoAttachment, ThreadFold } from "./fold.js";
+import type { UpdateState } from "./updates.js";
 
 /** A tiny external store: immutable snapshots plus change listeners, read through useSyncExternalStore-style hooks. */
 export class Store<T> {
@@ -95,6 +96,9 @@ export interface Prefs {
   /** Contributor-tier data use was acknowledged. */
   contributorAck: boolean;
   /** Desktop app: download new versions as they appear and install them on close. */
+  autoUpdate: boolean;
+  /** Desktop app: no checking, downloading or installing updates until resumed. */
+  updatesPaused: boolean;
   /** Interface zoom as a factor of 1; the desktop shell has no browser chrome to do this. */
   zoom: number;
   /** The file viewer beside a thread is open. */
@@ -162,6 +166,8 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     effort: null,
     lastProject: null,
     contributorAck: false,
+    autoUpdate: true,
+    updatesPaused: false,
     zoom: 1,
     filesOpen: false,
     filesWidth: DEFAULT_FILES_WIDTH,
@@ -246,6 +252,8 @@ export interface AppState {
   hostError: string | null;
   /** A prompt that could not be sent, waiting for the composer showing `key` to take it back, files and all. */
   draftHandoff: { key: string; text: string; attachments?: OutgoingAttachment[]; previews?: EchoAttachment[] } | null;
+  /** App updates; null when the shell cannot update itself, as in a browser. */
+  updates: UpdateState | null;
   /** Each workspace's skills for the composer's slash menu, loaded when first needed. */
   skills: Record<string, SkillsState>;
   /** A composer picker a slash command opened, like `/model`. */
@@ -322,6 +330,7 @@ export function initialState(prefs: Prefs): AppState {
     fileVersions: {},
     fileTreeOpen: {},
     draftHandoff: null,
+    updates: null,
     skills: {},
     picker: null,
   };
@@ -377,6 +386,8 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
     effort: pick("effort", (v) => v === null || ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"].includes(v as string)),
     lastProject: pick("lastProject", (v) => v === null || typeof v === "string"),
     contributorAck: pick("contributorAck", (v) => typeof v === "boolean"),
+    autoUpdate: pick("autoUpdate", (v) => typeof v === "boolean"),
+    updatesPaused: pick("updatesPaused", (v) => typeof v === "boolean"),
     zoom: pick("zoom", (v) => typeof v === "number" && Number.isFinite(v) && v >= ZOOM_MIN && v <= ZOOM_MAX),
     filesOpen: pick("filesOpen", (v) => typeof v === "boolean"),
     filesWidth: pick("filesWidth", (v) => typeof v === "number" && v >= FILES_WIDTH_MIN && v <= FILES_WIDTH_MAX),

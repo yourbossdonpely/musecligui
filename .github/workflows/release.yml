@@ -56,6 +56,7 @@ jobs:
         env:
           # Which Node.js sidecar beforeBuildCommand bundles (apps/desktop/scripts/fetch-node.mjs).
           MUSECODEICON_NODE_TARGET: x86_64-pc-windows-msvc
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # The folder holding src-tauri; the action resolves it from the repository root, not from
@@ -67,9 +68,10 @@ jobs:
           releaseDraft: false
           prerelease: false
           retryAttempts: 3
-          # MuseCodeIcon has no updater (it was removed with the Tauri plugin), so publishing a
-          # latest.json would advertise an update channel that does not exist.
-          includeUpdaterJson: false
+          # The in-app updater reads latest.json from each release; each platform job
+          # merges its own artifacts into it. Needs the TAURI_SIGNING_PRIVATE_KEY
+          # repo secret (the minisign key in ~/.tauri/musecodeicon.key).
+          includeUpdaterJson: true
           args: --target x86_64-pc-windows-msvc
       # A zip of the same runtime the installer lays down: exe, sidecar Node.js and resources. Unzip
       # anywhere and run musecodeicon.exe, no install and no admin rights.
@@ -136,6 +138,7 @@ jobs:
         env:
           # fetch-node.mjs lipos the two architectures into node-universal-apple-darwin.
           MUSECODEICON_NODE_TARGET: universal-apple-darwin
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: muse-cli-gui-desktop/apps/desktop
@@ -145,7 +148,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           retryAttempts: 3
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           # One universal .dmg for Apple Silicon and Intel; the bundle targets come from
           # tauri.macos.conf.json (app + dmg, ad-hoc signing).
           args: --target universal-apple-darwin
@@ -230,6 +233,7 @@ jobs:
           # Linux packages install to /usr/bin, so the sidecar is named musecodeicon-node-<triple>
           # there; tauri.linux.conf.json points externalBin at that name.
           MUSECODEICON_NODE_TARGET: x86_64-unknown-linux-gnu
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: muse-cli-gui-desktop/apps/desktop
@@ -239,7 +243,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           retryAttempts: 3
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           # Bundle targets come from tauri.linux.conf.json (appimage, deb, rpm).
           args: --target x86_64-unknown-linux-gnu
       # The AppImage inside a zip, for people who would rather unpack one archive than chmod a

@@ -24,8 +24,8 @@ use tauri::Emitter;
 
 struct ServerChild(Arc<Mutex<Option<Child>>>);
 
-/// Stops the local server when Tauri clears its resources, for instance if the app exits without
-/// running the window's Destroyed handler.
+/// Stops the local server when Tauri clears its resources, which the updater does right before it
+/// quits the app to run the installer; a normal close stops it in the window's Destroyed handler.
 struct ServerGuard(Arc<Mutex<Option<Child>>>);
 
 impl tauri::Resource for ServerGuard {}
@@ -597,6 +597,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(ServerChild(Arc::new(Mutex::new(None))))
         .setup(|app| {
             #[cfg(target_os = "macos")]

@@ -104,4 +104,4 @@ Everyone here is expected to be civil and to assume good faith.
 
 ## Versioning
 
-Semver. The app never updates itself, so a release is a hand-built installer and a bumped version in `apps/desktop/src-tauri/tauri.conf.json` — or, once the release workflow is enabled on GitHub, a `v*` tag that builds the installers for all three platforms. Routine work never bumps major; merged PRs with considerable work bump at least the patch version. The maintainer cuts releases.
+Semver. The app updates itself from `latest.json` on each GitHub release (check on launch and every six hours, install on close when automatic updates are on), so a release is a `v*` tag that builds the installers for all three platforms — or a hand-built installer and a bumped version in `apps/desktop/src-tauri/tauri.conf.json`. Routine work never bumps major; merged PRs with considerable work bump at least the patch version. The maintainer cuts releases. Update bundles are signed with the minisign key in `~/.tauri/musecodeicon.key`, whose public half lives in `tauri.conf.json`; the same private key must be set as the `TAURI_SIGNING_PRIVATE_KEY` repo secret or CI cannot publish `latest.json`.

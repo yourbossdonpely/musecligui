@@ -5,6 +5,7 @@ import { Connect } from "./Connect.js";
 import { desktopFrame, titlebarOverlay, bindDesktopZoom } from "./frame.js";
 import { bindDesktopLinks } from "./links.js";
 import { appNotifier } from "./notifier.js";
+import { desktopUpdater } from "./updater.js";
 import { WebMuseCodeIconClient } from "./webClient.js";
 import "./theme.css";
 
@@ -33,7 +34,7 @@ function Root({ makeClient }: { makeClient: () => MuseCodeIconClient }) {
       />
     );
   }
-  return <MuseCodeIconApp client={makeClient()} frame={desktopFrame()} titlebarOverlay={titlebarOverlay()} notifier={appNotifier()} />;
+  return <MuseCodeIconApp client={makeClient()} frame={desktopFrame()} titlebarOverlay={titlebarOverlay()} notifier={appNotifier()} updater={desktopUpdater()} />;
 }
 
 /**

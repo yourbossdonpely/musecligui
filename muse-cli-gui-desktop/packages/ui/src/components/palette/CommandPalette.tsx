@@ -34,6 +34,7 @@ export function CommandPalette() {
   const baseline = useApp((s) => s.prefs.baseline);
   const lastSeen = useApp((s) => s.prefs.lastSeen);
   const groupBy = useApp((s) => s.prefs.groupBy);
+  const updates = useApp((s) => s.updates);
   const now = useNow(60_000, open);
 
   const sorted = useMemo(
@@ -115,6 +116,16 @@ export function CommandPalette() {
             <Item value="Reset zoom" keywords={["appearance", "100%"]} icon={<ArrowCounterClockwiseIcon size={15} />} onSelect={() => run(() => controller.resetZoom())} hint={<Shortcut keys={[MOD, "0"]} />}>
               Reset zoom
             </Item>
+            {updates?.status === "ready" ? (
+              <Item value="Restart to update" keywords={["update", "install", "version"]} icon={<ArrowClockwiseIcon size={15} />} onSelect={() => run(() => controller.restartToUpdate())}>
+                Restart to install MuseCodeIcon {updates.update?.version ?? ""}
+              </Item>
+            ) : null}
+            {updates ? (
+              <Item value="Check for updates" keywords={["update", "version"]} icon={<ArrowsClockwiseIcon size={15} />} onSelect={() => run(() => controller.checkForUpdates())}>
+                Check for updates
+              </Item>
+            ) : null}
           </Command.Group>
           {sorted.length > 0 ? (
             <Command.Group heading="Threads" className={GROUP}>
