@@ -32,7 +32,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "copyright": "Copyright © 2026 Don PELY",
-    "licenseFile": "../../LICENSE",
+    "licenseFile": "../../../LICENSE",
     "targets": [
       "nsis"
     ],
