@@ -181,6 +181,14 @@ export function CommandPalette() {
             <Item value="Reset zoom" keywords={["appearance", "100%"]} icon={<ArrowCounterClockwiseIcon size={15} />} onSelect={() => run(() => controller.resetZoom())} hint={<Shortcut keys={[MOD, "0"]} />}>
               Reset zoom
             </Item>
+            <Item
+              value="Toggle compact density"
+              keywords={["appearance", "density", "compact", "comfortable", "spacing"]}
+              icon={<ArrowsInIcon size={15} />}
+              onSelect={() => run(() => controller.toggleDensity())}
+            >
+              Toggle compact density
+            </Item>
             {updates?.status === "ready" ? (
               <Item value="Restart to update" keywords={["update", "install", "version"]} icon={<ArrowClockwiseIcon size={15} />} onSelect={() => run(() => controller.restartToUpdate())}>
                 Restart to install MuseCodeIcon {updates.update?.version ?? ""}

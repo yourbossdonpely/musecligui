@@ -257,6 +257,7 @@ const ProjectSection = memo(function ProjectSection(props: {
   const noWindowDrag = useOverlayDragProps("off");
   const didReorder = useRef(false);
   const [expanded, setExpanded] = useState(false);
+  const compact = useApp((s) => s.prefs.density === "compact");
   const { project, entries } = props.group;
   const activeIndex = entries.findIndex((e) => e.session.sessionId === props.activeId);
   const liveCount = entries.filter((e) => isLive(e.status)).length;
@@ -339,7 +340,10 @@ const ProjectSection = memo(function ProjectSection(props: {
           event.preventDefault();
           event.stopPropagation();
         }}
-        className="group/project flex h-8 cursor-grab items-center gap-0.5 rounded-lg pr-1 transition-colors duration-100 hover:bg-hover active:cursor-grabbing"
+        className={cn(
+          "group/project flex cursor-grab items-center gap-0.5 rounded-lg pr-1 transition-colors duration-100 hover:bg-hover active:cursor-grabbing",
+          compact ? "h-7" : "h-8",
+        )}
       >
         <button
           type="button"
@@ -630,6 +634,7 @@ export const ThreadRow = memo(
     const controller = useController();
     const { session, status } = props.entry;
     const [renaming, setRenaming] = useState(false);
+    const compact = useApp((s) => s.prefs.density === "compact");
     const emphasized = props.active || status === "unread" || isLive(status);
     return (
       <li>
@@ -637,7 +642,8 @@ export const ThreadRow = memo(
           <ContextMenuTrigger asChild>
             <div
               className={cn(
-                "group/row relative flex min-h-8 items-center gap-2 rounded-lg py-1 pr-1 transition-colors duration-100",
+                "group/row relative flex items-center gap-2 rounded-lg pr-1 transition-colors duration-100",
+                compact ? "min-h-7 py-0.5" : "min-h-8 py-1",
             props.entry.nested ? "pl-[46px]" : "pl-[30px]",
             props.active ? "bg-active" : "hover:bg-hover",
           )}

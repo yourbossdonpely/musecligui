@@ -131,6 +131,7 @@ export function Transcript(props: { sessionId: string; thread: ThreadState }) {
     return map;
   }, [thread.attachments]);
   const { scrollRef, contentRef, isAtBottom, scrollToBottom } = useStickToBottom({ initial: "instant", resize: "smooth" });
+  const compact = useApp((s) => s.prefs.density === "compact");
 
   // The dock below grows when a request or panel appears, which shrinks this viewport. Follow it down so the
   // last thing Muse said is never left cut off behind the card asking about it.
@@ -167,7 +168,10 @@ export function Transcript(props: { sessionId: string; thread: ThreadState }) {
           <section
             ref={contentRef}
             aria-label="Conversation"
-            className="mx-auto flex w-full max-w-[776px] flex-col gap-8 px-4 pt-8 pb-10 @min-[520px]:px-6"
+            className={cn(
+              "mx-auto flex w-full max-w-[776px] flex-col px-4 pt-8 pb-10 @min-[520px]:px-6",
+              compact ? "gap-4" : "gap-8",
+            )}
           >
             {thread.truncated ? (
               <p className="text-center text-xs text-subtle">Earlier turns are not shown. Open the session in Muse to see the full history.</p>

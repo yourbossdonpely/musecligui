@@ -3325,6 +3325,11 @@ export class MuseCodeIconController {
     this.setZoom(1);
   }
 
+  /** Flips comfortable/compact row density. */
+  toggleDensity(): void {
+    this.setPrefs({ density: this.state.prefs.density === "compact" ? "comfortable" : "compact" });
+  }
+
   setSidebarCollapsed(collapsed: boolean): void {
     if (this.state.prefs.sidebarCollapsed !== collapsed) {
       this.setPrefs({ sidebarCollapsed: collapsed });

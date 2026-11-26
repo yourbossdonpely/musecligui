@@ -131,6 +131,8 @@ export interface Prefs {
   skillRouting: boolean;
   /** Saved prompt starters, by name. */
   templates: { name: string; text: string }[];
+  /** Compact squeezes thread and sidebar rows for small screens; comfortable is the default air. */
+  density: "comfortable" | "compact";
 }
 
 export const DEFAULT_FILES_WIDTH = 480;
@@ -192,6 +194,7 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     threadModes: {},
     skillRouting: true,
     templates: [],
+    density: "comfortable",
   };
 }
 
@@ -421,6 +424,7 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
       (v) => typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every(isTaskMode),
     ),
     skillRouting: pick("skillRouting", (v) => typeof v === "boolean"),
+    density: pick("density", (v) => v === "comfortable" || v === "compact"),
     templates: pick(
       "templates",
       (v) =>

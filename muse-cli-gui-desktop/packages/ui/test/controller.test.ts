@@ -2429,6 +2429,17 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("flips row density between comfortable and compact", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(controller.store.get().prefs.density, "comfortable");
+    controller.toggleDensity();
+    assert.equal(controller.store.get().prefs.density, "compact");
+    controller.toggleDensity();
+    assert.equal(controller.store.get().prefs.density, "comfortable");
+    stop();
+  });
+
   it("clamps interface zoom to its ends and drops malformed saved values", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

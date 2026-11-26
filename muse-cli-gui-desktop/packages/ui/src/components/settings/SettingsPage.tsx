@@ -468,6 +468,13 @@ export function SettingsPage() {
           >
             <Toggle checked={prefs.expandWork} label="Keep work expanded" onChange={(on) => controller.setPrefs({ expandWork: on })} />
           </Row>
+          <Row label="Compact density" description="Squeeze thread and sidebar rows for small screens.">
+            <Toggle
+              checked={prefs.density === "compact"}
+              label="Compact density"
+              onChange={(on) => controller.setPrefs({ density: on ? "compact" : "comfortable" })}
+            />
+          </Row>
         </Section>
 
         <Section title="New threads">
