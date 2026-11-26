@@ -1,4 +1,4 @@
-import { Dialog as RDialog, DropdownMenu, Tooltip as RTooltip } from "radix-ui";
+import { ContextMenu as RContextMenu, Dialog as RDialog, DropdownMenu, Tooltip as RTooltip } from "radix-ui";
 import { CheckIcon, XIcon } from "./icons.js";
 import type { ReactElement, ReactNode } from "react";
 import { Shortcut, cn } from "./primitives.js";
@@ -98,6 +98,21 @@ export function MenuContent(props: {
 const ITEM =
   "relative flex min-h-8 cursor-default items-center gap-2.5 rounded-lg px-2 py-1.5 outline-none select-none data-[highlighted]:bg-hover data-[disabled]:pointer-events-none data-[disabled]:opacity-40";
 
+/** The inside of a menu row, shared by the dropdown and right-click menus so they render identically. */
+function ItemBody(props: { icon?: ReactNode; children: ReactNode; hint?: ReactNode; tone?: "default" | "danger" }) {
+  return (
+    <>
+      {props.icon ? (
+        <span className={cn("flex size-4 shrink-0 items-center justify-center", props.tone === "danger" ? "text-danger-text" : "text-muted")}>
+          {props.icon}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1 truncate">{props.children}</span>
+      {props.hint ? <span className="shrink-0 text-xs text-subtle">{props.hint}</span> : null}
+    </>
+  );
+}
+
 export function MenuItem(props: {
   icon?: ReactNode;
   children: ReactNode;
@@ -112,13 +127,9 @@ export function MenuItem(props: {
       onSelect={props.onSelect}
       className={cn(ITEM, props.tone === "danger" && "text-danger-text")}
     >
-      {props.icon ? (
-        <span className={cn("flex size-4 shrink-0 items-center justify-center", props.tone === "danger" ? "text-danger-text" : "text-muted")}>
-          {props.icon}
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1 truncate">{props.children}</span>
-      {props.hint ? <span className="shrink-0 text-xs text-subtle">{props.hint}</span> : null}
+      <ItemBody icon={props.icon} hint={props.hint} tone={props.tone}>
+        {props.children}
+      </ItemBody>
     </DropdownMenu.Item>
   );
 }
@@ -185,6 +196,52 @@ export function MenuLabel(props: { children: ReactNode }) {
 
 export function MenuSeparator() {
   return <DropdownMenu.Separator className="mx-1 my-1 h-px bg-line" />;
+}
+
+export const ContextMenuRoot = RContextMenu.Root;
+export const ContextMenuTrigger = RContextMenu.Trigger;
+
+/** The right-click twin of `MenuContent`: same look, opens at the pointer instead of under a button. */
+export function ContextMenuContent(props: { children: ReactNode; className?: string }) {
+  return (
+    <RContextMenu.Portal>
+      <RContextMenu.Content
+        {...FLOATING}
+        className={cn(
+          "pop z-[var(--z-dropdown)] max-h-[min(420px,calc(100dvh-24px))] max-w-[min(360px,calc(100dvw-24px))] min-w-[208px] overflow-y-auto rounded-xl bg-raised p-1 text-sm text-fg shadow-pop outline-none",
+          props.className,
+        )}
+      >
+        {props.children}
+      </RContextMenu.Content>
+    </RContextMenu.Portal>
+  );
+}
+
+/** The right-click twin of `MenuItem`. */
+export function ContextMenuItem(props: {
+  icon?: ReactNode;
+  children: ReactNode;
+  hint?: ReactNode;
+  tone?: "default" | "danger";
+  disabled?: boolean;
+  onSelect?: () => void;
+}) {
+  return (
+    <RContextMenu.Item
+      disabled={props.disabled}
+      onSelect={props.onSelect}
+      className={cn(ITEM, props.tone === "danger" && "text-danger-text")}
+    >
+      <ItemBody icon={props.icon} hint={props.hint} tone={props.tone}>
+        {props.children}
+      </ItemBody>
+    </RContextMenu.Item>
+  );
+}
+
+export function ContextMenuSeparator() {
+  return <RContextMenu.Separator className="mx-1 my-1 h-px bg-line" />;
 }
 
 /**

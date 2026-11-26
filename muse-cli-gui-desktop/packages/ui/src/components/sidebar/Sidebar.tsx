@@ -20,7 +20,7 @@ import {
 import { CODE_THEMES, DEFAULT_SIDEBAR_WIDTH, type CodeTheme } from "../../model/store.js";
 import type { UpdateState } from "../../model/updates.js";
 import type { ProjectView, SessionSummary } from "../../types.js";
-import { Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
+import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuSeparator, ContextMenuTrigger, Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
 import { IconButton, Logo, MOD, NEW_THREAD_KEYS, Shortcut, Spinner, cn, isMac } from "../ui/primitives.js";
 import { StatusGlyph } from "../ui/StatusGlyph.js";
 
@@ -274,10 +274,12 @@ const ProjectSection = memo(function ProjectSection(props: {
           props.over === project.cwd && props.dragging && props.dragging !== project.cwd ? "bg-accent" : "bg-transparent",
         )}
       />
-      <div
-        data-no-drag
-        {...noWindowDrag}
-        onPointerDown={(event) => {
+      <ContextMenuRoot>
+        <ContextMenuTrigger asChild>
+          <div
+            data-no-drag
+            {...noWindowDrag}
+            onPointerDown={(event) => {
           if (event.button !== 0) {
             return;
           }
@@ -378,8 +380,13 @@ const ProjectSection = memo(function ProjectSection(props: {
             </IconButton>
           </Tip>
           <ProjectMenu project={project} />
-        </div>
-      </div>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ProjectMenuItems project={project} Item={ContextMenuItem} Separator={ContextMenuSeparator} />
+        </ContextMenuContent>
+      </ContextMenuRoot>
       {props.collapsed ? null : (
         <ul className="flex flex-col gap-px pt-px">
           {visible.map((entry) => (
@@ -626,9 +633,11 @@ export const ThreadRow = memo(
     const emphasized = props.active || status === "unread" || isLive(status);
     return (
       <li>
-        <div
-          className={cn(
-            "group/row relative flex min-h-8 items-center gap-2 rounded-lg py-1 pr-1 transition-colors duration-100",
+        <ContextMenuRoot>
+          <ContextMenuTrigger asChild>
+            <div
+              className={cn(
+                "group/row relative flex min-h-8 items-center gap-2 rounded-lg py-1 pr-1 transition-colors duration-100",
             props.entry.nested ? "pl-[46px]" : "pl-[30px]",
             props.active ? "bg-active" : "hover:bg-hover",
           )}
@@ -708,7 +717,17 @@ export const ThreadRow = memo(
               </div>
             </>
           )}
-        </div>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ThreadMenuItems
+              session={session}
+              onRename={() => setRenaming(true)}
+              Item={ContextMenuItem}
+              Separator={ContextMenuSeparator}
+            />
+          </ContextMenuContent>
+        </ContextMenuRoot>
       </li>
     );
   },
@@ -743,6 +762,8 @@ function RenameField(props: { initial: string; onDone: (title: string | null) =>
       onCompositionStart={ime.onCompositionStart}
       onCompositionEnd={ime.onCompositionEnd}
       onKeyUp={ime.onKeyUp}
+      // The row's right-click menu must not swallow the input's own cut/copy/paste menu.
+      onContextMenu={(e) => e.stopPropagation()}
       onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
         if (ime.isImeKey(e)) {
           return;
@@ -758,8 +779,49 @@ function RenameField(props: { initial: string; onDone: (title: string | null) =>
   );
 }
 
-function ThreadMenu(props: { session: SessionSummary; onRename: () => void }) {
+/** The thread rows' actions, shared by the three-dots menu and the right-click menu so they never drift apart. */
+function ThreadMenuItems(props: {
+  session: SessionSummary;
+  onRename: () => void;
+  Item: typeof MenuItem;
+  Separator: typeof MenuSeparator;
+}) {
   const controller = useController();
+  const { Item, Separator } = props;
+  const remove = () => {
+    if (window.confirm(`Delete "${props.session.title}"? This cannot be undone.`)) {
+      void controller.deleteThread(props.session.sessionId);
+    }
+  };
+  return (
+    <>
+      <Item icon={<PencilSimpleIcon size={14} />} onSelect={props.onRename}>
+        Rename
+      </Item>
+      <Item
+        icon={props.session.pinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
+        onSelect={() => void controller.toggleThreadPin(props.session.sessionId)}
+      >
+        {props.session.pinned ? "Unpin" : "Pin to top"}
+      </Item>
+      <Item icon={<CopyIcon size={14} />} onSelect={() => void copyText(props.session.sessionId)}>
+        Copy session ID
+      </Item>
+      <Item icon={<FolderOpenIcon size={14} />} onSelect={() => void controller.openFolder(props.session.cwd, "files")}>
+        {revealLabel()}
+      </Item>
+      <Separator />
+      <Item icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(props.session.sessionId)}>
+        Archive thread
+      </Item>
+      <Item icon={<TrashIcon size={14} />} tone="danger" onSelect={remove}>
+        Delete thread
+      </Item>
+    </>
+  );
+}
+
+function ThreadMenu(props: { session: SessionSummary; onRename: () => void }) {
   return (
     <Menu>
       <MenuTrigger asChild>
@@ -768,36 +830,7 @@ function ThreadMenu(props: { session: SessionSummary; onRename: () => void }) {
         </IconButton>
       </MenuTrigger>
       <MenuContent align="end">
-        <MenuItem icon={<PencilSimpleIcon size={14} />} onSelect={props.onRename}>
-          Rename
-        </MenuItem>
-        <MenuItem
-          icon={props.session.pinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
-          onSelect={() => void controller.toggleThreadPin(props.session.sessionId)}
-        >
-          {props.session.pinned ? "Unpin" : "Pin to top"}
-        </MenuItem>
-        <MenuItem icon={<CopyIcon size={14} />} onSelect={() => void copyText(props.session.sessionId)}>
-          Copy session ID
-        </MenuItem>
-        <MenuItem icon={<FolderOpenIcon size={14} />} onSelect={() => void controller.openFolder(props.session.cwd, "files")}>
-          {revealLabel()}
-        </MenuItem>
-        <MenuSeparator />
-        <MenuItem icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(props.session.sessionId)}>
-          Archive thread
-        </MenuItem>
-        <MenuItem
-          icon={<TrashIcon size={14} />}
-          tone="danger"
-          onSelect={() => {
-            if (window.confirm(`Delete "${props.session.title}"? This cannot be undone.`)) {
-              void controller.deleteThread(props.session.sessionId);
-            }
-          }}
-        >
-          Delete thread
-        </MenuItem>
+        <ThreadMenuItems session={props.session} onRename={props.onRename} Item={MenuItem} Separator={MenuSeparator} />
       </MenuContent>
     </Menu>
   );
@@ -810,43 +843,52 @@ export function revealLabel(): string {
   return typeof navigator !== "undefined" && /Win/.test(navigator.platform) ? "Open in File Explorer" : "Open folder";
 }
 
-function ProjectMenu(props: { project: ProjectView }) {
+/** The project rows' actions, shared by the three-dots menu and the right-click menu so they never drift apart. */
+function ProjectMenuItems(props: { project: ProjectView; Item: typeof MenuItem; Separator: typeof MenuSeparator }) {
   const controller = useController();
-  const { project } = props;
+  const { project, Item, Separator } = props;
+  return (
+    <>
+      <Item icon={<NotePencilIcon size={14} />} onSelect={() => controller.newThread(project.cwd)}>
+        New thread
+      </Item>
+      <Item
+        icon={project.pinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
+        onSelect={() => void controller.togglePin(project.cwd)}
+      >
+        {project.pinned ? "Unpin" : "Pin to top"}
+      </Item>
+      <Separator />
+      <Item icon={<FolderOpenIcon size={14} />} onSelect={() => void controller.openFolder(project.cwd, "files")}>
+        {revealLabel()}
+      </Item>
+      <Item icon={<CodeIcon size={14} />} onSelect={() => void controller.openFolder(project.cwd, "editor")}>
+        Open in VS Code
+      </Item>
+      <Item icon={<CopyIcon size={14} />} onSelect={() => void copyText(project.cwd)}>
+        Copy path
+      </Item>
+      <Item icon={<ArrowsClockwiseIcon size={14} />} onSelect={() => void controller.refreshProject(project.cwd)}>
+        Refresh threads
+      </Item>
+      <Separator />
+      <Item icon={<XIcon size={14} />} tone="danger" onSelect={() => void controller.hideProject(project.cwd)}>
+        Remove from sidebar
+      </Item>
+    </>
+  );
+}
+
+function ProjectMenu(props: { project: ProjectView }) {
   return (
     <Menu>
       <MenuTrigger asChild>
-        <IconButton size="xs" label={`${project.displayName} actions`}>
+        <IconButton size="xs" label={`${props.project.displayName} actions`}>
           <DotsThreeIcon size={14} />
         </IconButton>
       </MenuTrigger>
       <MenuContent align="end">
-        <MenuItem icon={<NotePencilIcon size={14} />} onSelect={() => controller.newThread(project.cwd)}>
-          New thread
-        </MenuItem>
-        <MenuItem
-          icon={project.pinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
-          onSelect={() => void controller.togglePin(project.cwd)}
-        >
-          {project.pinned ? "Unpin" : "Pin to top"}
-        </MenuItem>
-        <MenuSeparator />
-        <MenuItem icon={<FolderOpenIcon size={14} />} onSelect={() => void controller.openFolder(project.cwd, "files")}>
-          {revealLabel()}
-        </MenuItem>
-        <MenuItem icon={<CodeIcon size={14} />} onSelect={() => void controller.openFolder(project.cwd, "editor")}>
-          Open in VS Code
-        </MenuItem>
-        <MenuItem icon={<CopyIcon size={14} />} onSelect={() => void copyText(project.cwd)}>
-          Copy path
-        </MenuItem>
-        <MenuItem icon={<ArrowsClockwiseIcon size={14} />} onSelect={() => void controller.refreshProject(project.cwd)}>
-          Refresh threads
-        </MenuItem>
-        <MenuSeparator />
-        <MenuItem icon={<XIcon size={14} />} tone="danger" onSelect={() => void controller.hideProject(project.cwd)}>
-          Remove from sidebar
-        </MenuItem>
+        <ProjectMenuItems project={props.project} Item={MenuItem} Separator={MenuSeparator} />
       </MenuContent>
     </Menu>
   );
