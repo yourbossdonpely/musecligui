@@ -211,8 +211,41 @@ export function Transcript(props: { sessionId: string; thread: ThreadState }) {
             </button>
           </div>
         ) : null}
+        {turns.length >= 2 ? <TurnRail turns={turns} sessionId={props.sessionId} /> : null}
       </div>
     </FileLinksContext.Provider>
+  );
+}
+
+/** A minimap of the thread's turns: status at a glance, click a segment to jump to it. */
+function TurnRail(props: { turns: TurnView[]; sessionId: string }) {
+  const jump = (key: string) => {
+    document.getElementById(`turn-${props.sessionId}-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return (
+    <nav aria-label="Turns" className="absolute top-0 right-1.5 bottom-0 hidden w-3.5 flex-col gap-[3px] py-8 @min-[720px]:flex">
+      {props.turns.map((turn, index) => {
+        const prompt = (turn.prompt?.displayText ?? turn.prompt?.text ?? "").replace(/\s+/g, " ").trim();
+        const label = prompt ? `#${index + 1} ${prompt.slice(0, 80)}` : `Turn ${index + 1}`;
+        const color = turn.running
+          ? "bg-accent-text animate-pulse"
+          : turn.info?.terminal === "failed"
+            ? "bg-danger-text"
+            : turn.entries.length > 0
+              ? "bg-subtle"
+              : "bg-line-strong";
+        return (
+          <button
+            key={turn.key}
+            type="button"
+            title={label}
+            aria-label={`Go to ${label}`}
+            onClick={() => jump(turn.key)}
+            className={`min-h-[6px] w-full flex-1 rounded-full opacity-60 transition-opacity hover:opacity-100 ${color}`}
+          />
+        );
+      })}
+    </nav>
   );
 }
 
@@ -306,7 +339,7 @@ const TurnBlock = memo(
       );
     }
     return (
-      <article className="flex flex-col gap-3" aria-label="Turn">
+      <article id={`turn-${props.sessionId}-${turn.key}`} className="flex scroll-mt-6 flex-col gap-3" aria-label="Turn">
         {props.wake ? (
           <p className="flex items-center gap-2 text-xs text-subtle">
             <EyeIcon size={12} className="shrink-0 text-accent-text" aria-hidden="true" />
