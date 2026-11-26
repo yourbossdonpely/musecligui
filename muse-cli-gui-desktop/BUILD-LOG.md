@@ -339,6 +339,15 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Rollback**: sent messages offer Rollback, which forks the session with a cut point through that turn (`session/fork` + `cutPoint.lastTurnId`, per the SDK spec) and opens the `(rollback)` branch; the original stays intact. Only finished turns roll back (the button disables mid-turn, and `forkBoundaryInvalid` explains otherwise).
 - Test lesson: a failing controller test that throws before `stop()` leaves the runner hanging at teardown with workers idle — bisect with `--test-name-pattern` and look for the skipped cleanup.
 
+### v1.2.0 — UI polish round
+
+- **Palette**: Pages group (settings, usage) plus a Current thread group (stop, compact, read aloud, share, syntax check, fork, archive, delete) reusing the controller actions. Items gained a danger tone.
+- **Timeline rail**: turn blocks carry `turn-<session>-<key>` anchors; a minimap on wide screens colors segments by status (running pulses gold, failed red) and jumps on click.
+- **Composer**: input auto-grows via `field-sizing: content` (40vh cap); toolbar Templates picker keeps named starters in prefs (cap 50) with fill-in and delete. Draft persistence already existed.
+- **Empty states**: `STARTER_PROMPTS` in `model/suggestions.ts` fill (never send) from empty threads and threadless project screens.
+- **Density**: `density` pref (comfortable/compact) tightens transcript gaps and sidebar rows; Settings Appearance toggle + palette action. Theme system needed nothing (dark/light/system already measured).
+- **Progress**: `tracked()` runs install/share/diagnose/compact with a spinner toast past 300ms and Cancel wired to an AbortSignal through `webClient.call`; cancel reports "stopped waiting" honestly since the server may finish anyway. Same-key double runs refuse.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or
