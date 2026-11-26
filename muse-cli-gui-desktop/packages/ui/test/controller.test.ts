@@ -2192,6 +2192,17 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("runs terminal commands into the thread's shell runs", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.runCommand("s1", "ls -la"), true);
+    const runs = controller.store.get().threads["s1"]?.shellRuns ?? [];
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0]?.command, "ls -la");
+    assert.equal(runs[0]?.output, "ran ls -la");
+    stop();
+  });
+
   it("asks Muse to review the thread's edited files", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

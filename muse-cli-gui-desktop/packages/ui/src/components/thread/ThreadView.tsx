@@ -25,6 +25,7 @@ import { FilesPanel } from "../files/FilesPanel.js";
 import { Transcript } from "./Transcript.js";
 import { ChangedFiles } from "./ChangedFiles.js";
 import { Monitors } from "./Monitors.js";
+import { TerminalCard } from "./TerminalCard.js";
 
 export function ThreadView(props: { sessionId: string }) {
   const session = useApp((s) => s.sessions[props.sessionId] ?? null);
@@ -442,6 +443,9 @@ function Dock(props: { session: SessionSummary; thread: ThreadState | null; runn
         {queued.length > 0 ? <QueuedList sessionId={session.sessionId} items={queued} /> : null}
         {fold ? <Monitors sessionId={session.sessionId} /> : null}
         {fold ? <ChangedFiles sessionId={session.sessionId} /> : null}
+        {fold && !session.cwd.startsWith("ssh://") ? (
+          <TerminalCard sessionId={session.sessionId} readOnly={Boolean(thread?.readOnly)} />
+        ) : null}
         <TelemetryPills sessionId={session.sessionId} />
         <Composer
           sessionId={session.sessionId}

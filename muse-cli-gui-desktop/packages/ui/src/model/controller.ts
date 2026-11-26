@@ -2747,35 +2747,37 @@ export class MuseCodeIconController {
   }
 
   /** `!command` runs in the thread's workspace shell; on the new-thread screen it starts the thread first. */
+  /** Runs a shell command in a thread's workspace; the run lands in its terminal card and transcript. */
+  async runCommand(sessionId: string, command: string): Promise<boolean> {
+    const thread = this.state.threads[sessionId];
+    if (thread?.readOnly) {
+      this.toast("info", "This thread is read-only here", thread.readOnlyReason ?? "Another Muse session has it open.");
+      return false;
+    }
+    const key = `shell:${sessionId}`;
+    if (this.state.busy[key]) {
+      return false;
+    }
+    this.setBusy(key, true);
+    try {
+      // MuseCodeIcon runs `!` itself: Muse's own host has no sandbox for these, so it never runs them at all.
+      this.addShellRun(sessionId, await this.client.runShellProxy(sessionId, command));
+      return true;
+    } catch (error) {
+      this.toast("error", "Command not run", errorMessage(error));
+      return false;
+    } finally {
+      this.setBusy(key, false);
+    }
+  }
+
   private async runShell(command: string): Promise<boolean> {
-    const run = async (sessionId: string): Promise<boolean> => {
-      const thread = this.state.threads[sessionId];
-      if (thread?.readOnly) {
-        this.toast("info", "This thread is read-only here", thread.readOnlyReason ?? "Another Muse session has it open.");
-        return false;
-      }
-      const key = `shell:${sessionId}`;
-      if (this.state.busy[key]) {
-        return false;
-      }
-      this.setBusy(key, true);
-      try {
-        // MuseCodeIcon runs `!` itself: Muse's own host has no sandbox for these, so it never runs them at all.
-        this.addShellRun(sessionId, await this.client.runShellProxy(sessionId, command));
-        return true;
-      } catch (error) {
-        this.toast("error", "Command not run", errorMessage(error));
-        return false;
-      } finally {
-        this.setBusy(key, false);
-      }
-    };
     const route = this.state.route;
     if (route.kind === "thread") {
-      return run(route.sessionId);
+      return this.runCommand(route.sessionId, command);
     }
     const target = this.newThreadTarget();
-    return target ? this.startThread(target, `!${command}`, run) : false;
+    return target ? this.startThread(target, `!${command}`, (sessionId) => this.runCommand(sessionId, command)) : false;
   }
 
   /**
