@@ -31,6 +31,7 @@ import {
   parseMode,
   parseSlash,
   resolveSlash,
+  routeSkill,
   skillTurn,
   slashCommands,
   type ParsedSlash,
@@ -1125,6 +1126,22 @@ export class MuseCodeIconController {
     // Raw sends and slash, skill and shell expansions keep their exact bytes.
     const route = this.state.route;
     const bound = options.sessionId ?? (route.kind === "thread" ? route.sessionId : null);
+    if (!options.raw) {
+      // Matched synchronously, so an unmatched prompt reaches the send exactly as before.
+      const match = this.matchSkill(bound, trimmed);
+      if (match) {
+        const auto = await this.applySkill(match, trimmed);
+        if (auto) {
+          return this.deliver(auto.text, {
+            steer: options.steer,
+            queue: options.queue,
+            attachments: files,
+            previews: options.previews,
+            displayText: auto.displayText,
+          });
+        }
+      }
+    }
     const framing = options.raw ? "" : modePromptPrefix(this.taskMode(bound));
     const prompt = options.raw ? trimmed : framing + trimmed + SUGGEST_SUFFIX;
     return this.deliver(prompt, {
@@ -1134,6 +1151,41 @@ export class MuseCodeIconController {
       previews: options.previews,
       displayText: options.displayText ?? trimmed,
     });
+  }
+
+  /**
+   * The folder skill a plain prompt reads like, if routing is on and the workspace's catalog is
+   * already loaded. Synchronous and fetch-free, so matching never delays or reorders a send.
+   */
+  private matchSkill(sessionId: string | null, trimmed: string): { skill: SkillEntry; cwd: string } | null {
+    if (!this.state.prefs.skillRouting) {
+      return null;
+    }
+    const route = this.state.route;
+    const cwd = sessionId ? (this.state.sessions[sessionId]?.cwd ?? null) : route.kind === "new" ? route.cwd : null;
+    if (!cwd) {
+      return null;
+    }
+    const catalog = this.state.skills[cwd];
+    if (!catalog || catalog.status !== "ready") {
+      return null;
+    }
+    const skill = routeSkill(trimmed, catalog.skills);
+    return skill ? { skill, cwd } : null;
+  }
+
+  /**
+   * Sends a plain prompt with its matched skill's instructions, like an automatic /skill. A body
+   * that fails to load falls through to the ordinary send instead of failing the prompt.
+   */
+  private async applySkill(match: { skill: SkillEntry; cwd: string }, trimmed: string): Promise<{ text: string; displayText: string } | null> {
+    try {
+      const body = await this.client.skillBody(match.cwd, match.skill.id);
+      this.toast("info", `Applied skill: ${match.skill.displayName}`, "The prompt went with the skill's instructions.");
+      return skillTurn(match.skill, trimmed, trimmed, body);
+    } catch {
+      return null;
+    }
   }
 
   /** The project a new thread starts in: the new-thread screen's, else the last one used. */
@@ -2545,6 +2597,54 @@ export class MuseCodeIconController {
 
   private setSkills(cwd: string, next: SkillsState): void {
     this.update((s) => ({ ...s, skills: { ...s.skills, [cwd]: next } }));
+  }
+
+  /** Kept skill folders plus the shared agents folder, for the skills settings. */
+  async loadSkillFolders(): Promise<void> {
+    try {
+      const view = await this.client.listSkillFolders();
+      this.update((s) => ({ ...s, skillFolders: view }));
+    } catch (error) {
+      this.toast("error", "Could not load skill folders", errorMessage(error));
+    }
+  }
+
+  /** Retires every workspace's skill list, so the next menu shows the folders as they are now. */
+  private staleAllSkills(): void {
+    this.update((s) => {
+      const skills: Record<string, SkillsState> = {};
+      for (const [cwd, state] of Object.entries(s.skills)) {
+        skills[cwd] = { ...state, loadedAt: 0 };
+      }
+      return { ...s, skills };
+    });
+  }
+
+  /** Keeps another folder of skills, then refreshes the lists that show them. */
+  async addSkillFolder(path: string): Promise<void> {
+    const clean = path.trim();
+    if (!clean) {
+      return;
+    }
+    try {
+      const view = await this.client.addSkillFolder(clean);
+      this.update((s) => ({ ...s, skillFolders: view }));
+      this.staleAllSkills();
+      this.toast("success", "Skill folder added", clean);
+    } catch (error) {
+      this.toast("error", "Could not add the skill folder", errorMessage(error));
+    }
+  }
+
+  /** Stops scanning a skill folder, then refreshes the lists that showed it. */
+  async removeSkillFolder(path: string): Promise<void> {
+    try {
+      const view = await this.client.removeSkillFolder(path);
+      this.update((s) => ({ ...s, skillFolders: view }));
+      this.staleAllSkills();
+    } catch (error) {
+      this.toast("error", "Could not remove the skill folder", errorMessage(error));
+    }
   }
 
   setPicker(picker: ComposerPicker | null): void {

@@ -32,6 +32,7 @@ import {
   type SessionSummary,
   type ShellRun,
   type SkillCatalog,
+  type SkillFoldersView,
   type SubagentAction,
   type TaskAction,
   type TitleSettings,
@@ -464,6 +465,18 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   async deleteSession(sessionId: string): Promise<void> {
     await call("DELETE", `/api/sessions/${enc(sessionId)}`);
+  }
+
+  listSkillFolders(): Promise<SkillFoldersView> {
+    return call("GET", "/api/skills/folders");
+  }
+
+  addSkillFolder(path: string): Promise<SkillFoldersView> {
+    return call("POST", "/api/skills/folders", { path });
+  }
+
+  removeSkillFolder(path: string): Promise<SkillFoldersView> {
+    return call("DELETE", `/api/skills/folders?path=${encodeURIComponent(path)}`);
   }
 
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {

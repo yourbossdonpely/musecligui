@@ -254,7 +254,31 @@ class FakeClient implements MuseCodeIconClient {
     return { skills: this.skills, error: null };
   }
   async skillBody(_cwd: string, skillId: string) {
+    if (this.skillBodyError) {
+      const error = this.skillBodyError;
+      this.skillBodyError = null;
+      throw error;
+    }
     return `Instructions for ${skillId}.`;
+  }
+  skillBodyError: Error | null = null;
+  skillFoldersView: import("../src/types.js").SkillFoldersView = { folders: [], agentsDir: "", agentsFound: false, agentsCount: 0 };
+  skillFolderError: Error | null = null;
+  async listSkillFolders() {
+    if (this.skillFolderError) {
+      const error = this.skillFolderError;
+      this.skillFolderError = null;
+      throw error;
+    }
+    return this.skillFoldersView;
+  }
+  async addSkillFolder(path: string) {
+    this.skillFoldersView = { ...this.skillFoldersView, folders: [...this.skillFoldersView.folders, path] };
+    return this.skillFoldersView;
+  }
+  async removeSkillFolder(path: string) {
+    this.skillFoldersView = { ...this.skillFoldersView, folders: this.skillFoldersView.folders.filter((f) => f !== path) };
+    return this.skillFoldersView;
   }
   async openFolder() {}
   skillSessions: (string | undefined)[] = [];
@@ -2182,6 +2206,76 @@ describe("MuseCodeIconController", () => {
     assert.equal(state.threads["s1"], undefined);
     assert.deepEqual(state.route, { kind: "new", cwd: "/work/app" });
     assert.equal(state.toasts.at(-1)?.title, "Thread deleted");
+    stop();
+  });
+
+  it("routes a plain prompt through its folder skill", async () => {
+    const client = new FakeClient();
+    client.skills = [
+      {
+        id: "folder:docker",
+        name: "docker",
+        displayName: "docker",
+        description: "Build and run containers",
+        shortDescription: null,
+        scope: "folder",
+        activation: "user-invocable-only",
+      },
+    ];
+    const { controller, stop } = await started(client);
+    await controller.loadSkills("/work/app");
+    assert.equal(await controller.send("rebuild the docker images"), true);
+    const sent = client.sent.at(-1)!;
+    assert.ok(sent.text.includes('<skill-body id="folder:docker">'), "the body rides along");
+    assert.ok(sent.text.includes("Instructions for folder:docker."));
+    assert.equal(sent.displayText, "rebuild the docker images");
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Applied skill: docker");
+    stop();
+  });
+
+  it("leaves the prompt alone when routing is off, unmatched, or the body fails", async () => {
+    const client = new FakeClient();
+    client.skills = [
+      {
+        id: "folder:docker",
+        name: "docker",
+        displayName: "docker",
+        description: "Build and run containers",
+        shortDescription: null,
+        scope: "folder",
+        activation: "user-invocable-only",
+      },
+    ];
+    const { controller, stop } = await started(client);
+    await controller.loadSkills("/work/app");
+    await controller.send("what is the capital of France");
+    assert.ok(!client.sent.at(-1)?.text.includes("skill-body"), "no match, no routing");
+
+    controller.setPrefs({ skillRouting: false });
+    await controller.send("rebuild the docker images");
+    assert.ok(!client.sent.at(-1)?.text.includes("skill-body"), "routing off");
+
+    controller.setPrefs({ skillRouting: true });
+    client.skillBodyError = new Error("gone");
+    await controller.send("rebuild the docker images");
+    const fellBack = client.sent.at(-1)!;
+    assert.ok(!fellBack.text.includes("skill-body"), "a failed body falls through");
+    assert.ok(fellBack.text.includes("rebuild the docker images"));
+    stop();
+  });
+
+  it("keeps and drops skill folders", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    await controller.loadSkillFolders();
+    assert.deepEqual(controller.store.get().skillFolders?.folders, []);
+    await controller.addSkillFolder("D:/skills");
+    assert.deepEqual(controller.store.get().skillFolders?.folders, ["D:/skills"]);
+    await controller.removeSkillFolder("D:/skills");
+    assert.deepEqual(controller.store.get().skillFolders?.folders, []);
+    client.skillFolderError = new Error("daemon away");
+    await controller.loadSkillFolders();
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not load skill folders");
     stop();
   });
 

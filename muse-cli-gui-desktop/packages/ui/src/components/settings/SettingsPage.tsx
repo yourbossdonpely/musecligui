@@ -12,6 +12,7 @@ import type { AccountView, ApprovalMode, ReasoningEffort } from "../../types.js"
 import { LEVELS, MODES } from "../composer/Composer.js";
 import { CODE_THEME_LABELS, updateSummary } from "../sidebar/Sidebar.js";
 import { Modal } from "../ui/overlays.js";
+import { SkillFolderForm, SkillFolderRows } from "../skills/SkillsPanel.js";
 import { TopBar } from "../chrome.js";
 import { Button, IconButton, MOD, cn } from "../ui/primitives.js";
 
@@ -401,6 +402,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     void controller.loadAccounts();
+    void controller.loadSkillFolders();
   }, [controller]);
 
   return (
@@ -573,6 +575,28 @@ export function SettingsPage() {
 
         <Section title="Read aloud">
           <VoiceSettings controller={controller} voice={prefs.voice} />
+        </Section>
+
+        <Section title="Skills">
+          <Row
+            label="Skill folders"
+            description="Folders scanned for skills (a folder per skill, each with a SKILL.md), besides what Muse itself lists. The shared agents folder is always scanned."
+          >
+            <div className="flex w-full min-w-0 flex-col gap-2">
+              <SkillFolderRows />
+              <SkillFolderForm />
+            </div>
+          </Row>
+          <Row
+            label="Apply matching skills"
+            description="A plain prompt that reads like a folder skill sends with that skill's instructions, like an automatic /skill. Off leaves every prompt as typed."
+          >
+            <Toggle
+              checked={prefs.skillRouting}
+              label="Apply matching skills"
+              onChange={(on) => controller.setPrefs({ skillRouting: on })}
+            />
+          </Row>
         </Section>
 
         <Section title="Thread titles">

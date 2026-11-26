@@ -18,6 +18,7 @@ import type {
   SandboxSettings,
   SessionSummary,
   SkillCatalog,
+  SkillFoldersView,
   SubagentAction,
   TaskAction,
   TitleSettings,
@@ -185,6 +186,12 @@ export interface MuseCodeIconClient {
   diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport>;
   /** Deletes a thread and everything kept for it. Refused while a turn is running. */
   deleteSession(sessionId: string): Promise<void>;
+  /** Extra folders scanned for skills, kept on the server. */
+  listSkillFolders(): Promise<SkillFoldersView>;
+  /** Keeps a folder of skills; refused when it is not a readable folder. */
+  addSkillFolder(path: string): Promise<SkillFoldersView>;
+  /** Stops scanning a skill folder. */
+  removeSkillFolder(path: string): Promise<SkillFoldersView>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

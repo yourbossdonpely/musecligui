@@ -208,6 +208,61 @@ export function matchSlash(commands: readonly SlashCommand[], query: string): Sl
   return order.flatMap((kind) => runs[kind].map((entry) => entry.command));
 }
 
+/** Words too common to route a prompt to a skill on their own. */
+const ROUTE_STOPWORDS = new Set(
+  "the and for are but not you your with from that this these those than then there their them into over under please help how what when does doing have has had been were will would should could can all any each every some such very just only also more most other while about after again down here once out said like get got let see way ways thing things something anything".split(
+    " ",
+  ),
+);
+
+function routeWords(text: string): string[] {
+  const words = new Set<string>();
+  for (const word of text.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (word.length >= 3 && !ROUTE_STOPWORDS.has(word)) {
+      words.add(word);
+    }
+  }
+  return [...words];
+}
+
+/**
+ * The folder skill a plain prompt reads like, if any: name words count triple, description words
+ * single, and a lone weak match never fires. Only folder skills route — Muse loads its own "on"
+ * skills itself, while these files are invisible to it. Null when nothing wins clearly.
+ */
+export function routeSkill(prompt: string, skills: readonly SkillEntry[]): SkillEntry | null {
+  const words = routeWords(prompt);
+  if (words.length === 0) {
+    return null;
+  }
+  let best: SkillEntry | null = null;
+  let bestScore = 0;
+  let runnerUp = 0;
+  for (const skill of skills) {
+    if (skill.scope !== "folder") {
+      continue;
+    }
+    const names = new Set(routeWords(`${skill.name} ${skill.displayName}`));
+    const descs = new Set(routeWords(skill.description));
+    let score = 0;
+    for (const word of words) {
+      if (names.has(word)) {
+        score += 3;
+      } else if (descs.has(word)) {
+        score += 1;
+      }
+    }
+    if (score > bestScore) {
+      runnerUp = bestScore;
+      bestScore = score;
+      best = skill;
+    } else if (score > runnerUp) {
+      runnerUp = score;
+    }
+  }
+  return best !== null && bestScore >= 3 && bestScore > runnerUp ? best : null;
+}
+
 /** The turn a skill invocation sends: the model gets instructions, the transcript shows what was typed. */
 export function skillTurn(skill: SkillEntry, args: string, typed: string, body: string | null): { text: string; displayText: string } {
   const request = args.trim();

@@ -44,6 +44,7 @@ import {
 } from "@musecodeicon/daemon";
 import { diagnoseFiles } from "./diagnostics.js";
 import { FileError, listFolder, readProjectFile, resolveInRoot, revertProjectFile, searchProjectFiles, serveProjectFile, writeProjectFile } from "./files.js";
+import { scanSkillFolder } from "./skills.js";
 import { PathError, createDirectory, listDirectory, resolveUserPath, type DirectoryListing, type PathContext } from "./paths.js";
 import {
   SSH_HOME_CACHE_MS,
@@ -1404,6 +1405,41 @@ export class MuseCodeIconServer {
       this.json(res, 200, { id, body });
       return true;
     }
+    if (method === "GET" && path === "/api/skills/folders") {
+      this.json(res, 200, await this.skillFoldersView());
+      return true;
+    }
+    if (method === "POST" && path === "/api/skills/folders") {
+      const body = await this.readBody(req);
+      const raw = str(body["path"])?.trim() ?? "";
+      if (!raw) {
+        throw new HttpError(400, "path is required.");
+      }
+      if (raw.startsWith("ssh://")) {
+        throw new HttpError(400, "Skill folders live on this machine; remote folders cannot be scanned.");
+      }
+      let local: string;
+      try {
+        local = resolveUserPath(raw, await this.pathContext(raw)).local;
+      } catch (error) {
+        throw new HttpError(400, error instanceof Error ? error.message : "That folder cannot be used.");
+      }
+      const info = await stat(local).catch(() => null);
+      if (!info?.isDirectory()) {
+        throw new HttpError(404, "That folder does not exist.");
+      }
+      const folders = this.store.setSkillFolders([...this.store.getSkillFolders(), local]);
+      this.skillCache.clear();
+      this.json(res, 200, { ...(await this.skillFoldersView()), folders });
+      return true;
+    }
+    if (method === "DELETE" && path === "/api/skills/folders") {
+      const raw = (url.searchParams.get("path") ?? "").trim();
+      const folders = this.store.setSkillFolders(this.store.getSkillFolders().filter((folder) => folder !== raw));
+      this.skillCache.clear();
+      this.json(res, 200, { ...(await this.skillFoldersView()), folders });
+      return true;
+    }
     if (method === "GET" && path === "/api/sessions") {
       const cwd = url.searchParams.get("cwd");
       const includeArchived = url.searchParams.get("archived") === "1";
@@ -2502,21 +2538,64 @@ export class MuseCodeIconServer {
     }
   }
 
+  /** Every folder scanned for skills: the shared agents folder first, then the user's own. */
+  private skillScanDirs(): string[] {
+    const home = this.options.home ?? homedir();
+    return [join(home, ".agents", "skills"), ...this.store.getSkillFolders()];
+  }
+
+  /** The skills settings page's data: kept folders plus what the shared agents folder holds. */
+  private async skillFoldersView(): Promise<{ folders: string[]; agentsDir: string; agentsFound: boolean; agentsCount: number }> {
+    const home = this.options.home ?? homedir();
+    const agentsDir = join(home, ".agents", "skills");
+    const found = await scanSkillFolder(agentsDir);
+    const exists = found.length > 0 || (await stat(agentsDir).then((info) => info.isDirectory()).catch(() => false));
+    return { folders: this.store.getSkillFolders(), agentsDir, agentsFound: exists, agentsCount: found.length };
+  }
+
+  /** Skills from scanned folders, as views. Muse's own listing wins a name clash, so `/skill` stays unambiguous. */
+  private async listFolderSkills(known: Set<string>): Promise<{ skills: SkillView[]; paths: Map<string, string> }> {
+    const skills: SkillView[] = [];
+    const paths = new Map<string, string>();
+    for (const dir of this.skillScanDirs()) {
+      for (const found of await scanSkillFolder(dir)) {
+        if (known.has(found.name.toLowerCase()) || paths.has(found.id)) {
+          continue;
+        }
+        known.add(found.name.toLowerCase());
+        skills.push({
+          id: found.id,
+          name: found.name,
+          displayName: found.displayName,
+          description: found.description,
+          shortDescription: found.shortDescription,
+          scope: "folder",
+          // Muse never sees these files, so the client always inlines the body, like a user-invoked skill.
+          activation: "user-invocable-only",
+        });
+        paths.set(found.id, found.path);
+      }
+    }
+    return { skills, paths };
+  }
+
   private async listCliSkills(cwd: string): Promise<SkillListing> {
     const key = cwd || "__default__";
-    if (isSshCwd(cwd)) {
-      const listing: SkillListing = {
-        at: Date.now(),
-        skills: [],
-        paths: new Map(),
-        error: "Skills are not listed for SSH projects in this version.",
-      };
-      this.skillCache.set(key, listing);
-      return listing;
-    }
     const cached = this.skillCache.get(key);
     if (cached && !cached.error && Date.now() - cached.at < SKILL_CACHE_MS) {
       return cached;
+    }
+    // Folder skills live on this machine and expand client-side, so SSH projects get them too.
+    const folders = await this.listFolderSkills(new Set());
+    if (isSshCwd(cwd)) {
+      const listing: SkillListing = {
+        at: Date.now(),
+        skills: folders.skills,
+        paths: folders.paths,
+        error: folders.skills.length === 0 ? "Skills are not listed for SSH projects in this version." : null,
+      };
+      this.skillCache.set(key, listing);
+      return listing;
     }
     const args = ["skills", "list", "--json"];
     const musePath = await this.cliMusePath();
@@ -2527,17 +2606,42 @@ export class MuseCodeIconServer {
     const plan = planMuseCli({ platform: this.options.platform, distro: await this.wslDistro(), musePath, args, runtime: await this.museRuntime() });
     const result = await this.options.exec(plan.command, plan.args);
     const parsed = parseSkillList(result.stdout);
-    const listing: SkillListing = parsed
-      ? { at: Date.now(), ...parsed, error: null }
-      : {
-          at: Date.now(),
-          skills: [],
-          paths: new Map(),
-          error:
-            result.exitCode === 0
+    if (!parsed) {
+      const listing: SkillListing = {
+        at: Date.now(),
+        skills: folders.skills,
+        paths: folders.paths,
+        error:
+          folders.skills.length > 0
+            ? null
+            : result.exitCode === 0
               ? "Muse listed its skills in a form MuseCodeIcon does not understand."
               : "Could not list Muse skills. Check that muse runs in a terminal.",
-        };
+      };
+      this.skillCache.set(key, listing);
+      return listing;
+    }
+    const known = new Set(parsed.skills.map((skill) => skill.name.toLowerCase()));
+    const extra = folders.skills.filter((skill) => {
+      if (known.has(skill.name.toLowerCase())) {
+        return false;
+      }
+      known.add(skill.name.toLowerCase());
+      return true;
+    });
+    const paths = new Map(parsed.paths);
+    for (const skill of extra) {
+      const path = folders.paths.get(skill.id);
+      if (path) {
+        paths.set(skill.id, path);
+      }
+    }
+    const listing: SkillListing = {
+      at: Date.now(),
+      skills: [...parsed.skills, ...extra],
+      paths,
+      error: null,
+    };
     this.skillCache.set(key, listing);
     return listing;
   }
@@ -2547,6 +2651,14 @@ export class MuseCodeIconServer {
     const path = (await this.listCliSkills(cwd)).paths.get(id);
     if (!path) {
       throw new HttpError(404, "Muse does not list that skill for this workspace.");
+    }
+    if (id.startsWith("folder:")) {
+      // Scanned folders live on this machine, so the file reads directly, on every runtime.
+      const body = stripFrontmatter(await readFile(path, "utf8").catch(() => ""));
+      if (!body) {
+        throw new HttpError(502, "Could not read that skill's instructions.");
+      }
+      return body;
     }
     const bundled = /^bundled:\/\/(.+)$/.exec(path)?.[1];
     if (bundled?.split("/").includes("..")) {

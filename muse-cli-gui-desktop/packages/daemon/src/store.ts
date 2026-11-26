@@ -423,6 +423,28 @@ export class MuseCodeIconStore {
     return next;
   }
 
+  /** Extra folders scanned for skills, beyond what Muse itself lists. Malformed rows mean none. */
+  getSkillFolders(): string[] {
+    const row = this.db.prepare(`SELECT value FROM settings WHERE key = 'skill_folders'`).get() as Row | undefined;
+    if (!row) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(String(row["value"])) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  setSkillFolders(folders: string[]): string[] {
+    const next = [...new Set(folders.map((folder) => folder.trim()).filter((folder) => folder.length > 0))];
+    this.db
+      .prepare(`INSERT INTO settings (key, value) VALUES ('skill_folders', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+      .run(JSON.stringify(next));
+    return next;
+  }
+
   /** Malformed rows fall back to catch-up off rather than breaking server startup. */
   getFeedSettings(): FeedSettings {
     const row = this.db.prepare(`SELECT value FROM settings WHERE key = 'feed'`).get() as Row | undefined;

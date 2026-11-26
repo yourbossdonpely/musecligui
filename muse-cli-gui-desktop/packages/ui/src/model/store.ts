@@ -127,6 +127,8 @@ export interface Prefs {
   defaultTaskMode: TaskMode;
   /** Per-thread task framing, for threads set apart from the default. */
   threadModes: Record<string, TaskMode>;
+  /** Plain prompts automatically apply the folder skill they match, instead of waiting for /skill. */
+  skillRouting: boolean;
 }
 
 export const DEFAULT_FILES_WIDTH = 480;
@@ -186,6 +188,7 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     voice: null,
     defaultTaskMode: "build",
     threadModes: {},
+    skillRouting: true,
   };
 }
 
@@ -266,6 +269,8 @@ export interface AppState {
   updates: UpdateState | null;
   /** Each workspace's skills for the composer's slash menu, loaded when first needed. */
   skills: Record<string, SkillsState>;
+  /** Kept skill folders plus the shared agents folder; null until the first load answers. */
+  skillFolders: import("../types.js").SkillFoldersView | null;
   /** A composer picker a slash command opened, like `/model`. */
   picker: ComposerPicker | null;
   /** The subscription window Muse last reported; null until a host has seen one. */
@@ -342,6 +347,7 @@ export function initialState(prefs: Prefs): AppState {
     draftHandoff: null,
     updates: null,
     skills: {},
+    skillFolders: null,
     picker: null,
   };
 }
@@ -411,6 +417,7 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
       "threadModes",
       (v) => typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every(isTaskMode),
     ),
+    skillRouting: pick("skillRouting", (v) => typeof v === "boolean"),
     voice: pick(
       "voice",
       (v) =>

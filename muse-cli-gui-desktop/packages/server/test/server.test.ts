@@ -113,6 +113,11 @@ function fakeFactory(connection: FakeConnection, probe?: FactoryProbe): (target:
 }
 
 async function start(connection: FakeConnection, extra: Partial<ConstructorParameters<typeof MuseCodeIconServer>[0]> = {}) {
+  // An empty home by default, so the machine's own ~/.agents/skills cannot leak into catalogs.
+  const { mkdtemp } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const home = await mkdtemp(join(tmpdir(), "musecodeicon-testhome-"));
   const server = new MuseCodeIconServer({
     port: 0,
     dataDir: ":memory:",
@@ -123,6 +128,7 @@ async function start(connection: FakeConnection, extra: Partial<ConstructorParam
     exec: async () => ({ stdout: "", exitCode: 127 }),
     // Nor pages a session's view by accident; the tests about that shorten this instead.
     tailTiming: { tickMs: 3_600_000 },
+    home,
     ...extra,
   });
   after(() => server.close());
@@ -2887,5 +2893,80 @@ describe("deleting threads", () => {
     assert.equal((await send(base, "/api/sessions/s1", undefined, "DELETE")).status, 409);
     connection.notify("turn/completed", { sessionId: "s1", turnId: "t1", terminal: "completed" });
     assert.equal((await send(base, "/api/sessions/s1", undefined, "DELETE")).status, 200);
+  });
+});
+
+describe("skill folders", () => {
+  async function skillTree() {
+    const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const root = await mkdtemp(join(tmpdir(), "musecodeicon-skills-"));
+    await mkdir(join(root, "alpha"));
+    await writeFile(join(root, "alpha", "SKILL.md"), '---\nname: alpha-skill\ndescription: "Does alpha things. Really well."\n---\n\n# Alpha\n\nDo it.\n');
+    await mkdir(join(root, "beta"));
+    await writeFile(join(root, "beta", "SKILL.md"), "Beta does the thing.\n\nMore words here.\n");
+    await mkdir(join(root, ".hidden"));
+    await writeFile(join(root, ".hidden", "SKILL.md"), "Invisible.\n");
+    await mkdir(join(root, "empty"));
+    return { root, join };
+  }
+
+  it("scans folders for skills, skipping hidden and empty ones", async () => {
+    const { scanSkillFolder } = await import("../src/skills.js");
+    const { root } = await skillTree();
+    const found = await scanSkillFolder(root);
+    assert.deepEqual(
+      found.map((s) => [s.id, s.name, s.description, s.shortDescription]),
+      [
+        ["folder:alpha", "alpha-skill", "Does alpha things. Really well.", "Does alpha things."],
+        ["folder:beta", "beta", "Beta does the thing.", "Beta does the thing."],
+      ],
+    );
+    assert.deepEqual(await scanSkillFolder(`${root}-missing`), []);
+  });
+
+  it("keeps skill folders, lists their skills, and serves their bodies", async () => {
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { root } = await skillTree();
+    // An empty home, so the machine's own agents folder cannot leak into the catalog.
+    const home = await mkdtemp(join(tmpdir(), "musecodeicon-noagents-"));
+    const { base } = await start(new FakeConnection(), { home, platform: process.platform });
+    assert.equal((await send(base, "/api/skills/folders", { path: `${root}-missing` })).status, 404);
+    assert.equal((await send(base, "/api/skills/folders", { path: "ssh://host/x" })).status, 400);
+    const added = await send(base, "/api/skills/folders", { path: root });
+    assert.equal(added.status, 200);
+    assert.ok(added.json.folders.includes(root));
+
+    const catalog = await get(base, "/api/slash?cwd=/work/proj");
+    const ids = catalog.skills.map((s: { id: string }) => s.id).sort();
+    assert.deepEqual(ids, ["folder:alpha", "folder:beta"]);
+    assert.equal(catalog.skills[0].scope, "folder");
+    assert.equal(catalog.skills[0].activation, "user-invocable-only");
+
+    const body = await get(base, `/api/slash/skill?cwd=/work/proj&id=${encodeURIComponent("folder:alpha")}`);
+    assert.ok(body.body.includes("# Alpha"), "frontmatter stripped, body kept");
+    assert.ok(!body.body.includes("Does alpha things"), "frontmatter gone");
+
+    const removed = await fetch(`${base}/api/skills/folders?path=${encodeURIComponent(root)}`, { method: "DELETE" });
+    assert.equal(removed.status, 200);
+    assert.deepEqual((await get(base, "/api/skills/folders")).folders, []);
+  });
+
+  it("auto-scans the shared agents folder from home", async () => {
+    const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const home = await mkdtemp(join(tmpdir(), "musecodeicon-home-"));
+    await mkdir(join(home, ".agents", "skills", "gamma"), { recursive: true });
+    await writeFile(join(home, ".agents", "skills", "gamma", "SKILL.md"), "---\ndescription: Gamma rays.\n---\n\nShine.\n");
+    const { base } = await start(new FakeConnection(), { home });
+    const view = await get(base, "/api/skills/folders");
+    assert.equal(view.agentsFound, true);
+    assert.equal(view.agentsCount, 1);
+    const catalog = await get(base, "/api/slash?cwd=/work/proj");
+    assert.deepEqual(catalog.skills.map((s: { id: string }) => s.id), ["folder:gamma"]);
   });
 });

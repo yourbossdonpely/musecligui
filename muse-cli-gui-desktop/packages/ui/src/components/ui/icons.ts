@@ -82,6 +82,7 @@ export { PlugsIcon } from "@phosphor-icons/react/dist/csr/Plugs";
 export { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 export { PushPinIcon } from "@phosphor-icons/react/dist/csr/PushPin";
 export { PushPinSlashIcon } from "@phosphor-icons/react/dist/csr/PushPinSlash";
+export { PuzzlePieceIcon } from "@phosphor-icons/react/dist/csr/PuzzlePiece";
 export { QuestionIcon } from "@phosphor-icons/react/dist/csr/Question";
 export { RobotIcon } from "@phosphor-icons/react/dist/csr/Robot";
 export { ScrollIcon } from "@phosphor-icons/react/dist/csr/Scroll";

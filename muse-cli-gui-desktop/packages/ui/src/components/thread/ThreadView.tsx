@@ -1,6 +1,7 @@
 import { copyText } from "../../app/clipboard.js";
 import { stopSpeech } from "../../app/speech.js";
-import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TrashIcon, TreeStructureIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, PuzzlePieceIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TrashIcon, TreeStructureIcon } from "../ui/icons.js";
+import { SkillFolderForm, WorkspaceSkills } from "../skills/SkillsPanel.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
 import { useApp, useController, useNow } from "../../app/context.js";
@@ -18,7 +19,7 @@ import { TelemetryPills } from "../composer/TelemetryPills.js";
 import { ApprovalPanel, CloseCard, PlanPanel, QuestionPanel, QueuedList, ReadOnlyNotice, ReviewingNotice, StalledNotice } from "../requests/Requests.js";
 import { GoalPanel } from "./GoalPanel.js";
 import { revealLabel } from "../sidebar/Sidebar.js";
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
 import { Button, IconButton, MOD, Spinner } from "../ui/primitives.js";
 import { FilesPanel } from "../files/FilesPanel.js";
 import { Transcript } from "./Transcript.js";
@@ -93,6 +94,50 @@ function SshFilesNote() {
     >
       <p className="px-4 py-6 text-sm text-muted">The file viewer is not available for SSH projects in this version.</p>
     </aside>
+  );
+}
+
+/** This workspace's skills at a glance: pick one to invoke it, or keep another folder of them. */
+function SkillsButton(props: { sessionId: string; cwd: string }) {
+  const controller = useController();
+  const [open, setOpen] = useState(false);
+  return (
+    <Menu
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          void controller.loadSkills(props.cwd);
+          void controller.loadSkillFolders();
+        }
+      }}
+    >
+      <Tip label="Skills">
+        <MenuTrigger asChild>
+          <IconButton label="Skills">
+            <PuzzlePieceIcon size={15} />
+          </IconButton>
+        </MenuTrigger>
+      </Tip>
+      <MenuContent align="end" className="w-[340px]">
+        <MenuLabel>Skills in this workspace</MenuLabel>
+        <WorkspaceSkills sessionId={props.sessionId} cwd={props.cwd} onPick={() => setOpen(false)} />
+        <MenuSeparator />
+        <div className="flex flex-col gap-1.5 px-2 py-1">
+          <SkillFolderForm />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              controller.navigate({ kind: "settings" });
+            }}
+            className="rounded-md px-1 py-1 text-left text-xs text-subtle transition-colors hover:bg-hover hover:text-fg"
+          >
+            Manage skill folders in Settings
+          </button>
+        </div>
+      </MenuContent>
+    </Menu>
   );
 }
 
@@ -207,6 +252,7 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
           </IconButton>
         </Tip>
       </span>
+      <SkillsButton sessionId={session.sessionId} cwd={session.cwd} />
       <Menu>
         <Tip label="More">
           <MenuTrigger asChild>

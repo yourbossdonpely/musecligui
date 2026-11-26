@@ -7,6 +7,7 @@ import {
   parseMode,
   parseSlash,
   resolveSlash,
+  routeSkill,
   skillSummary,
   skillTurn,
   slashCommands,
@@ -109,6 +110,31 @@ describe("slash commands", () => {
   it("summarizes a long model-facing description to its first sentence", () => {
     assert.equal(skillSummary(skill("plan")), "Does plan things.");
     assert.equal(skillSummary(skill("x", { shortDescription: "Import a session" })), "Import a session");
+  });
+});
+
+describe("skill routing", () => {
+  const folder = (name: string, description: string): SkillEntry =>
+    skill(name, { id: `folder:${name}`, scope: "folder", activation: "user-invocable-only", description });
+
+  it("routes a prompt that names a folder skill", () => {
+    const skills = [folder("docker", "Build and run containers"), folder("python", "Write python code")];
+    assert.equal(routeSkill("rebuild the docker images", skills)?.id, "folder:docker");
+  });
+
+  it("ignores Muse's own skills and weak matches", () => {
+    assert.equal(routeSkill("rebuild the docker images", [skill("docker")]), null, "bundled skills load themselves");
+    assert.equal(
+      routeSkill("make it blue", [folder("frontend", "Design beautiful interfaces")]),
+      null,
+      "one description word never fires",
+    );
+    assert.equal(routeSkill("please help me", [folder("docker", "Build containers")]), null, "stopwords only");
+  });
+
+  it("needs a clear winner", () => {
+    const skills = [folder("a-reviewer", "Review code carefully"), folder("b-reviewer", "Review code carefully")];
+    assert.equal(routeSkill("review this code carefully", skills), null, "a tie stays a plain prompt");
   });
 });
 

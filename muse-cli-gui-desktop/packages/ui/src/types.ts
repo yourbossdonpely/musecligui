@@ -400,6 +400,14 @@ export interface SkillCatalog {
   error: string | null;
 }
 
+/** Kept skill folders plus what the shared agents folder holds. */
+export interface SkillFoldersView {
+  folders: string[];
+  agentsDir: string;
+  agentsFound: boolean;
+  agentsCount: number;
+}
+
 /** The subfolders of one folder, for the add-project picker. */
 export interface DirectoryListing {
   /** The folder listed, as an absolute path in the user's style (`~` expanded). */
