@@ -1,10 +1,14 @@
 import { Command } from "cmdk";
-import { ArrowClockwiseIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, FolderIcon, FolderPlusIcon, MagnifyingGlassIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MonitorIcon, MoonIcon, NotePencilIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowClockwiseIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ArrowsInIcon, ChartBarIcon, ChecksIcon, FolderIcon, FolderPlusIcon, GearSixIcon, GitBranchIcon, LinkIcon, MagnifyingGlassIcon, MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon, MonitorIcon, MoonIcon, NotePencilIcon, ShieldSlashIcon, SidebarSimpleIcon, SpeakerHighIcon, SquareIcon, StackIcon, SunIcon, TrashIcon } from "../ui/icons.js";
 import { useMemo, type ReactNode } from "react";
 import { useApp, useController, useNow } from "../../app/context.js";
+import { copyText } from "../../app/clipboard.js";
 import { useImeGuard } from "../../app/ime.js";
+import { speakText, stopSpeech } from "../../app/speech.js";
 import { basename, relativeTime } from "../../model/format.js";
+import { buildTurns } from "../../model/fold.js";
 import { threadStatus } from "../../model/status.js";
+import { collectFileChanges } from "../thread/items.js";
 import { Modal } from "../ui/overlays.js";
 import { MOD, NEW_THREAD_KEYS, Shortcut } from "../ui/primitives.js";
 import { StatusGlyph } from "../ui/StatusGlyph.js";
@@ -14,11 +18,11 @@ const GROUP =
 const ITEM =
   "flex h-9 cursor-default items-center gap-3 rounded-lg px-2.5 text-sm text-fg outline-none select-none data-[selected=true]:bg-hover";
 
-function Item(props: { value: string; keywords?: string[]; onSelect: () => void; icon: ReactNode; children: ReactNode; hint?: ReactNode }) {
+function Item(props: { value: string; keywords?: string[]; onSelect: () => void; icon: ReactNode; children: ReactNode; hint?: ReactNode; tone?: "default" | "danger" }) {
   return (
     <Command.Item value={props.value} keywords={props.keywords} onSelect={props.onSelect} className={ITEM}>
-      <span className="flex size-4 shrink-0 items-center justify-center text-muted">{props.icon}</span>
-      <span className="flex min-w-0 flex-1 items-center gap-2">{props.children}</span>
+      <span className={`flex size-4 shrink-0 items-center justify-center ${props.tone === "danger" ? "text-danger-text" : "text-muted"}`}>{props.icon}</span>
+      <span className={`flex min-w-0 flex-1 items-center gap-2 ${props.tone === "danger" ? "text-danger-text" : ""}`}>{props.children}</span>
       {props.hint ? <span className="shrink-0 text-xs text-subtle">{props.hint}</span> : null}
     </Command.Item>
   );
@@ -35,7 +39,68 @@ export function CommandPalette() {
   const lastSeen = useApp((s) => s.prefs.lastSeen);
   const groupBy = useApp((s) => s.prefs.groupBy);
   const updates = useApp((s) => s.updates);
+  const route = useApp((s) => s.route);
+  const voice = useApp((s) => s.prefs.voice);
   const now = useNow(60_000, open);
+  const currentId = route.kind === "thread" ? route.sessionId : null;
+  const current = currentId ? (sessions[currentId] ?? null) : null;
+  const fold = currentId ? (threads[currentId]?.fold ?? null) : null;
+  const running = fold?.activeTurnId != null;
+  const lastReply = useMemo(() => {
+    if (!fold) {
+      return null;
+    }
+    const finals = buildTurns(fold).filter((turn) => !turn.running && turn.final?.text?.trim());
+    return finals.length > 0 ? finals[finals.length - 1]!.final! : null;
+  }, [fold]);
+
+  const shareCurrent = async () => {
+    if (!currentId) {
+      return;
+    }
+    const url = await controller.shareThread(currentId);
+    if (!url) {
+      return;
+    }
+    try {
+      await copyText(url);
+      controller.toast("success", "Share link copied", "The replay page stays up while this app runs.");
+    } catch {
+      controller.toast("info", "Share link ready", url);
+    }
+  };
+
+  const checkCurrent = async () => {
+    if (!currentId || !fold) {
+      return;
+    }
+    const report = await controller.diagnoseFiles(
+      currentId,
+      collectFileChanges(fold.items.values()).map((file) => file.path),
+    );
+    if (!report) {
+      return;
+    }
+    if (report.issues.length === 0) {
+      controller.toast("success", "Syntax clean", `${report.checked} file${report.checked === 1 ? "" : "s"} checked.`);
+      return;
+    }
+    const first = report.issues[0]!;
+    controller.toast(
+      "info",
+      `${report.issues.length} syntax issue${report.issues.length === 1 ? "" : "s"}`,
+      `${first.file}${first.line ? `:${first.line}` : ""} — ${first.message} [${first.tool}]`,
+    );
+  };
+
+  const readCurrent = () => {
+    if (!lastReply) {
+      return;
+    }
+    if (!speakText(lastReply.text ?? "", voice?.uri || undefined, voice?.rate ?? 0.95, lastReply.itemId)) {
+      controller.toast("info", "Speech unavailable", "This browser has no voice to read with.");
+    }
+  };
 
   const sorted = useMemo(
     () =>
@@ -127,6 +192,58 @@ export function CommandPalette() {
               </Item>
             ) : null}
           </Command.Group>
+          <Command.Group heading="Pages" className={GROUP}>
+            <Item value="Open settings" keywords={["preferences", "config"]} icon={<GearSixIcon size={15} />} onSelect={() => run(() => controller.navigate({ kind: "settings" }))}>
+              Open settings
+            </Item>
+            <Item value="Open usage" keywords={["cost", "tokens", "spending"]} icon={<ChartBarIcon size={15} />} onSelect={() => run(() => controller.navigate({ kind: "usage" }))}>
+              Open usage
+            </Item>
+          </Command.Group>
+          {current && currentId ? (
+            <Command.Group heading="Current thread" className={GROUP}>
+              {running ? (
+                <Item value="Stop the turn" keywords={["stop", "cancel", "interrupt"]} icon={<SquareIcon size={15} />} onSelect={() => run(() => { stopSpeech(); void controller.stop(currentId); })}>
+                  Stop the turn
+                </Item>
+              ) : null}
+              <Item value="Compact context" keywords={["summarize", "compress", "context"]} icon={<ArrowsInIcon size={15} />} onSelect={() => run(() => void controller.compact(currentId))}>
+                Compact context
+              </Item>
+              {lastReply ? (
+                <Item value="Read last reply aloud" keywords={["speak", "voice", "read"]} icon={<SpeakerHighIcon size={15} />} onSelect={() => run(readCurrent)}>
+                  Read last reply aloud
+                </Item>
+              ) : null}
+              <Item value="Copy share link" keywords={["share", "link", "replay"]} icon={<LinkIcon size={15} />} onSelect={() => run(() => void shareCurrent())}>
+                Copy share link
+              </Item>
+              <Item value="Check syntax" keywords={["diagnostics", "lint", "typecheck"]} icon={<ChecksIcon size={15} />} onSelect={() => run(() => void checkCurrent())}>
+                Check edited files
+              </Item>
+              <Item value="Fork thread" keywords={["branch", "duplicate", "copy"]} icon={<GitBranchIcon size={15} />} onSelect={() => run(() => void controller.fork(currentId))}>
+                Fork thread
+              </Item>
+              <Item value="Archive thread" keywords={["hide", "shelve"]} icon={<ArchiveIcon size={15} />} onSelect={() => run(() => void controller.archive(currentId))}>
+                Archive thread
+              </Item>
+              <Item
+                value="Delete thread"
+                keywords={["remove", "destroy"]}
+                icon={<TrashIcon size={15} />}
+                tone="danger"
+                onSelect={() =>
+                  run(() => {
+                    if (window.confirm(`Delete "${current.title}"? This cannot be undone.`)) {
+                      void controller.deleteThread(currentId);
+                    }
+                  })
+                }
+              >
+                Delete thread
+              </Item>
+            </Command.Group>
+          ) : null}
           {sorted.length > 0 ? (
             <Command.Group heading="Threads" className={GROUP}>
               {sorted.map((session) => {
