@@ -291,6 +291,40 @@ What still stands between this tree and a release people can trust unconditional
 
 Reproducing the Windows installer works locally with the commands above; macOS and Linux bundles come from the workflow, because neither can be cross-built on Windows (an Apple target fails at `objc2-exception-helper` before reaching this crate).
 
+## Recent work (running log — newest last)
+
+Standing rule: every finished piece of work gets written down here and in the READMEs as part of the work itself, so any other AI or person can follow along.
+
+### v0.23.9 — update-check feedback, changelog link, author name
+
+- Checking for updates toasts the result (up to date, or the error).
+- The What's-new dialog's changelog link opens the release notes.
+- Display name standardized to **MuseCodeIcon by Don PELY** (installer, window title, sidebar, docs).
+
+### v0.23.10 — bridge GUI feature ports
+
+Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adapted to its MSP architecture:
+
+- **Follow-up chips** (`packages/ui/src/model/suggestions.ts`): model appends `[SUGGEST]`; transcript renders clickable chips; controller appends the suffix on plain sends only, display text stays clean.
+- **@ mentions** (`model/mentions.ts`): composer caret tracking, directory listing/drill-down, file completion; file contents resolve onto the wire at send.
+- **Checkpoints + undo**: no port — desktop per-file undo/review was already superior.
+- **Share links**: `POST /api/shares` + public `GET /share/:id` (memory-only, unguessable ids); thread menu copies the link. The endpoint had to move out of the files sub-router (it 404'd there), and the server accepts the `assistant` role.
+- **Compact**: no port — native Muse compaction was already end-to-end.
+- **Parallel runs**: no port — per-session turns plus queue/steer/unqueue already cover it.
+- **Read-aloud** (`model/speech.ts`, `app/speech.ts`): speaker button in the turn footer, Web Speech engine preferring a female English voice, Settings → Read aloud (voice, speed, test); sending or stopping ends playback.
+- **Diagnostics** (`packages/server/src/diagnostics.ts`): Check syntax button on the files-changed card; node/JSON/py_compile/tsc/PowerShell checks, issues per file, honest skips; Windows CRLF tool output parses to the right line.
+- **Task modes** (`model/modes.ts`): Build/Supervised/Plan/Research/Debug picker in the composer, per thread with a default; plan/research/debug frame prompts on the wire; fallback chips tune to the mode. Framing only — permissions untouched.
+- Suites at release: UI 415, daemon 61, web 69, server 216 pass with 10 pre-existing Windows symlink-EPERM failures (proven on the clean tree).
+- Release mechanics learned: the first `v0.23.10` run failed macOS/Linux at updater signing (`failed to decode secret key`) because the `TAURI_SIGNING_PRIVATE_KEY` repo secret was invalid; fixed by re-setting both secrets from `~/.tauri/musecodeicon.key` / `.pass` (validated first with `tauri signer sign` locally) and re-running. Note the key file on disk is base64 single-line and the password file has no trailing newline — set secrets with exact bytes.
+- Known gap: Windows builds with `--no-sign`, which also skips updater signing, so `latest.json` has no Windows entry; Windows users install from the release page.
+
+### v0.23.11 — delete thread, right-click menus, spelling
+
+- **Delete thread** below Archive thread (sidebar + thread header), confirmed, danger-toned. The daemon deletes the session with turns/attachments/shell runs/usage and keeps a `deleted_sessions` tombstone so discovery never resurrects the host's copy; refused with 409 mid-turn. Muse itself keeps its session.
+- **Right-click menus** on sidebar thread and project rows showing exactly the three-dots actions; item lists are shared components (`ThreadMenuItems`, `ProjectMenuItems`) with dropdown/right-click twins in `overlays.tsx`, so they cannot drift.
+- Author spelling corrected to **Don PELY** in the top menu, titles, sidebar, installer copyright, LICENSE, changelogs and docs.
+- Verified the 5-hour rolling-window pill already sits in the sidebar footer between Refresh and Usage.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

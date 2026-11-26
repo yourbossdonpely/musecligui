@@ -59,6 +59,14 @@ Muse Code today is terminal-only (`muse`, on macOS, Linux and Windows). MuseCode
 - **Goals you can steer** - set, pause, resume, change and clear a `/goal` from the goal panel or the composer
 - **Background work under control** - send a running tool call to the background, stop one, or stop them all; cancel a workflow run, or skip and retry its agents
 - **Reasoning effort that sticks** - applied as the session's own default, which is the level `muse serve` actually uses
+- **Follow-up chips** - every finished reply ends with clickable next steps; fallbacks tune to the thread's task mode
+- **@file mentions** - type `@` in the composer to attach project files; contents ride along with the prompt
+- **Share links** - copy a localhost-only replay link for any thread from its menu
+- **Read aloud** - speaker button under finished replies, voice + speed in Settings
+- **Check syntax** - the files-changed card runs node/JSON/Python/tsc/PowerShell checks on the thread's edits
+- **Task modes** - Build, Supervised, Plan, Research or Debug framing per thread, picked in the composer
+- **Delete threads** - confirmed, tombstoned so refresh never resurrects them; refused mid-turn
+- **Right-click menus** - sidebar threads and projects open the same actions as their three-dots menus
 
 ## Architecture
 
@@ -87,6 +95,9 @@ apps/web         same UI against a remote daemon
 - [x] macOS releases (universal binary for Apple Silicon and Intel; `v0.23.7`, ad-hoc signed, not notarized)
 - [x] Linux builds and releases (`v0.23.7`: AppImage, `.deb`, `.rpm`)
 - [x] In-app updates (`v0.23.8`: launch + six-hour checks, sidebar dot, Settings → Updates, install on close)
+- [x] Update-check feedback + changelog link (`v0.23.9`)
+- [x] Bridge feature ports (`v0.23.10`: chips, mentions, share links, read-aloud, diagnostics, task modes)
+- [x] Delete thread, right-click menus, author spelling (`v0.23.11`)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
