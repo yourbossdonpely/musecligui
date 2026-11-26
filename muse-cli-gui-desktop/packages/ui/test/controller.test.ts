@@ -2321,6 +2321,20 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("saves, replaces and deletes prompt templates", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.saveTemplate("  ", "text");
+    controller.saveTemplate("name", "  ");
+    assert.deepEqual(controller.store.get().prefs.templates, [], "blank names and texts are refused");
+    controller.saveTemplate("Review", "Review this diff");
+    controller.saveTemplate("review", "Review this diff carefully");
+    assert.deepEqual(controller.store.get().prefs.templates, [{ name: "review", text: "Review this diff carefully" }]);
+    controller.deleteTemplate("review");
+    assert.deepEqual(controller.store.get().prefs.templates, []);
+    stop();
+  });
+
   it("falls back to the default mode and lets threads opt out", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

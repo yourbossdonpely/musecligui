@@ -21,6 +21,7 @@ export { ArrowUUpLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowUUpLeft";
 export { ArrowUpIcon } from "@phosphor-icons/react/dist/csr/ArrowUp";
 export { ArrowsClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowsClockwise";
 export { ArrowsInIcon } from "@phosphor-icons/react/dist/csr/ArrowsIn";
+export { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 export { BookOpenIcon } from "@phosphor-icons/react/dist/csr/BookOpen";
 export { BrainIcon } from "@phosphor-icons/react/dist/csr/Brain";
 export { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";

@@ -1,4 +1,4 @@
-import { ArrowUpIcon, ArrowsInIcon, BrainIcon, CaretDownIcon, CpuIcon, FolderIcon, GitBranchIcon, LightningIcon, LockIcon, QuestionIcon, ShieldChevronIcon, ShieldIcon, ShieldWarningIcon, SquareIcon, TerminalWindowIcon, UserIcon, WrenchIcon } from "../ui/icons.js";
+import { ArrowUpIcon, ArrowsInIcon, BookmarkSimpleIcon, BrainIcon, CaretDownIcon, CpuIcon, FolderIcon, GitBranchIcon, LightningIcon, LockIcon, NotePencilIcon, QuestionIcon, ShieldChevronIcon, ShieldIcon, ShieldWarningIcon, SquareIcon, TerminalWindowIcon, TrashIcon, UserIcon, WrenchIcon } from "../ui/icons.js";
 import {
   forwardRef,
   useCallback,
@@ -646,13 +646,22 @@ export function Composer(props: ComposerProps) {
         onBlur={() => setDismissed(word)}
         onFocus={() => setDismissed(null)}
         className={cn(
-          "block max-h-[40vh] min-h-[52px] w-full min-w-0 max-w-full resize-none overflow-x-hidden bg-transparent px-4 pb-1.5 text-md leading-relaxed text-fg outline-none [field-sizing:fixed] [overflow-wrap:anywhere] whitespace-pre-wrap placeholder:text-subtle focus-visible:outline-none disabled:cursor-not-allowed",
+          "block max-h-[40vh] min-h-[52px] w-full min-w-0 max-w-full resize-none overflow-x-hidden bg-transparent px-4 pb-1.5 text-md leading-relaxed text-fg outline-none [field-sizing:content] [overflow-wrap:anywhere] whitespace-pre-wrap placeholder:text-subtle focus-visible:outline-none disabled:cursor-not-allowed",
           shell ? "pt-1.5 font-mono text-sm" : "pt-3.5",
         )}
       />
       <div className="flex min-w-0 flex-wrap items-center gap-0.5 px-2 pb-2">
         {/* The new-thread composer sits high, so its menus open downward; they still flip when there is no room. */}
         <AttachButton onFiles={(picked) => addFiles(Array.from(picked))} disabled={props.readOnly || files.length >= MAX_FILES} />
+        <TemplatesPicker
+          side={props.variant === "home" ? "bottom" : "top"}
+          draft={text}
+          disabled={props.readOnly}
+          onFill={(filled) => {
+            setText(filled);
+            ref.current?.focus();
+          }}
+        />
         <TaskModePicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
         <ModelPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
         <EffortPicker side={props.variant === "home" ? "bottom" : "top"} />
@@ -767,6 +776,76 @@ function TaskModePicker(props: { sessionId: string | null; side: PickerSide }) {
             <MenuOption key={mode} value={mode} label={TASK_MODES[mode].label} description={TASK_MODES[mode].desc} />
           ))}
         </MenuRadioGroup>
+      </MenuContent>
+    </Menu>
+  );
+}
+
+/** Saved prompt starters: fill the composer from one, or keep the current draft as one. */
+function TemplatesPicker(props: { side: PickerSide; draft: string; onFill: (text: string) => void; disabled: boolean }) {
+  const controller = useController();
+  const open = useApp((s) => s.picker === "templates");
+  const templates = useApp((s) => s.prefs.templates);
+  const [name, setName] = useState("");
+  const save = () => {
+    controller.saveTemplate(name, props.draft);
+    setName("");
+    controller.closePicker("templates");
+  };
+  return (
+    <Menu open={open} onOpenChange={(next) => (next ? controller.setPicker("templates") : controller.closePicker("templates"))}>
+      <MenuTrigger asChild>
+        <ToolbarTrigger icon={<BookmarkSimpleIcon size={13} />} label="Templates" />
+      </MenuTrigger>
+      <MenuContent side={props.side} className="w-[330px]">
+        <MenuLabel>Prompt templates</MenuLabel>
+        {templates.length === 0 ? (
+          <p className="px-2.5 py-2 text-xs text-subtle">None yet. Type a prompt above, name it below, and keep it.</p>
+        ) : (
+          templates.map((template) => (
+            <div key={template.name} className="group/tpl flex items-center gap-1">
+              <MenuItem
+                icon={<NotePencilIcon size={14} />}
+                hint={`${template.text.length} chars`}
+                onSelect={() => {
+                  props.onFill(template.text);
+                  controller.closePicker("templates");
+                }}
+              >
+                {template.name}
+              </MenuItem>
+              <button
+                type="button"
+                aria-label={`Delete ${template.name}`}
+                title={`Delete ${template.name}`}
+                onClick={() => controller.deleteTemplate(template.name)}
+                className="mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded-md text-subtle opacity-0 transition-all hover:bg-hover hover:text-fg group-hover/tpl:opacity-100 focus-visible:opacity-100"
+              >
+                <TrashIcon size={13} />
+              </button>
+            </div>
+          ))
+        )}
+        <MenuSeparator />
+        <div className="flex items-center gap-1.5 px-2 py-1.5">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                save();
+              }
+            }}
+            placeholder="Name this draft…"
+            aria-label="Template name"
+            spellCheck={false}
+            className="h-7 min-w-0 flex-1 rounded-md bg-sunken px-2 text-xs text-fg outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-accent"
+          />
+          <Button size="sm" variant="secondary" disabled={!name.trim() || !props.draft.trim() || props.disabled} onClick={save}>
+            Save
+          </Button>
+        </div>
       </MenuContent>
     </Menu>
   );

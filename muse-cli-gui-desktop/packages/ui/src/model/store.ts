@@ -129,6 +129,8 @@ export interface Prefs {
   threadModes: Record<string, TaskMode>;
   /** Plain prompts automatically apply the folder skill they match, instead of waiting for /skill. */
   skillRouting: boolean;
+  /** Saved prompt starters, by name. */
+  templates: { name: string; text: string }[];
 }
 
 export const DEFAULT_FILES_WIDTH = 480;
@@ -189,6 +191,7 @@ export function defaultPrefs(now = new Date().toISOString()): Prefs {
     defaultTaskMode: "build",
     threadModes: {},
     skillRouting: true,
+    templates: [],
   };
 }
 
@@ -294,7 +297,7 @@ export interface AppState {
 }
 
 /** `confirmFullAccess` is the full-access confirmation, which `/permissions full` must still pass through. */
-export type ComposerPicker = "model" | "effort" | "permissions" | "confirmFullAccess" | "confirmBypass" | "confirmYolo" | "account" | "taskMode";
+export type ComposerPicker = "model" | "effort" | "permissions" | "confirmFullAccess" | "confirmBypass" | "confirmYolo" | "account" | "taskMode" | "templates";
 
 /** The device-code login modal's state: a device prompt waiting or done, or a runtime fallback message. */
 export type AccountLoginState =
@@ -418,6 +421,18 @@ export function revivePrefs(raw: unknown, fallback: Prefs): Prefs {
       (v) => typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every(isTaskMode),
     ),
     skillRouting: pick("skillRouting", (v) => typeof v === "boolean"),
+    templates: pick(
+      "templates",
+      (v) =>
+        Array.isArray(v) &&
+        v.every(
+          (t) =>
+            typeof t === "object" &&
+            t !== null &&
+            typeof (t as { name?: unknown }).name === "string" &&
+            typeof (t as { text?: unknown }).text === "string",
+        ),
+    ),
     voice: pick(
       "voice",
       (v) =>

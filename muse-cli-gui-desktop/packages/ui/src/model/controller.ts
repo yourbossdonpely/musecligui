@@ -2663,6 +2663,22 @@ export class MuseCodeIconController {
     }
   }
 
+  /** Saves the current draft as a named prompt starter, replacing one with the same name. */
+  saveTemplate(name: string, text: string): void {
+    const clean = name.trim();
+    if (!clean || !text.trim()) {
+      return;
+    }
+    const rest = this.state.prefs.templates.filter((t) => t.name.toLowerCase() !== clean.toLowerCase());
+    this.setPrefs({ templates: [...rest, { name: clean, text }].slice(-50) });
+    this.toast("success", "Template saved", clean);
+  }
+
+  /** Forgets a saved prompt starter. */
+  deleteTemplate(name: string): void {
+    this.setPrefs({ templates: this.state.prefs.templates.filter((t) => t.name !== name) });
+  }
+
   setPicker(picker: ComposerPicker | null): void {
     this.update((s) => (s.picker === picker ? s : { ...s, picker }));
   }
