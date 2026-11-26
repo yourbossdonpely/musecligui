@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "0.23.11",
+    "body": "### Added\n\n- **Delete thread.** A confirmed Delete entry below Archive thread removes the thread and everything kept for it. Refused while a turn is running.\n- **Right-click menus.** Sidebar threads and projects open the same actions on right-click that their three-dots buttons show.\n\n### Fixed\n\n- The author name now reads **Don PELY** everywhere: top menu, window title, sidebar, installer, license and docs."
+  },
+  {
     "version": "0.23.10",
     "body": "### Added\n\n- **Follow-up chips.** Finished replies end with clickable suggestions, so one tap sends the next prompt.\n- **@file mentions.** Type @ in the composer to pick a project file; its contents ride along with the prompt.\n- **Share links.** The thread menu's Copy share link publishes a read-only replay page on the local daemon.\n- **Read aloud.** A speaker button under every finished reply reads it with your chosen voice (Settings → Read aloud).\n- **Check syntax.** The files-changed card checks the thread's edited files and lists issues per file.\n- **Task modes.** The composer picks Build, Supervised, Plan, Research or Debug framing per thread, and the fallback chips follow suit."
   },

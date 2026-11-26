@@ -1,7 +1,7 @@
 {
   "name": "@musecodeicon/web",
   "private": true,
-  "version": "0.23.10",
+  "version": "0.23.11",
   "description": "MuseCodeIcon web app: shared UI wired to the local server over REST and SSE",
   "type": "module",
   "scripts": {
