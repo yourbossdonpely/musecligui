@@ -2,9 +2,9 @@
 
 <img src="docs/assets/app-icon.png" alt="MuseCodeIcon app icon" width="112" />
 
-# MuseCodeIcon by Don Peli
+# MuseCodeIcon by Don PELY
 
-**MuseCodeIcon by Don Peli** — free, MIT-licensed desktop app (Windows, macOS, Linux) for Meta's Muse Code CLI.
+**MuseCodeIcon by Don PELY** — free, MIT-licensed desktop app (Windows, macOS, Linux) for Meta's Muse Code CLI.
 **Gold on black, on every platform.**
 
 > **Unofficial community project — not made, endorsed, or supported by Meta. Not affiliated with Meta.**

@@ -489,7 +489,7 @@ fn install_zoom_menu(app: &tauri::App) -> tauri::Result<()> {
     let zoom_reset = MenuItemBuilder::with_id("zoom-reset", "Actual Size")
         .accelerator("CmdOrCtrl+0")
         .build(app)?;
-    let app_menu = SubmenuBuilder::new(app, "MuseCodeIcon by Don Peli")
+    let app_menu = SubmenuBuilder::new(app, "MuseCodeIcon by Don PELY")
         .about(None)
         .separator()
         .item(&settings)
@@ -616,7 +616,7 @@ fn main() {
             });
             // Open the window at once on a splash page; the server can take a few seconds to probe WSL.
             let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(SPLASH_PAGE.parse()?))
-                .title("MuseCodeIcon by Don Peli")
+                .title("MuseCodeIcon by Don PELY")
                 .inner_size(1280.0, 820.0)
                 .min_inner_size(880.0, 560.0)
                 // Gold on black everywhere: the window, the splash and the first paint are dark even

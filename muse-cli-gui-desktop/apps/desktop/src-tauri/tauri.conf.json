@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "MuseCodeIcon by Don Peli",
+        "title": "MuseCodeIcon by Don PELY",
         "width": 1280,
         "height": 820,
         "minWidth": 880,
@@ -31,7 +31,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "copyright": "Copyright © 2026 Don Peli",
+    "copyright": "Copyright © 2026 Don PELY",
     "licenseFile": "../../../LICENSE",
     "windows": {
       "certificateThumbprint": "E000F884357A673D6EF117A72CEEE9FFBDCB7189",

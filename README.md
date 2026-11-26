@@ -2,9 +2,9 @@
 
 <img src="muse-cli-gui-desktop/docs/assets/app-icon.png" alt="MuseCodeIcon app icon" width="112" />
 
-# MuseCodeIcon by Don Peli
+# MuseCodeIcon by Don PELY
 
-**MuseCodeIcon by Don Peli** — desktop app for Meta's Muse Code CLI — gold on black, on Windows, macOS and Linux.
+**MuseCodeIcon by Don PELY** — desktop app for Meta's Muse Code CLI — gold on black, on Windows, macOS and Linux.
 
 **[→ Read the MuseCodeIcon README](muse-cli-gui-desktop/README.md)**
 
