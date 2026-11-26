@@ -173,6 +173,12 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call<EnvironmentStatus>("GET", `/api/env${refresh ? "?refresh=1" : ""}`);
   }
 
+  async installMuse(): Promise<EnvironmentStatus> {
+    // Installers download hundreds of megabytes; outlast the server's own 15 minutes.
+    const { env } = await call<{ ok: boolean; env: EnvironmentStatus }>("POST", "/api/env/install", {}, 16 * 60_000);
+    return env;
+  }
+
   async listProjects(): Promise<ProjectView[]> {
     return (await call<{ projects: ProjectView[] }>("GET", "/api/projects")).projects;
   }
@@ -388,8 +394,8 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     await call("POST", `/api/sessions/${enc(sessionId)}/shell`, { command });
   }
 
-  async forkSession(sessionId: string): Promise<SessionSummary> {
-    return (await call<{ session: SessionSummary }>("POST", `/api/sessions/${enc(sessionId)}/fork`, {})).session;
+  async forkSession(sessionId: string, turnId?: string): Promise<SessionSummary> {
+    return (await call<{ session: SessionSummary }>("POST", `/api/sessions/${enc(sessionId)}/fork`, turnId ? { turnId } : {})).session;
   }
 
   async sideChat(sessionId: string): Promise<SessionSummary> {

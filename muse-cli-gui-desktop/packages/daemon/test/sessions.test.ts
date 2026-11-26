@@ -47,6 +47,12 @@ describe("SessionManager", () => {
     const forked = await manager.forkSession("s1");
     assert.equal(forked.sessionId, "s2");
     assert.deepEqual(lastCall(conn), { method: "session/fork", params: { sessionId: "s1", excludeItems: true } });
+    conn.reply("session/fork", { session: { sessionId: "s9" } });
+    await manager.forkSession("s1", { lastTurnId: "t1" });
+    assert.deepEqual(lastCall(conn), {
+      method: "session/fork",
+      params: { sessionId: "s1", excludeItems: true, cutPoint: { lastTurnId: "t1" } },
+    });
     conn.reply("session/sideChat", { session: { sessionId: "s3", sideFrom: { sessionId: "s1", commandId: "c1", cutCursor: "x" } } });
     const side = await manager.sideChat("s1");
     assert.equal(side.sessionId, "s3");

@@ -1,7 +1,8 @@
-import { ArrowCounterClockwiseIcon, ArrowDownIcon, CaretRightIcon, EyeIcon, NotePencilIcon, SpeakerHighIcon, SpeakerSlashIcon, SquareIcon, TerminalWindowIcon, WarningCircleIcon, XIcon } from "../ui/icons.js";
+import { ArrowCounterClockwiseIcon, ArrowDownIcon, CaretRightIcon, EyeIcon, NotePencilIcon, PencilSimpleIcon, SpeakerHighIcon, SpeakerSlashIcon, SquareIcon, TerminalWindowIcon, WarningCircleIcon, XIcon } from "../ui/icons.js";
+import { useImeGuard } from "../../app/ime.js";
 import { speakText, speechState, stopSpeech, subscribeSpeech } from "../../app/speech.js";
 import { wakeLabels } from "../../model/monitor.js";
-import { memo, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { useStickToBottom } from "use-stick-to-bottom";
 import { useApp, useController, useNow } from "../../app/context.js";
 import { useSampled } from "../../app/sampled.js";
@@ -314,7 +315,14 @@ const TurnBlock = memo(
           </p>
         ) : null}
         {turn.prompt ? (
-          <PromptBubble item={turn.prompt} sentAt={sentTime(turn)} files={props.attachments[turn.turnId ?? ""] ?? []} />
+          <PromptBubble
+            item={turn.prompt}
+            sentAt={sentTime(turn)}
+            files={props.attachments[turn.turnId ?? ""] ?? []}
+            sessionId={props.sessionId}
+            readOnly={props.readOnly}
+            running={turn.running}
+          />
         ) : null}
         <div ref={workRef} className="flex flex-col">
           {rows}
@@ -679,32 +687,120 @@ function TurnFooter(props: { turn: TurnView; speed: TurnSpeed | null; cost: Turn
   );
 }
 
-function PromptBubble(props: { item: MspItem; sentAt: number | null; files?: AttachmentView[] }) {
+function PromptBubble(props: { item: MspItem; sentAt: number | null; files?: AttachmentView[]; sessionId: string; readOnly: boolean; running: boolean }) {
+  const controller = useController();
+  const ime = useImeGuard();
   const text = props.item.displayText ?? props.item.text ?? "";
   const long = text.split("\n").length > 12 || text.length > 900;
   const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   const files = props.files ?? [];
+  const turnId = props.item.turnId ?? null;
+  const startEdit = () => {
+    setDraft(text);
+    setEditing(true);
+  };
+  const sendEdit = async () => {
+    const clean = draft.trim();
+    if (!clean) {
+      return;
+    }
+    if (await controller.send(clean)) {
+      setEditing(false);
+    }
+  };
+  const rollback = () => {
+    if (!turnId) {
+      return;
+    }
+    if (window.confirm("Roll back to this message? The rest continues in a new thread; this one stays as it was.")) {
+      void controller.rollbackTo(props.sessionId, turnId);
+    }
+  };
   return (
     <div className="flex justify-end">
       <div className="group/prompt flex max-w-[85%] flex-col items-end gap-1">
         {files.length > 0 ? <SentAttachments files={files} className="pb-0.5" /> : null}
-        <div
-          className={cn(
-            "relative rounded-2xl rounded-tr-md bg-active px-4 py-2.5 text-md leading-relaxed whitespace-pre-wrap text-fg [overflow-wrap:anywhere]",
-            long && !expanded && "max-h-[16.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]",
-          )}
-        >
-          {text}
-        </div>
-        <div className="flex h-6 items-center gap-1">
-          <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/prompt:opacity-100 focus-within:opacity-100">
-            {long ? (
-              <button type="button" onClick={() => setExpanded((v) => !v)} className="rounded-md px-1.5 py-0.5 text-xs text-subtle hover:bg-hover hover:text-fg">
-                {expanded ? "Show less" : "Show all"}
-              </button>
-            ) : null}
-            <CopyButton text={text} label="Copy prompt" />
+        {editing ? (
+          <div className="flex w-full min-w-[min(420px,60vw)] flex-col gap-1.5">
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onCompositionStart={ime.onCompositionStart}
+              onCompositionEnd={ime.onCompositionEnd}
+              onKeyUp={ime.onKeyUp}
+              onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
+                if (ime.isImeKey(e)) {
+                  return;
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void sendEdit();
+                } else if (e.key === "Escape") {
+                  setEditing(false);
+                }
+              }}
+              rows={Math.min(12, Math.max(3, draft.split("\n").length))}
+              aria-label="Edit message"
+              className="w-full resize-y rounded-2xl rounded-tr-md bg-raised px-4 py-2.5 text-md leading-relaxed whitespace-pre-wrap text-fg shadow-[0_0_0_1.5px_var(--accent)] outline-none [overflow-wrap:anywhere]"
+            />
+            <div className="flex items-center justify-end gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="secondary" disabled={!draft.trim()} onClick={() => void sendEdit()}>
+                Send
+              </Button>
+            </div>
           </div>
+        ) : (
+          <div
+            className={cn(
+              "relative rounded-2xl rounded-tr-md bg-active px-4 py-2.5 text-md leading-relaxed whitespace-pre-wrap text-fg [overflow-wrap:anywhere]",
+              long && !expanded && "max-h-[16.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]",
+            )}
+          >
+            {text}
+          </div>
+        )}
+        <div className="flex h-6 items-center gap-1">
+          {!editing ? (
+            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/prompt:opacity-100 focus-within:opacity-100">
+              {long ? (
+                <button type="button" onClick={() => setExpanded((v) => !v)} className="rounded-md px-1.5 py-0.5 text-xs text-subtle hover:bg-hover hover:text-fg">
+                  {expanded ? "Show less" : "Show all"}
+                </button>
+              ) : null}
+              <CopyButton text={text} label="Copy prompt" />
+              {!props.readOnly ? (
+                <Tip label="Edit and send again">
+                  <button
+                    type="button"
+                    aria-label="Edit and send again"
+                    onClick={startEdit}
+                    className="inline-flex size-6 items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
+                  >
+                    <PencilSimpleIcon size={13} />
+                  </button>
+                </Tip>
+              ) : null}
+              {!props.readOnly && turnId ? (
+                <Tip label={props.running ? "Wait for the turn to finish, then roll back" : "Roll back to this message"}>
+                  <button
+                    type="button"
+                    aria-label="Roll back to this message"
+                    disabled={props.running}
+                    onClick={rollback}
+                    className="inline-flex size-6 items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ArrowCounterClockwiseIcon size={13} />
+                  </button>
+                </Tip>
+              ) : null}
+            </div>
+          ) : null}
           {props.sentAt !== null ? (
             <Tip label={`Sent ${formatFullDate(props.sentAt)}`}>
               <span tabIndex={0} className="px-1 text-xs text-subtle tabular-nums">

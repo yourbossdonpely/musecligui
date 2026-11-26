@@ -74,6 +74,8 @@ export interface ApprovalDecisionInput {
 /** Everything the UI needs from a transport. The web and desktop shells both implement it over REST and SSE. */
 export interface MuseCodeIconClient {
   probeEnvironment(refresh?: boolean): Promise<EnvironmentStatus>;
+  /** Runs Meta's official Muse installer, then returns the re-probed environment. Takes minutes. */
+  installMuse(): Promise<EnvironmentStatus>;
   listProjects(): Promise<ProjectView[]>;
   /** `create` makes the folder first when it does not exist. */
   addProject(cwd: string, options?: { create?: boolean }): Promise<{ cwd: string; warning: string | null }>;
@@ -141,7 +143,7 @@ export interface MuseCodeIconClient {
   /** Runs a `!` command in the workspace from MuseCodeIcon itself, for hosts that cannot run one. */
   runShellProxy(sessionId: string, command: string): Promise<import("./types.js").ShellRun>;
   /** Branches a thread into a new one carrying every completed turn. */
-  forkSession(sessionId: string): Promise<SessionSummary>;
+  forkSession(sessionId: string, turnId?: string): Promise<SessionSummary>;
   /** Opens an empty side chat beside a thread. Nothing in it flows back into the thread. */
   sideChat(sessionId: string): Promise<SessionSummary>;
   /** With a loaded session, Muse's own list for it; otherwise the workspace's list from the CLI. */

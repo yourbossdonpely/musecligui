@@ -1,4 +1,4 @@
-import { ArrowsClockwiseIcon, CaretDownIcon, CheckIcon, FolderPlusIcon } from "../ui/icons.js";
+import { ArrowLineDownIcon, ArrowsClockwiseIcon, CaretDownIcon, CheckIcon, FolderPlusIcon } from "../ui/icons.js";
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useApp, useController, useNow } from "../../app/context.js";
 import { relativeTime, shortenPath } from "../../model/format.js";
@@ -223,6 +223,8 @@ interface Step {
   title: string;
   detail: string;
   command?: string;
+  /** The command runs Meta's installer, so the step offers a one-click Install button too. */
+  installable?: boolean;
 }
 
 /** Where MuseCodeIcon sends people whose muse CLI is missing, not found, or not signed in. */
@@ -277,9 +279,14 @@ export function Onboarding() {
   const controller = useController();
   const env = useApp((s) => s.env);
   const checking = useApp((s) => s.boot === "loading");
+  const [installing, setInstalling] = useState(false);
   if (!env) {
     return null;
   }
+  const runInstall = () => {
+    setInstalling(true);
+    void controller.installMuse().finally(() => setInstalling(false));
+  };
   const windows = env.platform === "win32";
   const install = INSTALL_WINDOWS;
   const steps: Step[] = [];
@@ -292,6 +299,7 @@ export function Onboarding() {
         ? `Found at ${env.musePath}.`
         : "Install Muse from PowerShell. No WSL needed. Already use Muse inside WSL? Set WSL up and MuseCodeIcon uses it there.",
       command: env.museFound ? undefined : install,
+      installable: !env.museFound,
     });
   } else if (windows) {
     steps.push({ ok: true, title: "WSL2 with a Linux distro", detail: `Using ${env.defaultDistro ?? "your default distro"}.` });
@@ -302,6 +310,7 @@ export function Onboarding() {
         ? `Found at ${env.musePath}.`
         : `Install Muse for Windows from PowerShell (no WSL needed), or install it inside ${env.defaultDistro ?? "your WSL distro"}.`,
       command: env.museFound ? undefined : install,
+      installable: !env.museFound,
     });
   } else {
     steps.push({
@@ -311,6 +320,7 @@ export function Onboarding() {
         ? `Found at ${env.musePath}.`
         : "Not found on this computer. Install it in Terminal, then click Check again. Already installed? MuseCodeIcon looks in /opt/homebrew/bin, /usr/local/bin and ~/.local/bin.",
       command: env.museFound ? undefined : INSTALL_POSIX,
+      installable: !env.museFound,
     });
   }
   steps.push({
@@ -349,12 +359,23 @@ export function Onboarding() {
                     <CopyButton text={step.command} label="Copy command" />
                   </div>
                 ) : null}
+                {step.installable && step.command ? (
+                  <div className="mt-2.5">
+                    <Button variant="primary" size="sm" onClick={runInstall} loading={installing}>
+                      <ArrowLineDownIcon size={13} /> Install Muse
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </li>
           ))}
         </ol>
         <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Button variant="primary" onClick={() => controller.retryBoot()} loading={checking}>
+          <Button
+            variant={steps.some((step) => step.installable && step.command) ? "secondary" : "primary"}
+            onClick={() => controller.retryBoot()}
+            loading={checking}
+          >
             <ArrowsClockwiseIcon size={14} /> Check again
           </Button>
           <HelpLink href={MUSE_HELP_URL}>Installed but not found? Read the fix</HelpLink>

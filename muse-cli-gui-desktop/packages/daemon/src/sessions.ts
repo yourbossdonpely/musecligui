@@ -359,9 +359,16 @@ export class SessionManager {
     return this.connection.command("session/userShell", { sessionId, commandText });
   }
 
-  /** Branches a session into a new one that carries every completed turn. */
-  async forkSession(sessionId: string): Promise<StartedSession> {
-    const result = await this.connection.command("session/fork", { sessionId, excludeItems: true });
+  /**
+   * Branches a session into a new one. Without a cut point it carries every completed turn; with
+   * one it carries history through that turn, inclusive — the protocol's rollback primitive.
+   */
+  async forkSession(sessionId: string, cutPoint?: { lastTurnId: string }): Promise<StartedSession> {
+    const params: Record<string, unknown> = { sessionId, excludeItems: true };
+    if (cutPoint) {
+      params["cutPoint"] = { lastTurnId: cutPoint.lastTurnId };
+    }
+    const result = await this.connection.command("session/fork", params);
     return { sessionId: sessionIdOf(result), raw: result };
   }
 

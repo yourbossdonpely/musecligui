@@ -1,10 +1,11 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { extname, join, normalize, posix, resolve, sep, win32 } from "node:path";
 import type { Readable } from "node:stream";
+import { promisify } from "node:util";
 import {
   MuseCodeIconMspHost,
   MuseCodeIconStore,
@@ -35,6 +36,7 @@ import {
   type AttachmentRecord,
   type CommandConnection,
   type ExecFn,
+  type ExecResult,
   type ServeTarget,
   type ReasoningEffort,
   type SessionRecord,
@@ -191,6 +193,8 @@ export interface ServerOptions {
   shellRunner?: ShellRunner;
   /** Spawns `muse login` for the device-code route; a thin wrapper over `node:child_process` spawn by default. */
   loginSpawn?: LoginSpawn;
+  /** Runs Meta's official Muse installer for first-run setup; a long-timeout process runner by default. */
+  installExec?: ExecFn;
 }
 
 interface ManagedHost {
@@ -354,6 +358,45 @@ function lastLines(text: string): string {
 /** Output kept from a `!` command MuseCodeIcon runs itself, and how long it may run. */
 const MAX_SHELL_OUTPUT = 64 * 1024;
 const SHELL_TIMEOUT_MS = 2 * 60_000;
+
+/** How long Meta's installer may download before first-run setup gives up on it. */
+const INSTALL_TIMEOUT_MS = 15 * 60_000;
+
+/** Meta's official installer invocation per platform: the same commands the setup screen shows. */
+export function museInstallCommand(platform: string): { command: string; args: string[] } {
+  if (platform === "win32") {
+    return {
+      command: "powershell.exe",
+      args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://dev.meta.ai/install.ps1 | iex"],
+    };
+  }
+  return { command: "sh", args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"] };
+}
+
+/** Runs Meta's official Muse installer; separate from `exec` because installers outlast its 30 seconds. */
+async function defaultInstallExec(command: string, args: string[]): Promise<ExecResult> {
+  return new Promise((done) => {
+    const child = spawn(command, args, { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+    let output = "";
+    const take = (chunk: Buffer) => {
+      output += chunk.toString();
+      if (output.length > MAX_SHELL_OUTPUT) {
+        output = output.slice(-MAX_SHELL_OUTPUT);
+      }
+    };
+    child.stdout?.on("data", take);
+    child.stderr?.on("data", take);
+    const timer = setTimeout(() => child.kill(), INSTALL_TIMEOUT_MS);
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      done({ stdout: `${output}\n${error.message}`.trim(), exitCode: 1 });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      done({ stdout: output, exitCode: code ?? 1 });
+    });
+  });
+}
 
 /** Runs a program and keeps what it printed, both streams together, as a terminal would show it. */
 function runCapture(
@@ -898,6 +941,7 @@ export class MuseCodeIconServer {
       sshRun: options.sshRun ?? defaultSshRun,
       shellRunner: options.shellRunner ?? ((command, args) => runCapture(command, args, undefined, SHELL_TIMEOUT_MS)),
       loginSpawn: options.loginSpawn ?? defaultLoginSpawn,
+      installExec: options.installExec ?? defaultInstallExec,
     };
     this.opener = options.opener ?? defaultOpener(this.options.platform);
     this.tail = new ViewTail(
@@ -1223,6 +1267,19 @@ export class MuseCodeIconServer {
     }
     if (method === "GET" && path === "/api/env") {
       this.json(res, 200, await this.environment(url.searchParams.get("refresh") === "1"));
+      return true;
+    }
+    if (method === "POST" && path === "/api/env/install") {
+      // No Muse to redistribute: this runs Meta's own installer, the exact commands the setup
+      // screen shows, so first run needs one click instead of a terminal detour.
+      const plan = museInstallCommand(this.options.platform);
+      const result = await this.options.installExec(plan.command, plan.args);
+      const env = await this.environment(true);
+      if (result.exitCode !== 0 || !env.museFound) {
+        const tail = result.stdout.trim().split("\n").slice(-3).join("\n").trim().slice(0, 300);
+        throw new HttpError(502, `Muse did not install cleanly.${tail ? ` Last of the installer: ${tail}` : ""}`);
+      }
+      this.json(res, 200, { ok: true, env });
       return true;
     }
     if (method === "GET" && path === "/api/events") {
@@ -1615,7 +1672,8 @@ export class MuseCodeIconServer {
           return true;
         }
         if (action === "fork") {
-          this.json(res, 200, { session: await this.forkSession(sessionId, manager) });
+          const turnId = str(body["turnId"]);
+          this.json(res, 200, { session: await this.forkSession(sessionId, manager, turnId ?? undefined) });
           return true;
         }
         if (action === "side") {
@@ -2109,6 +2167,7 @@ export class MuseCodeIconServer {
       preference: hint === "native" || hint === "wsl" ? hint : this.options.runtime,
       ...(this.options.distro ? { distro: this.options.distro } : {}),
       ...(this.options.findNativeMuse ? { findNative: this.options.findNativeMuse } : {}),
+      home: this.options.home,
     });
     if (!hint) {
       this.runtimeKnown = probe.runtime;
@@ -2690,19 +2749,19 @@ export class MuseCodeIconServer {
     return body;
   }
 
-  private async forkSession(sessionId: string, manager: SessionManager): Promise<Record<string, unknown>> {
+  private async forkSession(sessionId: string, manager: SessionManager, turnId?: string): Promise<Record<string, unknown>> {
     const found = this.store.findSession(sessionId);
     if (!found) {
       throw new HttpError(404, "Unknown session.");
     }
-    const forked = await manager.forkSession(sessionId);
+    const forked = await manager.forkSession(sessionId, turnId ? { lastTurnId: turnId } : undefined);
     const raw = asRecord(asRecord(forked.raw)?.["session"]);
     const record = this.store.recordSession({
       id: forked.sessionId,
       projectId: found.session.projectId,
       origin: "musecodeicon",
-      // The fork carries its source's name until the user renames it.
-      title: `${found.session.title} (fork)`,
+      // The fork carries its source's name until the user renames it; a rollback names its point.
+      title: turnId ? `${found.session.title} (rollback)` : `${found.session.title} (fork)`,
       titleSource: "auto",
       modelId: raw ? str(raw["modelId"]) : found.session.modelId,
       turnCount: num(raw?.["turnCount"]),

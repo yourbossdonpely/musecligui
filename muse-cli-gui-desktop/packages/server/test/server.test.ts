@@ -11,6 +11,7 @@ import {
   eventsFromHistory,
   frameAncestorsPolicy,
   mergeSessionSkills,
+  museInstallCommand,
   normalizeIso,
   parseSkillList,
   stripFrontmatter,
@@ -2467,6 +2468,15 @@ describe("slash commands, skills and shell", () => {
     const ids = (await get(base, "/api/sessions")).sessions.map((s: { sessionId: string }) => s.sessionId).sort();
     assert.deepEqual(ids, ["s1", "s2"]);
 
+    connection.replies.set("session/fork", { session: { sessionId: "s5" } });
+    const rollback = await send(base, "/api/sessions/s1/fork", { turnId: "t1" });
+    assert.equal(rollback.status, 200);
+    assert.equal(rollback.json.session.title, "New thread (rollback)");
+    assert.deepEqual(connection.calls.at(-1), {
+      method: "session/fork",
+      params: { sessionId: "s1", excludeItems: true, cutPoint: { lastTurnId: "t1" } },
+    });
+
     connection.replies.set("session/sideChat", { session: { sessionId: "s3", sideFrom: { sessionId: "s1", commandId: "c1", cutCursor: "x" } } });
     const side = await send(base, "/api/sessions/s1/side", {});
     assert.equal(side.status, 200);
@@ -2968,5 +2978,53 @@ describe("skill folders", () => {
     assert.equal(view.agentsCount, 1);
     const catalog = await get(base, "/api/slash?cwd=/work/proj");
     assert.deepEqual(catalog.skills.map((s: { id: string }) => s.id), ["folder:gamma"]);
+  });
+});
+
+describe("guided Muse install", () => {
+  it("runs Meta's official installer per platform", () => {
+    assert.deepEqual(museInstallCommand("win32"), {
+      command: "powershell.exe",
+      args: ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "irm https://dev.meta.ai/install.ps1 | iex"],
+    });
+    assert.deepEqual(museInstallCommand("darwin"), {
+      command: "sh",
+      args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
+    });
+  });
+
+  it("installs, then returns the re-probed environment", async () => {
+    const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    // A home where the probe finds Muse in the installers' own spot: the install worked.
+    const home = await mkdtemp(join(tmpdir(), "musecodeicon-musehome-"));
+    await mkdir(join(home, ".local", "bin"), { recursive: true });
+    await writeFile(join(home, ".local", "bin", "muse"), "#!/bin/sh\n");
+    const runs: { command: string; args: string[] }[] = [];
+    const { base } = await start(new FakeConnection(), {
+      platform: "linux",
+      home,
+      installExec: (async (command: string, args: string[]) => {
+        runs.push({ command, args });
+        return { stdout: "installed", exitCode: 0 };
+      }) as never,
+    });
+    const res = await send(base, "/api/env/install", {});
+    assert.equal(res.status, 200);
+    assert.deepEqual(runs, [{ command: "sh", args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"] }]);
+    assert.equal(res.json.env.museFound, true);
+    assert.equal(res.json.env.musePath, `${home}/.local/bin/muse`);
+  });
+
+  it("reports a failed install with the installer's own tail", async () => {
+    const { base } = await start(new FakeConnection(), {
+      platform: "linux",
+      installExec: (async () => ({ stdout: "fetching\nfailed: no network", exitCode: 1 })) as never,
+    });
+    const res = await send(base, "/api/env/install", {});
+    assert.equal(res.status, 502);
+    assert.match(res.json.error, /did not install cleanly/);
+    assert.match(res.json.error, /no network/);
   });
 });

@@ -59,6 +59,17 @@ class FakeClient implements MuseCodeIconClient {
   async probeEnvironment() {
     return { platform: "linux", wslAvailable: false, defaultDistro: null, museFound: true, musePath: "/usr/bin/muse", version: "0.2.0", persistent: true };
   }
+  installCalls = 0;
+  installError: Error | null = null;
+  async installMuse() {
+    this.installCalls += 1;
+    if (this.installError) {
+      const error = this.installError;
+      this.installError = null;
+      throw error;
+    }
+    return { platform: "linux", wslAvailable: false, defaultDistro: null, museFound: true, musePath: "/usr/bin/muse", version: "0.2.0", persistent: true };
+  }
   projects: import("../src/types.js").ProjectView[] = [
     { cwd: "/work/app", displayName: "app", pinned: false, activityAt: SESSION.activityAt, defaultAccountId: null },
   ];
@@ -241,9 +252,15 @@ class FakeClient implements MuseCodeIconClient {
   async runShell(sessionId: string, command: string) {
     this.actions.push(`shell:${sessionId}:${command}`);
   }
-  async forkSession() {
-    this.actions.push("fork");
-    return { ...SESSION, sessionId: "s2", title: "Probe (fork)" };
+  forkError: Error | null = null;
+  async forkSession(sessionId?: string, turnId?: string) {
+    if (this.forkError) {
+      const error = this.forkError;
+      this.forkError = null;
+      throw error;
+    }
+    this.actions.push(turnId ? `fork:${sessionId}:${turnId}` : "fork");
+    return { ...SESSION, sessionId: "s2", title: turnId ? "Probe (rollback)" : "Probe (fork)" };
   }
   async sideChat(sessionId: string) {
     this.actions.push(`side:${sessionId}`);
@@ -2264,6 +2281,19 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("installs Muse, then takes the re-probed environment", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.installMuse(), true);
+    assert.equal(client.installCalls, 1);
+    assert.equal(controller.store.get().env?.museFound, true);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Muse installed");
+    client.installError = new Error("no network");
+    assert.equal(await controller.installMuse(), false);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not install Muse");
+    stop();
+  });
+
   it("keeps and drops skill folders", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);
@@ -2301,6 +2331,30 @@ describe("MuseCodeIconController", () => {
     controller.setTaskMode("s1", "debug");
     assert.equal(controller.taskMode("s1"), "debug");
     assert.equal(controller.store.get().prefs.defaultTaskMode, "research", "the default is untouched");
+    stop();
+  });
+
+  it("rolls back to a message by forking through its turn", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    // Opening the branch loads its transcript, which carries the branch's own summary.
+    client.transcript = async () => load({ session: { ...SESSION, sessionId: "s2", title: "Probe (rollback)" } });
+    assert.equal(await controller.rollbackTo("s1", "t1"), true);
+    assert.ok(client.actions.includes("fork:s1:t1"));
+    const state = controller.store.get();
+    assert.deepEqual(state.route, { kind: "thread", sessionId: "s2" });
+    assert.equal(state.sessions["s2"]?.title, "Probe (rollback)");
+    assert.ok(state.sessions["s1"], "the original thread stays");
+    assert.equal(state.toasts.at(-1)?.title, "Rolled back to that message");
+    stop();
+  });
+
+  it("explains when a turn cannot be cut at", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.forkError = new MuseCodeIconError("bad boundary", 409, "forkBoundaryInvalid");
+    assert.equal(await controller.rollbackTo("s1", "t9"), false);
+    assert.match(controller.store.get().toasts.at(-1)?.detail ?? "", /still running/);
     stop();
   });
 

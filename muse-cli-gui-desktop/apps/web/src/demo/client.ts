@@ -459,6 +459,10 @@ export class DemoClient implements MuseCodeIconClient {
     return { platform: "darwin", wslAvailable: false, defaultDistro: null, museFound: true, musePath: "/usr/local/bin/muse", version: "1.1.1", persistent: true };
   }
 
+  async installMuse(): Promise<EnvironmentStatus> {
+    throw new Error("Installing Muse is disabled in this demo.");
+  }
+
   async listProjects(): Promise<ProjectView[]> {
     const latest = (cwd: string) =>
       [...this.sessions.values()].filter((s) => s.summary.cwd === cwd).map((s) => s.summary.activityAt).sort().pop() ?? new Date(this.now).toISOString();

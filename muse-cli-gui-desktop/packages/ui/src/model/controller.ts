@@ -499,6 +499,22 @@ export class MuseCodeIconController {
     }
   }
 
+  /**
+   * Runs Meta's official Muse installer for first-run setup, then re-probes. True when Muse
+   * is there afterwards; the setup screen clears itself on the fresh environment.
+   */
+  async installMuse(): Promise<boolean> {
+    try {
+      const env = await this.client.installMuse();
+      this.update((s) => ({ ...s, env }));
+      this.toast("success", "Muse installed", "Next: sign in, then check again.");
+      return true;
+    } catch (error) {
+      this.toast("error", "Could not install Muse", errorMessage(error));
+      return false;
+    }
+  }
+
   /** Clears the "Muse could not start" card once the person has fixed it, so the next prompt is a fresh try. */
   dismissHostError(): void {
     this.update((s) => ({ ...s, hostError: null }));
@@ -3027,6 +3043,36 @@ export class MuseCodeIconController {
         "error",
         "Could not fork the thread",
         errorKind(error) === "forkBoundaryInvalid" ? "Muse could not find a point in this thread to fork it at." : errorMessage(error),
+      );
+      return false;
+    } finally {
+      this.setBusy(key, false);
+    }
+  }
+
+  /**
+   * Rolls a thread back to one of its turns: forks the session with history through that turn and
+   * opens the branch. The original thread keeps everything. Only finished turns roll back.
+   */
+  async rollbackTo(sessionId: string, turnId: string): Promise<boolean> {
+    const key = `rollback:${sessionId}`;
+    if (this.state.busy[key]) {
+      return false;
+    }
+    this.setBusy(key, true);
+    try {
+      const session = await this.client.forkSession(sessionId, turnId);
+      this.upsertSession(session);
+      this.navigate({ kind: "thread", sessionId: session.sessionId });
+      this.toast("success", "Rolled back to that message", "The rest continues in a new thread; the original stays as it was.");
+      return true;
+    } catch (error) {
+      this.toast(
+        "error",
+        "Could not roll back",
+        errorKind(error) === "forkBoundaryInvalid"
+          ? "That turn is still running or cannot be cut at. Wait for it to finish, then try again."
+          : errorMessage(error),
       );
       return false;
     } finally {
