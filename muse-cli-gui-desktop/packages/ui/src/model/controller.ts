@@ -2672,6 +2672,37 @@ export class MuseCodeIconController {
     }
   }
 
+  /** The user's MCP servers, for the settings that manage them. */
+  async loadMcpServers(): Promise<void> {
+    try {
+      const servers = await this.client.listMcpServers();
+      this.update((s) => ({ ...s, mcpServers: servers }));
+    } catch (error) {
+      this.toast("error", "Could not load MCP servers", errorMessage(error));
+    }
+  }
+
+  /** Adds an MCP server to user settings; new sessions pick it up. */
+  async addMcpServer(input: { name: string; url?: string; command?: string; args?: string[] }): Promise<void> {
+    try {
+      const servers = await this.client.addMcpServer(input);
+      this.update((s) => ({ ...s, mcpServers: servers }));
+      this.toast("success", "MCP server added", `${input.name} loads in new sessions.`);
+    } catch (error) {
+      this.toast("error", "Could not add the MCP server", errorMessage(error));
+    }
+  }
+
+  /** Removes an MCP server from user settings; new sessions stop loading it. */
+  async removeMcpServer(name: string): Promise<void> {
+    try {
+      const servers = await this.client.removeMcpServer(name);
+      this.update((s) => ({ ...s, mcpServers: servers }));
+    } catch (error) {
+      this.toast("error", "Could not remove the MCP server", errorMessage(error));
+    }
+  }
+
   /** Saves the current draft as a named prompt starter, replacing one with the same name. */
   saveTemplate(name: string, text: string): void {
     const clean = name.trim();

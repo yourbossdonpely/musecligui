@@ -297,6 +297,27 @@ class FakeClient implements MuseCodeIconClient {
     this.skillFoldersView = { ...this.skillFoldersView, folders: this.skillFoldersView.folders.filter((f) => f !== path) };
     return this.skillFoldersView;
   }
+  mcpServers: import("../src/types.js").McpServerView[] = [];
+  mcpError: Error | null = null;
+  async listMcpServers() {
+    if (this.mcpError) {
+      const error = this.mcpError;
+      this.mcpError = null;
+      throw error;
+    }
+    return [...this.mcpServers];
+  }
+  async addMcpServer(input: { name: string; url?: string; command?: string; args?: string[] }) {
+    this.mcpServers = [
+      ...this.mcpServers,
+      { name: input.name, type: input.url ? "streamable-http" : "stdio", enabled: true, source: "user", url: input.url ?? null, command: input.command ?? null, args: input.args ?? [] },
+    ];
+    return [...this.mcpServers];
+  }
+  async removeMcpServer(name: string) {
+    this.mcpServers = this.mcpServers.filter((s) => s.name !== name);
+    return [...this.mcpServers];
+  }
   async openFolder() {}
   skillSessions: (string | undefined)[] = [];
   efforts: string[] = [];
@@ -2311,6 +2332,28 @@ describe("MuseCodeIconController", () => {
     progress?.action?.run();
     assert.equal(await pending, false);
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Stopped installing Muse");
+    stop();
+  });
+
+  it("manages MCP servers", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    await controller.loadMcpServers();
+    assert.deepEqual(controller.store.get().mcpServers, []);
+    await controller.addMcpServer({ name: "github", url: "https://mcp.github.com/mcp" });
+    await controller.addMcpServer({ name: "sqlite", command: "uvx", args: ["mcp-server-sqlite"] });
+    assert.deepEqual(
+      controller.store.get().mcpServers?.map((s) => s.name),
+      ["github", "sqlite"],
+    );
+    await controller.removeMcpServer("github");
+    assert.deepEqual(
+      controller.store.get().mcpServers?.map((s) => s.name),
+      ["sqlite"],
+    );
+    client.mcpError = new Error("daemon away");
+    await controller.loadMcpServers();
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not load MCP servers");
     stop();
   });
 

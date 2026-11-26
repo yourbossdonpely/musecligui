@@ -408,6 +408,17 @@ export interface SkillFoldersView {
   agentsCount: number;
 }
 
+/** One MCP server from the user's own settings, as `muse mcp list` reports it. */
+export interface McpServerView {
+  name: string;
+  type: string;
+  enabled: boolean;
+  source: string;
+  url: string | null;
+  command: string | null;
+  args: string[];
+}
+
 /** The subfolders of one folder, for the add-project picker. */
 export interface DirectoryListing {
   /** The folder listed, as an absolute path in the user's style (`~` expanded). */

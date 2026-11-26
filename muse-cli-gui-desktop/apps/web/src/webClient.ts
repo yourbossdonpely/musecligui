@@ -21,6 +21,7 @@ import {
   type GoalAction,
   type MuseCodeIconClient,
   type MuseCodeIconEvent,
+  type McpServerView,
   type ModelOption,
   type OmpImportResult,
   type OutputRange,
@@ -494,6 +495,18 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   removeSkillFolder(path: string): Promise<SkillFoldersView> {
     return call("DELETE", `/api/skills/folders?path=${encodeURIComponent(path)}`);
+  }
+
+  async listMcpServers(): Promise<McpServerView[]> {
+    return (await call<{ servers: McpServerView[] }>("GET", "/api/mcp")).servers;
+  }
+
+  async addMcpServer(input: { name: string; url?: string; command?: string; args?: string[] }): Promise<McpServerView[]> {
+    return (await call<{ servers: McpServerView[] }>("POST", "/api/mcp", input)).servers;
+  }
+
+  async removeMcpServer(name: string): Promise<McpServerView[]> {
+    return (await call<{ servers: McpServerView[] }>("DELETE", `/api/mcp?name=${encodeURIComponent(name)}`)).servers;
   }
 
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {

@@ -279,6 +279,8 @@ export interface AppState {
   skills: Record<string, SkillsState>;
   /** Kept skill folders plus the shared agents folder; null until the first load answers. */
   skillFolders: import("../types.js").SkillFoldersView | null;
+  /** The user's MCP servers; null until the first load answers. */
+  mcpServers: import("../types.js").McpServerView[] | null;
   /** A composer picker a slash command opened, like `/model`. */
   picker: ComposerPicker | null;
   /** The subscription window Muse last reported; null until a host has seen one. */
@@ -356,6 +358,7 @@ export function initialState(prefs: Prefs): AppState {
     updates: null,
     skills: {},
     skillFolders: null,
+    mcpServers: null,
     picker: null,
   };
 }

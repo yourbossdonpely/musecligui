@@ -7,6 +7,7 @@ import type {
   FileEntry,
   FileListing,
   GoalAction,
+  McpServerView,
   MuseCodeIconEvent,
   IfBusy,
   ModelOption,
@@ -194,6 +195,12 @@ export interface MuseCodeIconClient {
   addSkillFolder(path: string): Promise<SkillFoldersView>;
   /** Stops scanning a skill folder. */
   removeSkillFolder(path: string): Promise<SkillFoldersView>;
+  /** The user's MCP servers. */
+  listMcpServers(): Promise<McpServerView[]>;
+  /** Adds an MCP server to user settings: a URL, or a command with arguments. */
+  addMcpServer(input: { name: string; url?: string; command?: string; args?: string[] }): Promise<McpServerView[]>;
+  /** Removes an MCP server from user settings. */
+  removeMcpServer(name: string): Promise<McpServerView[]>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

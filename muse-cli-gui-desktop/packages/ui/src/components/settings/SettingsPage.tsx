@@ -126,6 +126,119 @@ function VoiceSettings(props: { controller: MuseCodeIconController; voice: { uri
   );
 }
 
+/** The user's MCP servers: what Muse loads everywhere, with add and remove. Project .mcp.json files stay hand-edited. */
+function McpSettings(props: { controller: MuseCodeIconController }) {
+  const servers = useApp((s) => s.mcpServers);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"command" | "url">("command");
+  const [target, setTarget] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { controller } = props;
+  const add = async () => {
+    const clean = name.trim();
+    const value = target.trim();
+    if (!clean || !value || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      if (kind === "url") {
+        await controller.addMcpServer({ name: clean, url: value });
+      } else {
+        const [command, ...args] = value.split(/\s+/).filter(Boolean);
+        if (!command) {
+          return;
+        }
+        await controller.addMcpServer({ name: clean, command, args });
+      }
+      setName("");
+      setTarget("");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Row label="Servers" description="What Muse loads in new sessions. OAuth sign-in stays in the terminal: run muse mcp login <name>.">
+        {servers === null ? (
+          <p className="text-xs text-subtle">Loading…</p>
+        ) : servers.length === 0 ? (
+          <p className="text-xs text-subtle">None yet. Add one below.</p>
+        ) : (
+          <ul className="flex w-full flex-col gap-1">
+            {servers.map((server) => (
+              <li key={server.name} className="group flex items-center gap-2 text-xs">
+                <span className="shrink-0 rounded bg-active px-1 py-px font-mono text-[11px] text-muted">
+                  {server.type === "streamable-http" ? "http" : server.type}
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-mono text-[11.5px] text-fg">{server.name}</span>{" "}
+                  <span className="text-subtle">{server.url ?? [server.command, ...server.args].filter(Boolean).join(" ")}</span>
+                </span>
+                {!server.enabled ? <span className="shrink-0 text-2xs text-subtle">off</span> : null}
+                <button
+                  type="button"
+                  aria-label={`Remove ${server.name}`}
+                  title={`Remove ${server.name}`}
+                  onClick={() => void controller.removeMcpServer(server.name)}
+                  className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
+                >
+                  <TrashIcon size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Row>
+      <Row label="Add server" description="A command to run (stdio) or a streamable-HTTP URL. Saved to user settings.">
+        <div className="flex w-full min-w-0 flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name"
+              aria-label="Server name"
+              spellCheck={false}
+              className="h-7 w-28 shrink-0 rounded-md bg-sunken px-2 font-mono text-xs text-fg outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <div className="flex shrink-0 overflow-hidden rounded-md bg-sunken" role="group" aria-label="Server kind">
+              {(["command", "url"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={kind === option}
+                  onClick={() => setKind(option)}
+                  className={`h-7 px-2 text-xs capitalize transition-colors ${kind === option ? "bg-active text-fg" : "text-subtle hover:text-fg"}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  void add();
+                }
+              }}
+              placeholder={kind === "url" ? "https://…" : "npx -y some-mcp-server"}
+              aria-label={kind === "url" ? "Server URL" : "Command and arguments"}
+              spellCheck={false}
+              className="h-7 min-w-0 flex-1 rounded-md bg-sunken px-2 font-mono text-xs text-fg outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <Button size="sm" variant="secondary" disabled={!name.trim() || !target.trim() || busy} onClick={() => void add()}>
+              Add
+            </Button>
+          </div>
+        </div>
+      </Row>
+    </>
+  );
+}
+
 function Row(props: { label: ReactNode; description?: string; descriptionClassName?: string; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-t border-line px-4 py-3 first:border-t-0">
@@ -403,6 +516,7 @@ export function SettingsPage() {
   useEffect(() => {
     void controller.loadAccounts();
     void controller.loadSkillFolders();
+    void controller.loadMcpServers();
   }, [controller]);
 
   return (
@@ -582,6 +696,10 @@ export function SettingsPage() {
 
         <Section title="Read aloud">
           <VoiceSettings controller={controller} voice={prefs.voice} />
+        </Section>
+
+        <Section title="MCP servers">
+          <McpSettings controller={controller} />
         </Section>
 
         <Section title="Skills">

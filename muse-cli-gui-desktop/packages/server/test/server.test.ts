@@ -3028,3 +3028,72 @@ describe("guided Muse install", () => {
     assert.match(res.json.error, /no network/);
   });
 });
+
+describe("MCP servers", () => {
+  const LIST_JSON = JSON.stringify({
+    servers: [
+      { name: "github", type: "streamable-http", enabled: true, source: "user", url: "https://mcp.github.com/mcp", command: null, args: [] },
+      { name: "sqlite", type: "stdio", enabled: true, source: "user", url: null, command: "uvx", args: ["mcp-server-sqlite"] },
+      { nameless: true },
+    ],
+  });
+
+  async function mcpServer(listJson: string = LIST_JSON) {
+    const calls: string[][] = [];
+    const { base } = await start(new FakeConnection(), {
+      platform: "linux",
+      exec: (async (command: string, args: string[]) => {
+        calls.push([command, ...args]);
+        return { stdout: listJson, exitCode: 0 };
+      }) as never,
+    });
+    const flat = () => calls.map((c) => c.join(" "));
+    return { base, flat };
+  }
+
+  it("lists user servers, skipping nameless entries", async () => {
+    const { base, flat } = await mcpServer();
+    const res = await send(base, "/api/mcp", undefined, "GET");
+    assert.equal(res.status, 200);
+    assert.deepEqual(
+      res.json.servers.map((s: { name: string }) => s.name),
+      ["github", "sqlite"],
+    );
+    assert.equal(res.json.servers[0].url, "https://mcp.github.com/mcp");
+    assert.deepEqual(res.json.servers[1].args, ["mcp-server-sqlite"]);
+    assert.ok(flat().some((c) => c.includes("mcp list --user --json")));
+  });
+
+  it("adds URL and command servers to user settings", async () => {
+    const { base, flat } = await mcpServer();
+    const http = await send(base, "/api/mcp", { name: "github", url: "https://mcp.github.com/mcp" });
+    assert.equal(http.status, 200);
+    assert.ok(flat().some((c) => c.includes("mcp add github --url https://mcp.github.com/mcp --user")));
+    const stdio = await send(base, "/api/mcp", { name: "sqlite", command: "uvx", args: ["mcp-server-sqlite"] });
+    assert.equal(stdio.status, 200);
+    assert.ok(flat().some((c) => c.includes("mcp add sqlite --user -- uvx mcp-server-sqlite")));
+  });
+
+  it("refuses bad names, bad URLs, and empty adds", async () => {
+    const { base, flat } = await mcpServer();
+    assert.equal((await send(base, "/api/mcp", { name: "no spaces", url: "https://x" })).status, 400);
+    assert.equal((await send(base, "/api/mcp", { name: "x", url: "not-a-url" })).status, 400);
+    assert.equal((await send(base, "/api/mcp", { name: "x", url: "ftp://x" })).status, 400);
+    assert.equal((await send(base, "/api/mcp", { name: "x" })).status, 400);
+    assert.ok(flat().every((c) => !c.includes("mcp add")), "nothing reaches the CLI");
+  });
+
+  it("removes by name and reports CLI failures", async () => {
+    const { base, flat } = await mcpServer();
+    const gone = await fetch(`${base}/api/mcp?name=github`, { method: "DELETE" });
+    assert.equal(gone.status, 200);
+    assert.ok(flat().some((c) => c.includes("mcp remove github --user")));
+    assert.equal((await fetch(`${base}/api/mcp?name=nope!`, { method: "DELETE" })).status, 400);
+
+    const failing = await start(new FakeConnection(), {
+      platform: "linux",
+      exec: (async () => ({ stdout: "muse: not found", exitCode: 127 })) as never,
+    });
+    assert.equal((await send(failing.base, "/api/mcp", undefined, "GET")).status, 502);
+  });
+});

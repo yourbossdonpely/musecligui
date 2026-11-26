@@ -45,6 +45,7 @@ import {
   type TurnImage,
 } from "@musecodeicon/daemon";
 import { diagnoseFiles } from "./diagnostics.js";
+import { isMcpName, parseMcpList, type McpServerView } from "./mcp.js";
 import { FileError, listFolder, readProjectFile, resolveInRoot, revertProjectFile, searchProjectFiles, serveProjectFile, writeProjectFile } from "./files.js";
 import { scanSkillFolder } from "./skills.js";
 import { PathError, createDirectory, listDirectory, resolveUserPath, type DirectoryListing, type PathContext } from "./paths.js";
@@ -1462,6 +1463,56 @@ export class MuseCodeIconServer {
       this.json(res, 200, { id, body });
       return true;
     }
+    if (method === "GET" && path === "/api/mcp") {
+      this.json(res, 200, { servers: await this.listMcp() });
+      return true;
+    }
+    if (method === "POST" && path === "/api/mcp") {
+      const body = await this.readBody(req);
+      const name = str(body["name"])?.trim() ?? "";
+      if (!isMcpName(name)) {
+        throw new HttpError(400, "Names use letters, numbers, dashes and underscores.");
+      }
+      const args = ["mcp", "add", name];
+      const urlValue = str(body["url"])?.trim() ?? "";
+      const command = str(body["command"])?.trim() ?? "";
+      if (urlValue) {
+        let parsed: URL;
+        try {
+          parsed = new URL(urlValue);
+        } catch {
+          throw new HttpError(400, "That URL does not parse.");
+        }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new HttpError(400, "URLs start with http:// or https://.");
+        }
+        args.push("--url", urlValue, "--user");
+      } else if (command) {
+        const rawArgs = body["args"];
+        const cmdArgs = (Array.isArray(rawArgs) ? rawArgs : []).filter((a): a is string => typeof a === "string");
+        args.push("--user", "--", command, ...cmdArgs);
+      } else {
+        throw new HttpError(400, "Give a URL or a command to run.");
+      }
+      const result = await this.museCli(args);
+      if (result.exitCode !== 0) {
+        throw new HttpError(502, result.stdout.trim().split("\n").pop()?.slice(0, 300) || "Muse refused that server.");
+      }
+      this.json(res, 200, { servers: await this.listMcp() });
+      return true;
+    }
+    if (method === "DELETE" && path === "/api/mcp") {
+      const name = (url.searchParams.get("name") ?? "").trim();
+      if (!isMcpName(name)) {
+        throw new HttpError(400, "That is not a server name.");
+      }
+      const result = await this.museCli(["mcp", "remove", name, "--user"]);
+      if (result.exitCode !== 0) {
+        throw new HttpError(502, result.stdout.trim().split("\n").pop()?.slice(0, 300) || "Muse refused to remove that server.");
+      }
+      this.json(res, 200, { servers: await this.listMcp() });
+      return true;
+    }
     if (method === "GET" && path === "/api/skills/folders") {
       this.json(res, 200, await this.skillFoldersView());
       return true;
@@ -2595,6 +2646,28 @@ export class MuseCodeIconServer {
       // An older host without skill/list, or a session that just unloaded: the CLI listing still answers.
       return cli;
     }
+  }
+
+  /** One `muse` CLI call on the daemon's runtime, without a workspace: user-level reads and writes. */
+  private async museCli(args: string[]): Promise<{ stdout: string; exitCode: number }> {
+    const plan = planMuseCli({
+      platform: this.options.platform,
+      distro: await this.wslDistro(),
+      musePath: await this.cliMusePath(),
+      args,
+      runtime: await this.museRuntime(),
+    });
+    return this.options.exec(plan.command, plan.args);
+  }
+
+  /** The user's MCP servers, as `muse mcp list` reports them. Project files stay hand-edited: merging them needs the caller's folder, which this layer never sees. */
+  private async listMcp(): Promise<McpServerView[]> {
+    const result = await this.museCli(["mcp", "list", "--user", "--json"]);
+    const parsed = parseMcpList(result.stdout);
+    if (!parsed) {
+      throw new HttpError(502, result.exitCode === 0 ? "Muse listed its servers in a form MuseCodeIcon does not understand." : "Could not list MCP servers. Check that muse runs in a terminal.");
+    }
+    return parsed;
   }
 
   /** Every folder scanned for skills: the shared agents folder first, then the user's own. */
