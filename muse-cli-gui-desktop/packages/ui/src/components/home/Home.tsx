@@ -10,6 +10,7 @@ import { Composer, ComposerFooter } from "../composer/Composer.js";
 import { CopyButton } from "../ui/Markdown.js";
 import { Menu, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger } from "../ui/overlays.js";
 import { Button, Logo, Spinner, cn } from "../ui/primitives.js";
+import { STARTER_PROMPTS } from "../../model/suggestions.js";
 import { FolderArt } from "./FolderArt.js";
 
 const DISPLAY = "font-display text-[2.125rem] leading-[1.15] font-normal tracking-[-0.015em] text-fg text-balance";
@@ -55,6 +56,21 @@ export function NewThread(props: { cwd: string | null }) {
           <HostErrorCard className="mt-4" />
           <SignInCard className="mt-4" />
           {nearCap ? <p className="mt-2 text-xs text-muted">{nearCap}</p> : null}
+          {recent.length === 0 ? (
+            <div className="mt-8 flex flex-wrap justify-center gap-2" aria-label="Starter prompts">
+              {STARTER_PROMPTS.map((starter) => (
+                <Button
+                  key={starter}
+                  size="sm"
+                  variant="secondary"
+                  title="Fill the composer with this prompt"
+                  onClick={() => controller.prefillComposer(`new:${project.cwd}`, starter)}
+                >
+                  {starter}
+                </Button>
+              ))}
+            </div>
+          ) : null}
           {recent.length > 0 ? (
             <section className="mt-12" aria-label={`Recent threads in ${project.displayName}`}>
               <h2 className="px-2 text-xs font-medium text-subtle">Recent in {project.displayName}</h2>

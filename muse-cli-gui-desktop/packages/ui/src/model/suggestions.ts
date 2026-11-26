@@ -34,6 +34,13 @@ export function stripSuggestions(text: string): string {
 
 const FALLBACKS = ["Review the diff of these changes", "Run the tests to verify this", "Explain what changed and why"];
 
+/** First prompts for an empty thread: one tap fills the composer, never sends. */
+export const STARTER_PROMPTS = [
+  "Explain what this project does",
+  "Review my recent changes",
+  "Find bugs and dead code",
+];
+
 /** Generic chips when a reply carries none; a task mode tunes them to what the thread is doing. */
 export function fallbackSuggestions(mode?: TaskMode): string[] {
   if (mode === "plan" || mode === "research" || mode === "debug") {

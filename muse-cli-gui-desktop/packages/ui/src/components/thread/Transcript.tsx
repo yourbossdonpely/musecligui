@@ -19,7 +19,7 @@ import {
   toolKind,
 } from "../../model/format.js";
 import { streamingSpeed, turnCosts, turnSpeeds, type TurnCost, type TurnSpeed } from "../../model/usage.js";
-import { fallbackSuggestions, parseSuggestions, stripSuggestions } from "../../model/suggestions.js";
+import { STARTER_PROMPTS, fallbackSuggestions, parseSuggestions, stripSuggestions } from "../../model/suggestions.js";
 import { formatCost } from "../../model/pricing.js";
 import { signedOut, stuckThread } from "../../model/errors.js";
 import { HelpLink, MUSE_HELP_URL } from "../home/Home.js";
@@ -197,7 +197,7 @@ export function Transcript(props: { sessionId: string; thread: ThreadState }) {
               <PendingPrompt key={echo.localId} echo={echo} />
             ))}
             {thread.load === "error" ? <LoadError sessionId={props.sessionId} message={thread.error} /> : null}
-            {empty && thread.load === "ready" ? <EmptyThread /> : null}
+            {empty && thread.load === "ready" ? <EmptyThread sessionId={props.sessionId} /> : null}
           </section>
         </div>
         {!isAtBottom && !empty ? (
@@ -1077,13 +1077,27 @@ function LoadError(props: { sessionId: string; message: string | null }) {
   );
 }
 
-function EmptyThread() {
+function EmptyThread(props: { sessionId: string }) {
+  const controller = useController();
   return (
     <div className="flex flex-col items-center pt-[14vh] text-center">
       <p className="font-display text-2xl text-fg">A clean slate</p>
       <p className="mt-2 max-w-[44ch] text-sm text-muted">
         Describe the change you want. Muse reads the project, runs what it needs, and asks before anything risky.
       </p>
+      <div className="mt-5 flex max-w-[560px] flex-wrap justify-center gap-2">
+        {STARTER_PROMPTS.map((starter) => (
+          <Button
+            key={starter}
+            size="sm"
+            variant="secondary"
+            title="Fill the composer with this prompt"
+            onClick={() => controller.prefillComposer(props.sessionId, starter)}
+          >
+            {starter}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
