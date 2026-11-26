@@ -13,6 +13,7 @@ import {
   requirementIndex,
   updateEcho,
   lastPrompt,
+  promptHistory,
 } from "../src/model/fold.js";
 import type { ViewEvent } from "../src/types.js";
 import { historyEvents, liveEvents } from "./fixtures/probe.js";
@@ -613,5 +614,20 @@ describe("lastPrompt", () => {
 
   it("returns null for a thread with no prompts", () => {
     assert.equal(lastPrompt(emptyFold()), null);
+  });
+});
+
+describe("promptHistory", () => {
+  it("lists every prompt newest first, sending echoes ahead of landed turns", () => {
+    const base = liveEvents.reduce(applyEvent, emptyFold());
+    const turns = buildTurns(base);
+    const prompts = [...turns].reverse().map((t) => t.prompt?.displayText ?? t.prompt?.text ?? "").filter(Boolean);
+    assert.ok(prompts.length >= 2, "the fixture needs turns to order");
+    const fold = addEcho(base, { localId: "e1", text: "Now add tests", turnId: null, disposition: "sending", createdAt: 1 });
+    assert.deepEqual(promptHistory(fold), ["Now add tests", ...prompts]);
+  });
+
+  it("is empty for a thread with no prompts", () => {
+    assert.deepEqual(promptHistory(emptyFold()), []);
   });
 });

@@ -1007,15 +1007,16 @@ export function buildTurns(fold: ThreadFold, inherited: ReadonlySet<string> = ne
   return views.filter((view) => !isMirroredPrefix(view.info));
 }
 
-/** The thread's most recent prompt as the user wrote it, for Up in an empty composer. A prompt still sending counts. */
-export function lastPrompt(fold: ThreadFold): string | null {
+/** Every prompt the user wrote, newest first, for Up/Down history in the composer. A prompt still sending counts. */
+export function promptHistory(fold: ThreadFold): string[] {
+  const said = (item: MspItem | null | undefined) => item?.displayText ?? item?.text ?? "";
+  const out: string[] = [];
   for (let i = fold.echoes.length - 1; i >= 0; i -= 1) {
     const text = fold.echoes[i]!.text;
     if (text.trim()) {
-      return text;
+      out.push(text);
     }
   }
-  const said = (item: MspItem | null | undefined) => item?.displayText ?? item?.text ?? "";
   const turns = buildTurns(fold);
   for (let i = turns.length - 1; i >= 0; i -= 1) {
     const turn = turns[i]!;
@@ -1023,14 +1024,19 @@ export function lastPrompt(fold: ThreadFold): string | null {
     for (let j = turn.entries.length - 1; j >= 0; j -= 1) {
       const entry = turn.entries[j]!;
       if (entry.kind === "userMessage" && said(entry).trim()) {
-        return said(entry);
+        out.push(said(entry));
       }
     }
     if (said(turn.prompt).trim()) {
-      return said(turn.prompt);
+      out.push(said(turn.prompt));
     }
   }
-  return null;
+  return out;
+}
+
+/** The thread's most recent prompt as the user wrote it, for Up in an empty composer. A prompt still sending counts. */
+export function lastPrompt(fold: ThreadFold): string | null {
+  return promptHistory(fold)[0] ?? null;
 }
 
 /**

@@ -22,7 +22,7 @@ import { useImeGuard } from "../../app/ime.js";
 import { stopSpeech } from "../../app/speech.js";
 import { useSampled } from "../../app/sampled.js";
 import { basename, formatDuration, formatSpeed, formatTokens, modelDisplayName } from "../../model/format.js";
-import { lastPrompt } from "../../model/fold.js";
+import { promptHistory } from "../../model/fold.js";
 import { TASK_MODES, type TaskMode } from "../../model/modes.js";
 import { isSshPath } from "../../model/paths.js";
 import { matchSlash, parseSlash, resolveSlash, slashCommands, type SlashCommand } from "../../model/slash.js";
@@ -183,6 +183,13 @@ export function Composer(props: ComposerProps) {
   const controller = useController();
   const draftKey = props.sessionId ?? `new:${props.cwd ?? ""}`;
   const [text, setText] = useDraft(draftKey);
+  // Terminal-style prompt recall: the index into history, and the draft it replaced.
+  const [histIndex, setHistIndex] = useState<number | null>(null);
+  const stash = useRef("");
+  useEffect(() => {
+    setHistIndex(null);
+    stash.current = "";
+  }, [draftKey]);
   // A prompt that failed to send from another composer (the new-thread screen) comes back here.
   const handoff = useApp((s) => (s.draftHandoff?.key === draftKey ? s.draftHandoff : null));
   useEffect(() => {
@@ -368,6 +375,7 @@ export function Composer(props: ComposerProps) {
       return;
     }
     setText("");
+    setHistIndex(null);
     setFiles([]);
     // A new prompt takes the floor: anything being read aloud stops.
     stopSpeech();
@@ -412,6 +420,7 @@ export function Composer(props: ComposerProps) {
       return;
     }
     setText("");
+    setHistIndex(null);
     stopSpeech();
     const sent = await controller.send(value, { raw });
     if (!sent) {
@@ -513,15 +522,40 @@ export function Composer(props: ComposerProps) {
         return;
       }
       void submit(resolveSteer(props.running, event.metaKey || event.ctrlKey, steerByDefault));
-    } else if (event.key === "ArrowUp" && !hasText && props.sessionId && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey) {
-      // Like the muse CLI: Up in an empty composer brings back the last prompt to edit and send again.
+    } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && props.sessionId && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey) {
+      // Terminal-style history: Up walks back through sent prompts, Down walks forward to the
+      // draft. Multi-line drafts keep native caret movement unless the caret is on the edge line.
+      const box = event.currentTarget;
+      const caret = box.selectionStart ?? 0;
+      const atFirst = !box.value.slice(0, caret).includes("\n");
+      const atLast = !box.value.slice(caret).includes("\n");
+      const edge = event.key === "ArrowUp" ? atFirst : atLast;
       const fold = controller.store.get().threads[props.sessionId]?.fold;
-      const previous = fold ? lastPrompt(fold) : null;
-      if (previous) {
+      const history = fold ? promptHistory(fold) : [];
+      if (edge && history.length > 0 && (histIndex !== null || !hasText)) {
         event.preventDefault();
-        setText(previous);
-        setCaret(previous.length);
-        requestAnimationFrame(() => ref.current?.setSelectionRange(previous.length, previous.length));
+        if (histIndex === null) {
+          stash.current = text;
+        }
+        const next = event.key === "ArrowUp" ? (histIndex === null ? 0 : Math.min(histIndex + 1, history.length - 1)) : histIndex === null ? -1 : histIndex - 1;
+        if (next < 0) {
+          setHistIndex(null);
+          setText(stash.current);
+          setCaret(stash.current.length);
+          requestAnimationFrame(() => ref.current?.setSelectionRange(stash.current.length, stash.current.length));
+        } else {
+          setHistIndex(next);
+          setText(history[next]!);
+          setCaret(history[next]!.length);
+          requestAnimationFrame(() => {
+            const length = ref.current?.value.length ?? 0;
+            ref.current?.setSelectionRange(length, length);
+          });
+        }
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        setHistIndex(null);
       }
     } else if (event.key === "Escape" && props.running && !hasText && props.sessionId) {
       event.preventDefault();
@@ -634,6 +668,8 @@ export function Composer(props: ComposerProps) {
         onChange={(event) => {
           setText(event.currentTarget.value);
           setCaret(event.currentTarget.selectionStart);
+          // Editing a recalled prompt forks it: the next Up starts over from the newest.
+          setHistIndex(null);
           if (!event.currentTarget.value.startsWith("/")) {
             setDismissed(null);
           }
