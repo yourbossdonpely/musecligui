@@ -348,6 +348,16 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Density**: `density` pref (comfortable/compact) tightens transcript gaps and sidebar rows; Settings Appearance toggle + palette action. Theme system needed nothing (dark/light/system already measured).
 - **Progress**: `tracked()` runs install/share/diagnose/compact with a spinner toast past 300ms and Cancel wired to an AbortSignal through `webClient.call`; cancel reports "stopped waiting" honestly since the server may finish anyway. Same-key double runs refuse.
 
+### v3.0.0 — prompt history, MCP, review, terminal, schedules, auto-attach
+
+- **Prompt history** (`components/composer/Composer.tsx`, `model/fold.ts`): Up/Down in an empty composer recalls sent prompts, terminal-style.
+- **MCP servers** (`packages/server/src/mcp.ts`, `McpSettings` in Settings): user scope only — project merging needs process CWD control the server does not have. Add a stdio command or streamable-HTTP URL, remove with one click; new sessions pick them up. OAuth stays in the terminal (`muse mcp login <name>`).
+- **Review pass** (`controller.reviewChanges`, `components/thread/ChangedFiles.tsx`): one click sends the thread's edited files for review, most important findings first; empty threads toast "Nothing to review" instead of sending.
+- **Terminal card** (`components/thread/TerminalCard.tsx` in the thread dock, `controller.runCommand`): shell commands run through the existing shell proxy (`runShellProxy`) with output kept on the thread; the composer's `!` prefix keeps working the same way.
+- **Schedules** (daemon `schedules` table, `GET/POST/PATCH/DELETE /api/schedules`, sweep in `server.ts`, `ScheduleSettings`): local-HH:MM daily clock per thread with per-day picks; fires while the app runs, catches up once for missed days, queues behind busy turns, is deleted with its thread, and is disabled instead of fired when its thread vanished another way.
+- **Auto-attached context** (`extractBarePaths` in `model/mentions.ts`, Composer send path): bare `dir/file.ext` tokens share the 3-file, 20k-char cap with `@` mentions and get `File <rel>:` headers (no `@`). URLs, traversal, extensionless and single-word tokens are rejected; unreadable paths stay literal.
+- Suites at release: ui 439/439, daemon 61/61, web 69/69, server 232 pass with the same 10 pre-existing Windows file-viewer symlink failures. Shipped as v3.0.0 because v2.0.0 already names an old-bridge release.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

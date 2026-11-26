@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "3.0.0",
+    "body": "### Added\n\n- **Prompt history.** Up/Down in an empty composer recalls prompts you sent, terminal-style.\n- **MCP servers.** Settings manages user-scope servers: add a command or URL, remove with one click, and new threads pick them up.\n- **One-click review.** The files-changed card sends the thread's diff for a review pass, most important findings first.\n- **Terminal card.** Run shell commands from the thread dock; output stays with the thread.\n- **Scheduled prompts.** Daily-clock prompts that run themselves in their threads while the app is open, with per-day picks and one catch-up run for missed days.\n- **Auto-attached context.** Bare `dir/file.ext` paths named in a prompt attach like `@` mentions; unreadable paths stay literal."
+  },
+  {
     "version": "1.2.1",
     "body": "### Fixed\n\n- **Proven Intel support.** Every release now asserts the macOS app and its Node sidecar carry both Intel and Apple Silicon slices, and runs the Intel slice under Rosetta — so a half-universal build fails CI instead of shipping."
   },
