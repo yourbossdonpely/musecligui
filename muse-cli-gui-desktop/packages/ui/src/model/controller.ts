@@ -505,7 +505,12 @@ export class MuseCodeIconController {
    */
   async installMuse(): Promise<boolean> {
     try {
-      const env = await this.client.installMuse();
+      const env = await this.tracked("install", "Installing Muse", "Downloading from Meta — takes a few minutes.", (signal) =>
+        this.client.installMuse({ signal }),
+      );
+      if (!env) {
+        return false;
+      }
       this.update((s) => ({ ...s, env }));
       this.toast("success", "Muse installed", "Next: sign in, then check again.");
       return true;
@@ -2331,8 +2336,10 @@ export class MuseCodeIconController {
       return null;
     }
     try {
-      const share = await this.client.createShare({ title: session.title, project: session.cwd, messages });
-      return share.url;
+      const share = await this.tracked(`share:${sessionId}`, "Sharing thread", "Publishing the replay page.", (signal) =>
+        this.client.createShare({ title: session.title, project: session.cwd, messages }, { signal }),
+      );
+      return share ? share.url : null;
     } catch (error) {
       this.toast("error", "Could not share the thread", errorMessage(error));
       return null;
@@ -2353,7 +2360,9 @@ export class MuseCodeIconController {
       return null;
     }
     try {
-      return await this.client.diagnose(session.cwd, paths);
+      return await this.tracked(`diagnose:${sessionId}`, "Checking syntax", `${paths.length} file${paths.length === 1 ? "" : "s"} against their checkers.`, (signal) =>
+        this.client.diagnose(session.cwd, paths, { signal }),
+      );
     } catch (error) {
       this.toast("error", "Could not check the files", errorMessage(error));
       return null;
@@ -3143,7 +3152,12 @@ export class MuseCodeIconController {
   /** True only when Muse took the compaction on: a refusal or a noop leaves the history exactly as it was. */
   async compact(sessionId: string): Promise<boolean> {
     try {
-      const result = await this.client.compact(sessionId);
+      const result = await this.tracked(`compact:${sessionId}`, "Compacting context", "Asking Muse to summarize earlier turns.", (signal) =>
+        this.client.compact(sessionId, { signal }),
+      );
+      if (!result) {
+        return false;
+      }
       if (result.noop) {
         const reason = result.reason === "no_compactable_history" ? "There is no earlier history to summarize." : result.reason;
         this.toast("info", "Nothing to compact yet", reason ? `${reason.charAt(0).toUpperCase()}${reason.slice(1).replace(/_/g, " ")}` : undefined);
@@ -3580,6 +3594,49 @@ export class MuseCodeIconController {
     const id = this.toastSeq;
     this.update((s) => ({ ...s, toasts: [...s.toasts.slice(-3), { id, tone, title, detail, action }] }));
     this.platform.schedule(() => this.dismissToast(id), TOAST_MS[tone]);
+  }
+
+  /** A progress toast that stays up until dismissed, with a spinner instead of the tone icon. */
+  private toastBusy(title: string, detail: string, action: Toast["action"]): number {
+    this.toastSeq += 1;
+    const id = this.toastSeq;
+    this.update((s) => ({ ...s, toasts: [...s.toasts.slice(-3), { id, tone: "info" as const, title, detail, action, busy: true }] }));
+    return id;
+  }
+
+  private readonly tasks = new Map<string, AbortController>();
+
+  /**
+   * Runs a long operation with a cancellable progress toast. Cancel stops waiting; the server
+   * may still finish the work, so cancelling reports that honestly instead of claiming it undone.
+   * A key already running refuses, so double clicks never stack the same operation.
+   */
+  private async tracked<T>(key: string, title: string, detail: string, work: (signal: AbortSignal) => Promise<T>): Promise<T | null> {
+    if (this.tasks.has(key)) {
+      return null;
+    }
+    const aborter = new AbortController();
+    this.tasks.set(key, aborter);
+    // Fast operations never flash a toast: it only appears past a beat.
+    let id: number | null = null;
+    const handle = this.platform.schedule(() => {
+      id = this.toastBusy(title, detail, { label: "Cancel", run: () => aborter.abort() });
+    }, 300);
+    try {
+      return await work(aborter.signal);
+    } catch (error) {
+      if (aborter.signal.aborted) {
+        this.toast("info", `Stopped ${title.charAt(0).toLowerCase()}${title.slice(1)}`, "It may still be finishing on the server.");
+        return null;
+      }
+      throw error;
+    } finally {
+      this.platform.cancel(handle);
+      this.tasks.delete(key);
+      if (id !== null) {
+        this.dismissToast(id);
+      }
+    }
   }
 
   dismissToast(id: number): void {

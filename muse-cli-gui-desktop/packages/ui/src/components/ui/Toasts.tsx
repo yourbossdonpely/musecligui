@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion, type Transition } from "moti
 import type { ReactNode } from "react";
 import { useApp, useController } from "../../app/context.js";
 import type { Toast } from "../../model/store.js";
-import { cn } from "./primitives.js";
+import { Spinner, cn } from "./primitives.js";
 
 const STACK_SPRING: Transition = { type: "spring", stiffness: 420, damping: 34, mass: 0.75 };
 const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
@@ -56,7 +56,7 @@ export function Toasts(props: { leading?: ReactNode }) {
               className="flex items-start gap-3 rounded-2xl bg-raised p-3 shadow-pop"
             >
               <span className={cn("mt-px inline-flex size-7 shrink-0 items-center justify-center rounded-full", TONE[toast.tone].className)}>
-                {TONE[toast.tone].icon}
+                {toast.busy ? <Spinner size={14} /> : TONE[toast.tone].icon}
               </span>
               <div className="min-w-0 flex-1 pt-0.5">
                 <p className="text-sm leading-5 font-medium text-fg">{toast.title}</p>

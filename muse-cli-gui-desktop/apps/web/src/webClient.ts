@@ -115,10 +115,16 @@ const SHELL_TIMEOUT_MS = 150_000;
 /** Two missed heartbeats. The server sends one every 25s, so silence this long means the stream is gone. */
 const STREAM_IDLE_MS = 70_000;
 
-async function call<T>(method: string, path: string, body?: unknown, timeoutMs = CALL_TIMEOUT_MS): Promise<T> {
+async function call<T>(method: string, path: string, body?: unknown, timeoutMs = CALL_TIMEOUT_MS, signal?: AbortSignal): Promise<T> {
   let response: Response;
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeoutMs);
+  let userCancelled = false;
+  const onExternal = () => {
+    userCancelled = true;
+    abort.abort();
+  };
+  signal?.addEventListener("abort", onExternal, { once: true });
   try {
     response = await fetch(url(path), {
       method,
@@ -133,13 +139,16 @@ async function call<T>(method: string, path: string, body?: unknown, timeoutMs =
     });
   } catch {
     throw new MuseCodeIconError(
-      abort.signal.aborted
-        ? "The local MuseCodeIcon server took too long to answer."
-        : "The local MuseCodeIcon server is not reachable. Is it still running?",
+      userCancelled
+        ? "The request was cancelled."
+        : abort.signal.aborted
+          ? "The local MuseCodeIcon server took too long to answer."
+          : "The local MuseCodeIcon server is not reachable. Is it still running?",
       0,
     );
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", onExternal);
   }
   const text = await response.text();
   let data: unknown = null;
@@ -173,9 +182,9 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call<EnvironmentStatus>("GET", `/api/env${refresh ? "?refresh=1" : ""}`);
   }
 
-  async installMuse(): Promise<EnvironmentStatus> {
+  async installMuse(opts?: { signal?: AbortSignal }): Promise<EnvironmentStatus> {
     // Installers download hundreds of megabytes; outlast the server's own 15 minutes.
-    const { env } = await call<{ ok: boolean; env: EnvironmentStatus }>("POST", "/api/env/install", {}, 16 * 60_000);
+    const { env } = await call<{ ok: boolean; env: EnvironmentStatus }>("POST", "/api/env/install", {}, 16 * 60_000, opts?.signal);
     return env;
   }
 
@@ -381,11 +390,13 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     await call("POST", `/api/sessions/${enc(sessionId)}/approval-mode`, { mode });
   }
 
-  async compact(sessionId: string): Promise<{ noop: boolean; reason: string | null }> {
+  async compact(sessionId: string, opts?: { signal?: AbortSignal }): Promise<{ noop: boolean; reason: string | null }> {
     const { result } = await call<{ result: { status?: unknown; reason?: unknown } | null }>(
       "POST",
       `/api/sessions/${enc(sessionId)}/compact`,
       {},
+      CALL_TIMEOUT_MS,
+      opts?.signal,
     );
     return { noop: result?.status === "noop", reason: typeof result?.reason === "string" ? result.reason : null };
   }
@@ -461,12 +472,12 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call("POST", "/api/files/revert", { cwd, path, steps });
   }
 
-  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }> {
-    return call("POST", "/api/shares", input);
+  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }, opts?: { signal?: AbortSignal }): Promise<{ id: string; url: string }> {
+    return call("POST", "/api/shares", input, CALL_TIMEOUT_MS, opts?.signal);
   }
 
-  diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport> {
-    return call("POST", "/api/diagnostics", { cwd, paths });
+  diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport> {
+    return call("POST", "/api/diagnostics", { cwd, paths }, CALL_TIMEOUT_MS, opts?.signal);
   }
 
   async deleteSession(sessionId: string): Promise<void> {

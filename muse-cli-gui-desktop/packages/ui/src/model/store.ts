@@ -230,6 +230,8 @@ export interface Toast {
   title: string;
   detail?: string;
   action?: { label: string; run: () => void };
+  /** A running operation: spinner instead of the tone icon, and no auto-dismiss. */
+  busy?: boolean;
 }
 
 export interface AppState {

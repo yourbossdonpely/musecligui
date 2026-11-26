@@ -2294,6 +2294,26 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("cancels a tracked operation from its progress toast", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.installMuse = (opts?: { signal?: AbortSignal }) =>
+      new Promise<never>((_, reject) => {
+        opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+      });
+    const pending = controller.installMuse();
+    await settle();
+    await settle();
+    const progress = controller.store.get().toasts.at(-1);
+    assert.equal(progress?.title, "Installing Muse");
+    assert.equal(progress?.busy, true);
+    assert.equal(progress?.action?.label, "Cancel");
+    progress?.action?.run();
+    assert.equal(await pending, false);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Stopped installing Muse");
+    stop();
+  });
+
   it("keeps and drops skill folders", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

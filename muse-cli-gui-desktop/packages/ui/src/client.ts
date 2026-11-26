@@ -75,7 +75,7 @@ export interface ApprovalDecisionInput {
 export interface MuseCodeIconClient {
   probeEnvironment(refresh?: boolean): Promise<EnvironmentStatus>;
   /** Runs Meta's official Muse installer, then returns the re-probed environment. Takes minutes. */
-  installMuse(): Promise<EnvironmentStatus>;
+  installMuse(opts?: { signal?: AbortSignal }): Promise<EnvironmentStatus>;
   listProjects(): Promise<ProjectView[]>;
   /** `create` makes the folder first when it does not exist. */
   addProject(cwd: string, options?: { create?: boolean }): Promise<{ cwd: string; warning: string | null }>;
@@ -137,7 +137,7 @@ export interface MuseCodeIconClient {
   setSessionModel(sessionId: string, modelId: string): Promise<void>;
   setApprovalMode(sessionId: string, mode: ApprovalMode): Promise<void>;
   /** `noop` when Muse had nothing to summarize; `reason` is its snake_case explanation. */
-  compact(sessionId: string): Promise<{ noop: boolean; reason: string | null }>;
+  compact(sessionId: string, opts?: { signal?: AbortSignal }): Promise<{ noop: boolean; reason: string | null }>;
   /** Runs a shell command in the session's workspace; its output arrives as a `userShell` item. */
   runShell(sessionId: string, command: string): Promise<void>;
   /** Runs a `!` command in the workspace from MuseCodeIcon itself, for hosts that cannot run one. */
@@ -183,9 +183,9 @@ export interface MuseCodeIconClient {
   /** Where the browser loads a project file's bytes from, for images, video, audio and PDFs. */
   fileUrl(cwd: string, path: string): string;
   /** Publishes a read-only replay page for a thread; the link dies with the daemon. */
-  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }>;
+  createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }, opts?: { signal?: AbortSignal }): Promise<{ id: string; url: string }>;
   /** Syntax-checks project files and reports what each installed checker found. */
-  diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport>;
+  diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport>;
   /** Deletes a thread and everything kept for it. Refused while a turn is running. */
   deleteSession(sessionId: string): Promise<void>;
   /** Extra folders scanned for skills, kept on the server. */
