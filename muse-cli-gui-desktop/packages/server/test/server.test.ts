@@ -13,6 +13,7 @@ import {
   mergeSessionSkills,
   museInstallCommand,
   normalizeIso,
+  scheduleDueAt,
   parseSkillList,
   stripFrontmatter,
   toWireEvent,
@@ -2885,9 +2886,13 @@ describe("deleting threads", () => {
     const ids = async () => (await get(base, "/api/sessions")).sessions.map((s: { sessionId: string }) => s.sessionId);
     assert.deepEqual(await ids(), ["tui-9"]);
 
+    await send(base, "/api/schedules", { sessionId: "tui-9", prompt: "Check", time: "09:00" });
+    assert.equal((await get(base, "/api/schedules")).schedules.length, 1);
+
     const gone = await send(base, "/api/sessions/tui-9", undefined, "DELETE");
     assert.equal(gone.status, 200);
     assert.deepEqual(await ids(), []);
+    assert.deepEqual((await get(base, "/api/schedules")).schedules, [], "schedules go with the thread");
     assert.equal((await send(base, "/api/sessions/tui-9", undefined, "DELETE")).status, 404);
 
     await send(base, "/api/discover", {});
@@ -3095,5 +3100,85 @@ describe("MCP servers", () => {
       exec: (async () => ({ stdout: "muse: not found", exitCode: 127 })) as never,
     });
     assert.equal((await send(failing.base, "/api/mcp", undefined, "GET")).status, 502);
+  });
+});
+
+describe("scheduled agents", () => {
+  it("computes today's occurrence in local time, or nothing on off days", () => {
+    const noon = new Date();
+    noon.setHours(12, 0, 0, 0);
+    const expected = new Date(noon);
+    expected.setHours(9, 30, 0, 0);
+    assert.equal(scheduleDueAt({ time: "09:30", days: [] }, noon.getTime()), expected.getTime());
+    assert.equal(scheduleDueAt({ time: "09:30", days: [noon.getDay()] }, noon.getTime()), expected.getTime());
+    assert.equal(scheduleDueAt({ time: "09:30", days: [(noon.getDay() + 1) % 7] }, noon.getTime()), null);
+    assert.equal(scheduleDueAt({ time: "9:30", days: [] }, noon.getTime()), null);
+    assert.equal(scheduleDueAt({ time: "25:00", days: [] }, noon.getTime()), null);
+  });
+
+  it("keeps, toggles and forgets schedules", async () => {
+    const connection = new FakeConnection();
+    connection.replies.set("session/start", { session: { sessionId: "s1" } });
+    const { base } = await start(connection);
+    await send(base, "/api/sessions", { cwd: "/work/proj" });
+
+    assert.equal((await send(base, "/api/schedules", { sessionId: "nope", prompt: "x", time: "09:00" })).status, 404);
+    assert.equal((await send(base, "/api/schedules", { sessionId: "s1", prompt: "", time: "09:00" })).status, 400);
+    assert.equal((await send(base, "/api/schedules", { sessionId: "s1", prompt: "x", time: "9am" })).status, 400);
+
+    const created = await send(base, "/api/schedules", { sessionId: "s1", prompt: "Summarize overnight changes", time: "09:00", days: [1, 2, 3, 4, 5] });
+    assert.equal(created.status, 200);
+    const id = created.json.schedule.id as string;
+    assert.deepEqual(created.json.schedule.days, [1, 2, 3, 4, 5]);
+
+    const listed = await get(base, "/api/schedules");
+    assert.deepEqual(listed.schedules.map((s: { id: string }) => s.id), [id]);
+
+    const off = await send(base, `/api/schedules/${id}`, { enabled: false }, "PATCH");
+    assert.equal(off.json.schedule.enabled, false);
+    const gone = await fetch(`${base}/api/schedules/${id}`, { method: "DELETE" });
+    assert.equal(gone.status, 200);
+    assert.deepEqual((await get(base, "/api/schedules")).schedules, []);
+    assert.equal((await fetch(`${base}/api/schedules/${id}`, { method: "DELETE" })).status, 404);
+  });
+
+  it("fires due schedules once, queuing behind running turns", async () => {
+    // A run starting on midnight's doorstep would schedule yesterday: skip those two minutes.
+    if (new Date().getHours() === 0 && new Date().getMinutes() < 2) {
+      return;
+    }
+    const connection = new FakeConnection();
+    connection.replies.set("session/start", { session: { sessionId: "s1" } });
+    connection.replies.set("turn/start", { status: "accepted", turnId: "t1", disposition: "started" });
+    const { base, server } = await start(connection);
+    await send(base, "/api/sessions", { cwd: "/work/proj" });
+    const past = new Date(Date.now() - 60_000);
+    const time = `${String(past.getHours()).padStart(2, "0")}:${String(past.getMinutes()).padStart(2, "0")}`;
+    await send(base, "/api/schedules", { sessionId: "s1", prompt: "Morning check", time });
+    const sweep = server as unknown as { runDueSchedules: (nowMs: number) => Promise<void> };
+    await sweep.runDueSchedules(Date.now());
+    const fired = connection.calls.filter((c) => c.method === "turn/start");
+    assert.equal(fired.length, 1);
+    assert.equal((fired[0]!.params as { ifBusy?: string }).ifBusy, "queue");
+    await sweep.runDueSchedules(Date.now());
+    assert.equal(connection.calls.filter((c) => c.method === "turn/start").length, 1, "no double fire");
+    assert.ok((await get(base, "/api/schedules")).schedules[0].lastRun, "run stamped");
+  });
+
+  it("disables schedules whose thread is gone", async () => {
+    if (new Date().getHours() === 0 && new Date().getMinutes() < 2) {
+      return;
+    }
+    const connection = new FakeConnection();
+    const { base, server } = await start(connection);
+    const past = new Date(Date.now() - 60_000);
+    const time = `${String(past.getHours()).padStart(2, "0")}:${String(past.getMinutes()).padStart(2, "0")}`;
+    // Orphaned directly: deleting a thread through the API already cascades its schedules away.
+    const store = (server as unknown as { store: { addSchedule: (input: object) => void } }).store;
+    store.addSchedule({ id: "orphan", sessionId: "ghost", prompt: "Morning check", time, days: [] });
+    const sweep = server as unknown as { runDueSchedules: (nowMs: number) => Promise<void> };
+    await sweep.runDueSchedules(Date.now());
+    assert.equal((await get(base, "/api/schedules")).schedules[0].enabled, false);
+    assert.ok(!connection.calls.some((c) => c.method === "turn/start"), "nothing sent");
   });
 });

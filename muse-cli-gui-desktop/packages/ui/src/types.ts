@@ -419,6 +419,20 @@ export interface McpServerView {
   args: string[];
 }
 
+/** A prompt that runs itself in a thread on a daily clock; empty days means every day. */
+export interface ScheduleView {
+  id: string;
+  sessionId: string;
+  prompt: string;
+  /** Local `HH:MM`, 24 hours. */
+  time: string;
+  /** 0 (Sunday) to 6. */
+  days: number[];
+  enabled: boolean;
+  lastRun: string | null;
+  createdAt: string;
+}
+
 /** The subfolders of one folder, for the add-project picker. */
 export interface DirectoryListing {
   /** The folder listed, as an absolute path in the user's style (`~` expanded). */

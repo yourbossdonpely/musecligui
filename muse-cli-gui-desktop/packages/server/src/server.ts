@@ -362,6 +362,26 @@ const SHELL_TIMEOUT_MS = 2 * 60_000;
 
 /** How long Meta's installer may download before first-run setup gives up on it. */
 const INSTALL_TIMEOUT_MS = 15 * 60_000;
+/** How often due schedules are fired; same beat as the settle sweep. */
+const SCHEDULE_SWEEP_MS = 60_000;
+
+/**
+ * When a schedule's run for today falls, in server-local time, or null when today is not one of
+ * its days. Days count like `Date.getDay` (0 is Sunday); an empty list means every day.
+ */
+export function scheduleDueAt(schedule: { time: string; days: number[] }, nowMs: number): number | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(schedule.time.trim());
+  if (!match) {
+    return null;
+  }
+  const now = new Date(nowMs);
+  if (schedule.days.length > 0 && !schedule.days.includes(now.getDay())) {
+    return null;
+  }
+  const due = new Date(now);
+  due.setHours(Number(match[1]), Number(match[2]), 0, 0);
+  return due.getTime();
+}
 
 /** Meta's official installer invocation per platform: the same commands the setup screen shows. */
 export function museInstallCommand(platform: string): { command: string; args: string[] } {
@@ -857,6 +877,7 @@ export class MuseCodeIconServer {
   private readonly titleUpgradeActive = new Set<string>();
   private changeTimer: ReturnType<typeof setTimeout> | null = null;
   private settleTimer: ReturnType<typeof setInterval> | null = null;
+  private scheduleTimer: ReturnType<typeof setInterval> | null = null;
   private envCache: { at: number; value: EnvView } | null = null;
   private readonly skillCache = new Map<string, SkillListing>();
   /** Remote `$HOME` answers per SSH host, so `~` expansion costs one round trip a minute at most. */
@@ -978,6 +999,8 @@ export class MuseCodeIconServer {
     // No sweep at startup: which threads are busy in other Muse clients is only known after discovery.
     this.settleTimer = setInterval(() => this.autoSettle(), AUTO_SETTLE_SWEEP_MS);
     this.settleTimer.unref?.();
+    this.scheduleTimer = setInterval(() => void this.runDueSchedules().catch(() => undefined), SCHEDULE_SWEEP_MS);
+    this.scheduleTimer.unref?.();
     this.tail.start();
     return { port, host: this.options.host };
   }
@@ -991,6 +1014,10 @@ export class MuseCodeIconServer {
     if (this.settleTimer) {
       clearInterval(this.settleTimer);
       this.settleTimer = null;
+    }
+    if (this.scheduleTimer) {
+      clearInterval(this.scheduleTimer);
+      this.scheduleTimer = null;
     }
     this.tail.stop();
     this.titleQueue.length = 0;
@@ -1511,6 +1538,46 @@ export class MuseCodeIconServer {
         throw new HttpError(502, result.stdout.trim().split("\n").pop()?.slice(0, 300) || "Muse refused to remove that server.");
       }
       this.json(res, 200, { servers: await this.listMcp() });
+      return true;
+    }
+    if (method === "GET" && path === "/api/schedules") {
+      this.json(res, 200, { schedules: this.store.listSchedules() });
+      return true;
+    }
+    if (method === "POST" && path === "/api/schedules") {
+      const body = await this.readBody(req);
+      const sessionId = str(body["sessionId"])?.trim() ?? "";
+      const prompt = str(body["prompt"])?.trim() ?? "";
+      const time = str(body["time"])?.trim() ?? "";
+      const days = Array.isArray(body["days"]) ? body["days"].filter((d): d is number => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6) : [];
+      if (!sessionId || !this.store.findSession(sessionId)) {
+        throw new HttpError(404, "Unknown session.");
+      }
+      if (!prompt || prompt.length > 2000) {
+        throw new HttpError(400, "Give a prompt of 1-2000 characters.");
+      }
+      if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(time)) {
+        throw new HttpError(400, "Time looks like 09:00, 24 hours.");
+      }
+      const schedule = this.store.addSchedule({ id: randomUUID(), sessionId, prompt, time, days });
+      this.json(res, 200, { schedule });
+      return true;
+    }
+    if ((method === "DELETE" || method === "PATCH") && path.startsWith("/api/schedules/")) {
+      const id = decodeURIComponent(path.slice("/api/schedules/".length));
+      if (method === "DELETE") {
+        if (!this.store.deleteSchedule(id)) {
+          throw new HttpError(404, "Unknown schedule.");
+        }
+        this.json(res, 200, { deleted: true });
+        return true;
+      }
+      const body = await this.readBody(req);
+      const schedule = this.store.updateSchedule(id, { enabled: body["enabled"] === true });
+      if (!schedule) {
+        throw new HttpError(404, "Unknown schedule.");
+      }
+      this.json(res, 200, { schedule });
       return true;
     }
     if (method === "GET" && path === "/api/skills/folders") {
@@ -2401,6 +2468,41 @@ export class MuseCodeIconServer {
     }
     if (changed) {
       this.sessionsChanged();
+    }
+  }
+
+  /**
+   * Fires schedules whose time today has come and which have not run since. Only runs while the
+   * app runs: an occurrence missed with the app closed fires once on the next sweep, never as a
+   * backlog. A schedule whose thread is gone disables itself instead of failing forever.
+   */
+  private async runDueSchedules(nowMs: number = Date.now()): Promise<void> {
+    if (this.closed) {
+      return;
+    }
+    for (const schedule of this.store.listSchedules()) {
+      if (!schedule.enabled) {
+        continue;
+      }
+      const due = scheduleDueAt(schedule, nowMs);
+      if (due === null || nowMs < due || (schedule.lastRun !== null && Date.parse(schedule.lastRun) >= due)) {
+        continue;
+      }
+      const found = this.store.findSession(schedule.sessionId);
+      if (!found) {
+        this.store.updateSchedule(schedule.id, { enabled: false });
+        continue;
+      }
+      // Stamped before sending, so a slow send cannot double-fire on the next sweep.
+      this.store.updateSchedule(schedule.id, { lastRun: new Date(nowMs).toISOString() });
+      try {
+        const manager = await this.managerForSession(schedule.sessionId);
+        this.wake(schedule.sessionId);
+        await manager.sendTurn(schedule.sessionId, schedule.prompt, { ifBusy: "queue" });
+      } catch {
+        // A failed run waits for tomorrow like a missed one: lastRun already moved, so the
+        // sweep never retries a failing thread into a loop.
+      }
     }
   }
 

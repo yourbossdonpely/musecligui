@@ -281,6 +281,8 @@ export interface AppState {
   skillFolders: import("../types.js").SkillFoldersView | null;
   /** The user's MCP servers; null until the first load answers. */
   mcpServers: import("../types.js").McpServerView[] | null;
+  /** Prompts that run themselves on a daily clock; null until the first load answers. */
+  schedules: import("../types.js").ScheduleView[] | null;
   /** A composer picker a slash command opened, like `/model`. */
   picker: ComposerPicker | null;
   /** The subscription window Muse last reported; null until a host has seen one. */
@@ -359,6 +361,7 @@ export function initialState(prefs: Prefs): AppState {
     skills: {},
     skillFolders: null,
     mcpServers: null,
+    schedules: null,
     picker: null,
   };
 }

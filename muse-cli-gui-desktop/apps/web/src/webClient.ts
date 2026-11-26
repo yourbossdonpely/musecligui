@@ -23,6 +23,7 @@ import {
   type MuseCodeIconEvent,
   type McpServerView,
   type ModelOption,
+  type ScheduleView,
   type OmpImportResult,
   type OutputRange,
   type PlanUsage,
@@ -507,6 +508,22 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   async removeMcpServer(name: string): Promise<McpServerView[]> {
     return (await call<{ servers: McpServerView[] }>("DELETE", `/api/mcp?name=${encodeURIComponent(name)}`)).servers;
+  }
+
+  async listSchedules(): Promise<ScheduleView[]> {
+    return (await call<{ schedules: ScheduleView[] }>("GET", "/api/schedules")).schedules;
+  }
+
+  async addSchedule(input: { sessionId: string; prompt: string; time: string; days?: number[] }): Promise<ScheduleView> {
+    return (await call<{ schedule: ScheduleView }>("POST", "/api/schedules", input)).schedule;
+  }
+
+  async setScheduleEnabled(id: string, enabled: boolean): Promise<ScheduleView> {
+    return (await call<{ schedule: ScheduleView }>("PATCH", `/api/schedules/${encodeURIComponent(id)}`, { enabled })).schedule;
+  }
+
+  async removeSchedule(id: string): Promise<void> {
+    await call("DELETE", `/api/schedules/${encodeURIComponent(id)}`);
   }
 
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {

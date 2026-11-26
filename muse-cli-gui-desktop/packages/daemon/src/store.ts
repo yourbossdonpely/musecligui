@@ -19,6 +19,32 @@ export type TitleSource = "placeholder" | "auto" | "user";
 
 const TITLE_RANK: Record<TitleSource, number> = { placeholder: 0, auto: 1, user: 2 };
 
+/** A prompt that runs itself in a thread on a daily clock; empty days means every day. */
+export interface ScheduleRecord {
+  id: string;
+  sessionId: string;
+  prompt: string;
+  /** Local `HH:MM`, 24 hours. */
+  time: string;
+  /** 0 (Sunday) to 6; empty runs daily. */
+  days: number[];
+  enabled: boolean;
+  lastRun: string | null;
+  createdAt: string;
+}
+
+function parseScheduleDays(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    try {
+      const parsed: unknown = JSON.parse(String(value ?? "[]"));
+      return Array.isArray(parsed) ? parsed.filter((d): d is number => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6) : [];
+    } catch {
+      return [];
+    }
+  }
+  return value.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6);
+}
+
 export interface SessionRecord {
   id: string;
   projectId: number;
@@ -212,6 +238,16 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS deleted_sessions (
   id TEXT PRIMARY KEY,
   deleted_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS schedules (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  time TEXT NOT NULL,
+  days TEXT NOT NULL DEFAULT '[]',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_run TEXT,
+  created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_shell_runs_session ON shell_runs(session_id, at);
@@ -764,9 +800,64 @@ export class MuseCodeIconStore {
     this.db.prepare(`DELETE FROM attachments WHERE session_id = ?`).run(id);
     this.db.prepare(`DELETE FROM shell_runs WHERE session_id = ?`).run(id);
     this.db.prepare(`DELETE FROM usage WHERE session_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM schedules WHERE session_id = ?`).run(id);
     this.db.prepare(`DELETE FROM sessions WHERE id = ?`).run(id);
     this.db.prepare(`INSERT OR IGNORE INTO deleted_sessions (id, deleted_at) VALUES (?, ?)`).run(id, nowIso());
     return true;
+  }
+
+  /** Every scheduled agent run, oldest first. */
+  listSchedules(): ScheduleRecord[] {
+    const rows = this.db.prepare(`SELECT * FROM schedules ORDER BY created_at`).all() as Row[];
+    return rows.map((row) => ({
+      id: String(row["id"]),
+      sessionId: String(row["session_id"]),
+      prompt: String(row["prompt"]),
+      time: String(row["time"]),
+      days: parseScheduleDays(row["days"]),
+      enabled: Number(row["enabled"]) !== 0,
+      lastRun: row["last_run"] === null || row["last_run"] === undefined ? null : String(row["last_run"]),
+      createdAt: String(row["created_at"]),
+    }));
+  }
+
+  addSchedule(input: { id: string; sessionId: string; prompt: string; time: string; days: number[] }): ScheduleRecord {
+    const createdAt = nowIso();
+    this.db
+      .prepare(`INSERT INTO schedules (id, session_id, prompt, time, days, enabled, last_run, created_at) VALUES (?, ?, ?, ?, ?, 1, NULL, ?)`)
+      .run(input.id, input.sessionId, input.prompt, input.time, JSON.stringify(input.days), createdAt);
+    return { ...input, enabled: true, lastRun: null, createdAt };
+  }
+
+  /** Marks a run done, or flips a schedule on and off. Null when the id is unknown. */
+  updateSchedule(id: string, patch: { lastRun?: string | null; enabled?: boolean }): ScheduleRecord | null {
+    const rows = this.db.prepare(`SELECT * FROM schedules WHERE id = ?`).all(id) as Row[];
+    if (rows.length === 0) {
+      return null;
+    }
+    if (patch.lastRun !== undefined) {
+      this.db.prepare(`UPDATE schedules SET last_run = ? WHERE id = ?`).run(patch.lastRun, id);
+    }
+    if (patch.enabled !== undefined) {
+      this.db.prepare(`UPDATE schedules SET enabled = ? WHERE id = ?`).run(patch.enabled ? 1 : 0, id);
+    }
+    const [row] = this.db.prepare(`SELECT * FROM schedules WHERE id = ?`).all(id) as Row[];
+    return {
+      id,
+      sessionId: String(row!["session_id"]),
+      prompt: String(row!["prompt"]),
+      time: String(row!["time"]),
+      days: parseScheduleDays(row!["days"]),
+      enabled: Number(row!["enabled"]) !== 0,
+      lastRun: row!["last_run"] === null || row!["last_run"] === undefined ? null : String(row!["last_run"]),
+      createdAt: String(row!["created_at"]),
+    };
+  }
+
+  /** Forgets a schedule. True when one was there. */
+  deleteSchedule(id: string): boolean {
+    const result = this.db.prepare(`DELETE FROM schedules WHERE id = ?`).run(id);
+    return result.changes > 0;
   }
 
   /** The session plus the project directory it belongs to, in one lookup. */

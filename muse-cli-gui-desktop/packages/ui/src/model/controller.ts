@@ -2721,6 +2721,47 @@ export class MuseCodeIconController {
     }
   }
 
+  /** The prompts that run themselves, for the settings that manage them. */
+  async loadSchedules(): Promise<void> {
+    try {
+      const schedules = await this.client.listSchedules();
+      this.update((s) => ({ ...s, schedules }));
+    } catch (error) {
+      this.toast("error", "Could not load schedules", errorMessage(error));
+    }
+  }
+
+  /** Schedules a prompt in a thread; refused for unknown threads and bad times. */
+  async addSchedule(input: { sessionId: string; prompt: string; time: string; days?: number[] }): Promise<void> {
+    try {
+      const schedule = await this.client.addSchedule(input);
+      this.update((s) => ({ ...s, schedules: [...(s.schedules ?? []), schedule] }));
+      this.toast("success", "Schedule added", `${schedule.time} in this thread.`);
+    } catch (error) {
+      this.toast("error", "Could not add the schedule", errorMessage(error));
+    }
+  }
+
+  /** Turns a schedule on or off. */
+  async setScheduleEnabled(id: string, enabled: boolean): Promise<void> {
+    try {
+      const schedule = await this.client.setScheduleEnabled(id, enabled);
+      this.update((s) => ({ ...s, schedules: (s.schedules ?? []).map((row) => (row.id === id ? schedule : row)) }));
+    } catch (error) {
+      this.toast("error", "Could not change the schedule", errorMessage(error));
+    }
+  }
+
+  /** Forgets a schedule. */
+  async removeSchedule(id: string): Promise<void> {
+    try {
+      await this.client.removeSchedule(id);
+      this.update((s) => ({ ...s, schedules: (s.schedules ?? []).filter((row) => row.id !== id) }));
+    } catch (error) {
+      this.toast("error", "Could not remove the schedule", errorMessage(error));
+    }
+  }
+
   /** Saves the current draft as a named prompt starter, replacing one with the same name. */
   saveTemplate(name: string, text: string): void {
     const clean = name.trim();

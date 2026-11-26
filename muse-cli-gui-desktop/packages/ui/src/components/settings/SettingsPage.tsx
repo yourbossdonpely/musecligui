@@ -239,6 +239,155 @@ function McpSettings(props: { controller: MuseCodeIconController }) {
   );
 }
 
+const SCHEDULE_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "Daily", or the picked days in week order. No picks also means every day. */
+function scheduleDaysLabel(days: number[]): string {
+  if (days.length === 0 || days.length === 7) {
+    return "Daily";
+  }
+  return [...days].sort((a, b) => a - b).map((day) => SCHEDULE_DAY_NAMES[day] ?? "?").join(", ");
+}
+
+/** Prompts that run themselves in threads on a daily clock. Fires while the app is open; a busy thread queues the run. */
+function ScheduleSettings(props: { controller: MuseCodeIconController }) {
+  const schedules = useApp((s) => s.schedules);
+  const sessions = useApp((s) => s.sessions);
+  const openSessionId = useApp((s) => (s.route.kind === "thread" ? s.route.sessionId : null));
+  const [prompt, setPrompt] = useState("");
+  const [time, setTime] = useState("09:00");
+  const [days, setDays] = useState<number[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { controller } = props;
+  const choices = Object.values(sessions)
+    .filter((session) => !session.archived)
+    .sort((a, b) => b.activityAt.localeCompare(a.activityAt));
+  const picked = sessionId ?? openSessionId ?? choices[0]?.sessionId ?? null;
+  const toggleDay = (day: number) =>
+    setDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  const add = async () => {
+    const clean = prompt.trim();
+    if (!picked || !clean || !time || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await controller.addSchedule({ sessionId: picked, prompt: clean, time, days });
+      setPrompt("");
+      setDays([]);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Row label="Schedules" description="Each fires its prompt in its thread at the local time, while the app is open. A missed day runs once at the next opportunity.">
+        {schedules === null ? (
+          <p className="text-xs text-subtle">Loading…</p>
+        ) : schedules.length === 0 ? (
+          <p className="text-xs text-subtle">None yet. Add one below.</p>
+        ) : (
+          <ul className="flex w-full flex-col gap-1">
+            {schedules.map((schedule) => (
+              <li
+                key={schedule.id}
+                title={`${schedule.prompt}${schedule.lastRun ? `\nLast ran ${new Date(schedule.lastRun).toLocaleString()}` : "\nNot run yet"}`}
+                className="group flex items-center gap-2 text-xs"
+              >
+                <span className="shrink-0 rounded bg-active px-1 py-px font-mono text-[11px] text-muted tabular-nums">
+                  {schedule.time}
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="text-fg">{schedule.prompt}</span>{" "}
+                  <span className="text-subtle">
+                    {scheduleDaysLabel(schedule.days)} · {sessions[schedule.sessionId]?.title.trim() || "thread"}
+                  </span>
+                </span>
+                {!schedule.enabled ? <span className="shrink-0 text-2xs text-subtle">off</span> : null}
+                <Toggle
+                  checked={schedule.enabled}
+                  label={`${schedule.enabled ? "Disable" : "Enable"} schedule ${schedule.time}`}
+                  onChange={(on) => void controller.setScheduleEnabled(schedule.id, on)}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove schedule ${schedule.time}`}
+                  title={`Remove schedule ${schedule.time}`}
+                  onClick={() => void controller.removeSchedule(schedule.id)}
+                  className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-subtle transition-colors hover:bg-hover hover:text-fg"
+                >
+                  <TrashIcon size={13} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Row>
+      <Row label="Add schedule" description="Runs in the picked thread. Leave every day off to run daily.">
+        <div className="flex w-full min-w-0 flex-col gap-1.5">
+          <input
+            type="text"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                void add();
+              }
+            }}
+            placeholder="Morning standup summary"
+            aria-label="Scheduled prompt"
+            spellCheck={false}
+            className="h-7 min-w-0 flex-1 rounded-md bg-sunken px-2 text-xs text-fg outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-accent"
+          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              aria-label="Time of day"
+              className="h-7 shrink-0 rounded-md bg-sunken px-2 font-mono text-xs text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="Days of the week">
+              {SCHEDULE_DAY_NAMES.map((name, day) => (
+                <button
+                  key={name}
+                  type="button"
+                  title={name}
+                  aria-pressed={days.includes(day)}
+                  onClick={() => toggleDay(day)}
+                  className={`size-7 rounded-md text-2xs font-medium transition-colors ${days.includes(day) ? "bg-active text-fg" : "text-subtle hover:text-fg"}`}
+                >
+                  {name.slice(0, 1)}
+                </button>
+              ))}
+            </div>
+            {choices.length > 0 ? (
+              <select
+                value={picked ?? ""}
+                onChange={(e) => setSessionId(e.target.value || null)}
+                aria-label="Thread to run in"
+                className="h-7 min-w-0 max-w-44 flex-1 truncate rounded-md bg-sunken px-1.5 text-xs text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {choices.map((choice) => (
+                  <option key={choice.sessionId} value={choice.sessionId}>
+                    {choice.title.trim() || choice.cwd}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-2xs text-subtle">Open or start a thread first.</p>
+            )}
+            <Button size="sm" variant="secondary" disabled={!picked || !prompt.trim() || !time || busy} onClick={() => void add()}>
+              Add
+            </Button>
+          </div>
+        </div>
+      </Row>
+    </>
+  );
+}
+
 function Row(props: { label: ReactNode; description?: string; descriptionClassName?: string; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-t border-line px-4 py-3 first:border-t-0">
@@ -517,6 +666,7 @@ export function SettingsPage() {
     void controller.loadAccounts();
     void controller.loadSkillFolders();
     void controller.loadMcpServers();
+    void controller.loadSchedules();
   }, [controller]);
 
   return (
@@ -700,6 +850,10 @@ export function SettingsPage() {
 
         <Section title="MCP servers">
           <McpSettings controller={controller} />
+        </Section>
+
+        <Section title="Schedules">
+          <ScheduleSettings controller={controller} />
         </Section>
 
         <Section title="Skills">

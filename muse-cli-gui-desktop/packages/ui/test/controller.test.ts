@@ -318,6 +318,35 @@ class FakeClient implements MuseCodeIconClient {
     this.mcpServers = this.mcpServers.filter((s) => s.name !== name);
     return [...this.mcpServers];
   }
+  schedules: import("../src/types.js").ScheduleView[] = [];
+  async listSchedules() {
+    return [...this.schedules];
+  }
+  async addSchedule(input: { sessionId: string; prompt: string; time: string; days?: number[] }) {
+    const schedule = {
+      id: `sch-${this.schedules.length + 1}`,
+      sessionId: input.sessionId,
+      prompt: input.prompt,
+      time: input.time,
+      days: input.days ?? [],
+      enabled: true,
+      lastRun: null,
+      createdAt: new Date().toISOString(),
+    };
+    this.schedules = [...this.schedules, schedule];
+    return schedule;
+  }
+  async setScheduleEnabled(id: string, enabled: boolean) {
+    const schedule = this.schedules.find((s) => s.id === id);
+    if (!schedule) {
+      throw new Error("unknown schedule");
+    }
+    schedule.enabled = enabled;
+    return schedule;
+  }
+  async removeSchedule(id: string) {
+    this.schedules = this.schedules.filter((s) => s.id !== id);
+  }
   async openFolder() {}
   skillSessions: (string | undefined)[] = [];
   efforts: string[] = [];
@@ -2377,6 +2406,29 @@ describe("MuseCodeIconController", () => {
     client.mcpError = new Error("daemon away");
     await controller.loadMcpServers();
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not load MCP servers");
+    stop();
+  });
+
+  it("manages schedules", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    await controller.loadSchedules();
+    assert.deepEqual(controller.store.get().schedules, []);
+    await controller.addSchedule({ sessionId: "s1", prompt: "Morning standup", time: "09:00" });
+    await controller.addSchedule({ sessionId: "s1", prompt: "Friday review", time: "17:00", days: [5] });
+    assert.deepEqual(
+      controller.store.get().schedules?.map((s) => s.prompt),
+      ["Morning standup", "Friday review"],
+    );
+    const first = controller.store.get().schedules?.[0];
+    assert.ok(first);
+    await controller.setScheduleEnabled(first.id, false);
+    assert.equal(controller.store.get().schedules?.[0]?.enabled, false);
+    await controller.removeSchedule(first.id);
+    assert.deepEqual(
+      controller.store.get().schedules?.map((s) => s.prompt),
+      ["Friday review"],
+    );
     stop();
   });
 

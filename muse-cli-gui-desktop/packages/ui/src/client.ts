@@ -17,6 +17,7 @@ import type {
   ProjectView,
   ReasoningEffort,
   SandboxSettings,
+  ScheduleView,
   SessionSummary,
   SkillCatalog,
   SkillFoldersView,
@@ -201,6 +202,14 @@ export interface MuseCodeIconClient {
   addMcpServer(input: { name: string; url?: string; command?: string; args?: string[] }): Promise<McpServerView[]>;
   /** Removes an MCP server from user settings. */
   removeMcpServer(name: string): Promise<McpServerView[]>;
+  /** Prompts that run themselves in threads on a daily clock. */
+  listSchedules(): Promise<ScheduleView[]>;
+  /** Schedules a prompt in a thread. Refused for unknown threads and bad times. */
+  addSchedule(input: { sessionId: string; prompt: string; time: string; days?: number[] }): Promise<ScheduleView>;
+  /** Turns a schedule on or off. */
+  setScheduleEnabled(id: string, enabled: boolean): Promise<ScheduleView>;
+  /** Forgets a schedule. */
+  removeSchedule(id: string): Promise<void>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

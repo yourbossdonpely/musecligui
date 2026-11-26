@@ -3,7 +3,7 @@
  * server. It seeds realistic sample projects, threads, usage and models, and plays back turns as MSP
  * events. Copied from the landing page's demo client (landing/src/demo/client.ts).
  */
-import { listedPrice, type DiagnosticReport, type EventHandler, type McpServerView, type MuseCodeIconClient, type SkillFoldersView, type TurnOptions } from "@musecodeicon/ui";
+import { listedPrice, type DiagnosticReport, type EventHandler, type McpServerView, type MuseCodeIconClient, type ScheduleView, type SkillFoldersView, type TurnOptions } from "@musecodeicon/ui";
 import { DemoFiles } from "./files.js";
 import type {
   ApprovalRequest,
@@ -791,6 +791,22 @@ export class DemoClient implements MuseCodeIconClient {
 
   async removeMcpServer(): Promise<McpServerView[]> {
     throw new Error("MCP servers are disabled in this demo.");
+  }
+
+  async listSchedules(): Promise<ScheduleView[]> {
+    throw new Error("Schedules are disabled in this demo.");
+  }
+
+  async addSchedule(): Promise<ScheduleView> {
+    throw new Error("Schedules are disabled in this demo.");
+  }
+
+  async setScheduleEnabled(): Promise<ScheduleView> {
+    throw new Error("Schedules are disabled in this demo.");
+  }
+
+  async removeSchedule(): Promise<void> {
+    throw new Error("Schedules are disabled in this demo.");
   }
   async searchFiles(cwd: string, query: string) {
     return this.files.search(cwd, query);
