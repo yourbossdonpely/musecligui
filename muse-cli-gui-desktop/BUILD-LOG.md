@@ -325,6 +325,13 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - Author spelling corrected to **Don PELY** in the top menu, titles, sidebar, installer copyright, LICENSE, changelogs and docs.
 - Verified the 5-hour rolling-window pill already sits in the sidebar footer between Refresh and Usage.
 
+### v0.30.0 — skill folders and routing
+
+- **Skill folders** (`packages/server/src/skills.ts`): the daemon keeps user folders (`settings.skill_folders`) and always scans `~/.agents/skills`; every subfolder with a SKILL.md becomes a `folder:<name>` skill (frontmatter name/description, capped at 1000 per folder) merged into the catalog with Muse's own listing winning name clashes. Bodies serve through the existing skill endpoint, read straight from disk.
+- **Management UI**: puzzle-piece button in the thread header (workspace skills to invoke, add-folder input, link to Settings) plus a Settings → Skills section (agents-folder status, folder list, routing toggle).
+- **Routing** (`routeSkill` in `model/slash.ts`): plain prompts matching a folder skill (name ×3, description ×1, needs ≥3 with a strict winner) send with its instructions and a toast. Matching is synchronous so sends keep exact timing — an earlier async version hung the double-Enter test; only folder skills route since Muse loads its own itself.
+- Test isolation lesson: server tests now run with an empty temp home, after the real machine's 12k-skill agents folder leaked into catalogs and crashed a run printing the diff.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

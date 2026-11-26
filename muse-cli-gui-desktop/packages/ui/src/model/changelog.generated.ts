@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "0.30.0",
+    "body": "### Added\n\n- **Skill folders.** Keep any folder of skills (a folder per skill, each with a SKILL.md) from the thread header's new skills button or Settings → Skills; `~/.agents/skills` is always scanned automatically.\n- **Skill routing.** A plain prompt that reads like a folder skill sends with that skill's instructions, like an automatic /skill — with a toast naming it. Toggleable in Settings."
+  },
+  {
     "version": "0.23.11",
     "body": "### Added\n\n- **Delete thread.** A confirmed Delete entry below Archive thread removes the thread and everything kept for it. Refused while a turn is running.\n- **Right-click menus.** Sidebar threads and projects open the same actions on right-click that their three-dots buttons show.\n\n### Fixed\n\n- The author name now reads **Don PELY** everywhere: top menu, window title, sidebar, installer, license and docs."
   },

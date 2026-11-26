@@ -13,7 +13,7 @@
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
-**Download:** [MuseCodeIcon v0.23.11](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.11) — `MuseCodeIcon_0.23.11_x64-setup.exe` for Windows, `MuseCodeIcon_0.23.11_amd64.AppImage` plus `.deb` and `.rpm` for Linux, and `MuseCodeIcon_0.23.11_universal.dmg` for macOS (Apple Silicon and Intel). From 0.23.8 on, the app updates itself in-app (Settings → Updates). The Windows installer is signed; macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
+**Download:** [MuseCodeIcon v0.30.0](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.30.0) — `MuseCodeIcon_0.30.0_x64-setup.exe` for Windows, `MuseCodeIcon_0.30.0_amd64.AppImage` plus `.deb` and `.rpm` for Linux, and `MuseCodeIcon_0.30.0_universal.dmg` for macOS (Apple Silicon and Intel). From 0.23.8 on, the app updates itself in-app (Settings → Updates). The Windows installer is signed; macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
@@ -67,6 +67,8 @@ Muse Code today is terminal-only (`muse`, on macOS, Linux and Windows). MuseCode
 - **Task modes** - Build, Supervised, Plan, Research or Debug framing per thread, picked in the composer
 - **Delete threads** - confirmed, tombstoned so refresh never resurrects them; refused mid-turn
 - **Right-click menus** - sidebar threads and projects open the same actions as their three-dots menus
+- **Skill folders** - keep any folder of `SKILL.md` skills; `~/.agents/skills` is always scanned; managed from the thread header or Settings
+- **Skill routing** - a plain prompt that reads like a folder skill sends with its instructions automatically (toggleable)
 
 ## Architecture
 
@@ -98,19 +100,20 @@ apps/web         same UI against a remote daemon
 - [x] Update-check feedback + changelog link (`v0.23.9`)
 - [x] Bridge feature ports (`v0.23.10`: chips, mentions, share links, read-aloud, diagnostics, task modes)
 - [x] Delete thread, right-click menus, author spelling (`v0.23.11`)
+- [x] Skill folders + agents auto-scan + prompt routing (`v0.30.0`)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
 
-Windows: download [`MuseCodeIcon_0.23.11_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.23.11/MuseCodeIcon_0.23.11_x64-setup.exe) from the [v0.23.11 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.11), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It has been signed since v2.6.0, so SmartScreen names its publisher. From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
+Windows: download [`MuseCodeIcon_0.30.0_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v0.30.0/MuseCodeIcon_0.30.0_x64-setup.exe) from the [v0.30.0 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.30.0), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. It has been signed since v2.6.0, so SmartScreen names its publisher. From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-macOS: download `MuseCodeIcon_0.23.11_universal.dmg` from the [v0.23.11 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.11). It runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
+macOS: download `MuseCodeIcon_0.30.0_universal.dmg` from the [v0.30.0 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.30.0). It runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-Linux: download `MuseCodeIcon_0.23.11_amd64.AppImage` from the [v0.23.11 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.11); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
+Linux: download `MuseCodeIcon_0.30.0_amd64.AppImage` from the [v0.30.0 release](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.30.0); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
