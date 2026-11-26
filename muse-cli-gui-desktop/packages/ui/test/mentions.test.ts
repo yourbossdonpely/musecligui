@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyMention,
   buildMentionContext,
+  extractBarePaths,
   extractMentions,
   findMentionToken,
   splitMentionQuery,
@@ -42,5 +43,27 @@ describe("mentions", () => {
     assert.match(block, /File @a\.txt:/);
     assert.match(block, /```/);
     assert.equal(buildMentionContext([]), "");
+  });
+
+  it("labels bare paths without the @", () => {
+    const block = buildMentionContext([{ rel: "src/a.ts", content: "hi", bare: true }]);
+    assert.match(block, /File src\/a\.ts:/);
+  });
+
+  it("extracts bare paths, trimming punctuation", () => {
+    assert.deepEqual(extractBarePaths('fix the bug in src/app.ts, then (docs/a.md). Also "./x/y.json"!'), [
+      "src/app.ts",
+      "docs/a.md",
+      "x/y.json",
+    ]);
+  });
+
+  it("extracts each bare path once and skips @-mentions", () => {
+    assert.deepEqual(extractBarePaths("see @a/b.ts and a/b.ts, then a/b.ts again", ["a/b.ts"]), []);
+    assert.deepEqual(extractBarePaths("a/b.ts then a/b.ts"), ["a/b.ts"]);
+  });
+
+  it("rejects urls, traversal, and words that only look like paths", () => {
+    assert.deepEqual(extractBarePaths("see https://x.com/a.ts and ../a.ts, a.ts, and/or src/dir"), []);
   });
 });

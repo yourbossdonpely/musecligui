@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { AttachButton, AttachmentTray, readFiles, restoreFiles, toOutgoing, toPreview, type PendingFile } from "./attachments.js";
-import { applyMention, buildMentionContext, extractMentions, findMentionToken, splitMentionQuery } from "../../model/mentions.js";
+import { applyMention, buildMentionContext, extractBarePaths, extractMentions, findMentionToken, splitMentionQuery } from "../../model/mentions.js";
 import { CostMeter } from "./CostPanel.js";
 import { resolveSteer } from "./keys.js";
 import { Popover, Slider, Switch } from "radix-ui";
@@ -379,21 +379,24 @@ export function Composer(props: ComposerProps) {
     setFiles([]);
     // A new prompt takes the floor: anything being read aloud stops.
     stopSpeech();
-    // @file mentions resolve to fenced context on the wire; the echo keeps what was typed.
-    // Unreadable mentions stay literal so nothing is ever lost.
+    // @file mentions and bare paths named in the prompt resolve to fenced context on
+    // the wire; the echo keeps what was typed. Unreadable paths stay literal so
+    // nothing is ever lost.
     let full = value;
     const rels = props.cwd ? extractMentions(value) : [];
-    if (rels.length && props.cwd) {
+    const bare = props.cwd ? extractBarePaths(value, rels) : [];
+    const wanted = [...rels.map((rel) => ({ rel, bare: false })), ...bare.map((rel) => ({ rel, bare: true }))].slice(0, 3);
+    if (wanted.length && props.cwd) {
       const cwd = props.cwd;
-      const parts: { rel: string; content: string }[] = [];
-      for (const rel of rels.slice(0, 3)) {
+      const parts: { rel: string; content: string; bare: boolean }[] = [];
+      for (const { rel, bare: isBare } of wanted) {
         try {
           const file = await controller.readFile(cwd, rel);
           if (file.content) {
-            parts.push({ rel, content: file.content.slice(0, 20000) });
+            parts.push({ rel, content: file.content.slice(0, 20000), bare: isBare });
           }
         } catch {
-          // Mentioned path is missing or binary: leave the @text for the model to see.
+          // Named path is missing or binary: leave the text for the model to see.
         }
       }
       full = value + buildMentionContext(parts);

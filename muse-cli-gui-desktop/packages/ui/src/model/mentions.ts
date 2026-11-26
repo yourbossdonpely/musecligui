@@ -58,10 +58,44 @@ export function extractMentions(text: string): string[] {
   return found;
 }
 
-export function buildMentionContext(files: { rel: string; content: string }[]): string {
+const BARE_LAST_RE = /^[\w.-]+\.[A-Za-z0-9]{1,12}$/;
+const BARE_TOKEN_RE = /^[\w.-][\w./-]*$/;
+
+/**
+ * Bare file paths named without `@`, like `src/app.ts` in "fix the bug in
+ * src/app.ts". A token qualifies when it holds a directory plus a dotted file
+ * name, uses path-safe characters only, and is not a URL or a traversal. The
+ * file still has to exist: resolving them through `readFile` leaves anything
+ * unreadable literal, the same as `@`-mentions.
+ */
+export function extractBarePaths(text: string, skip: readonly string[] = []): string[] {
+  const found: string[] = [];
+  for (const raw of String(text ?? "").split(/\s+/)) {
+    if (!raw || raw.startsWith("@") || raw.includes("://")) {
+      continue;
+    }
+    let token = raw.replace(/^['"([{]+/, "").replace(/[.,;:!?)\]}'"]+$/, "");
+    if (token.startsWith("./")) {
+      token = token.slice(2);
+    }
+    if (!token.includes("/") || token.includes("..") || !BARE_TOKEN_RE.test(token)) {
+      continue;
+    }
+    const last = token.slice(token.lastIndexOf("/") + 1);
+    if (!BARE_LAST_RE.test(last)) {
+      continue;
+    }
+    if (!skip.includes(token) && !found.includes(token)) {
+      found.push(token);
+    }
+  }
+  return found;
+}
+
+export function buildMentionContext(files: { rel: string; content: string; bare?: boolean }[]): string {
   if (!files.length) {
     return "";
   }
-  const parts = files.map(({ rel, content }) => `File @${rel}:\n\`\`\`\n${content}\n\`\`\``);
+  const parts = files.map(({ rel, content, bare }) => `File ${bare ? rel : `@${rel}`}:\n\`\`\`\n${content}\n\`\`\``);
   return `\n\n[Attached files]\n${parts.join("\n\n")}`;
 }
