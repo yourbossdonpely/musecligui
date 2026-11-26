@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "1.1.0",
+    "body": "### Added\n\n- **One-click Muse install.** First-run setup installs the CLI with Meta's official installer and re-checks itself — no terminal detour.\n- **Edit sent messages.** Any prompt you sent offers Edit: revise it inline and send it again as a new turn.\n- **Rollback.** Any sent message offers Rollback: history through that turn reopens in a new thread, while the original stays intact."
+  },
+  {
     "version": "0.30.0",
     "body": "### Added\n\n- **Skill folders.** Keep any folder of skills (a folder per skill, each with a SKILL.md) from the thread header's new skills button or Settings → Skills; `~/.agents/skills` is always scanned automatically.\n- **Skill routing.** A plain prompt that reads like a folder skill sends with that skill's instructions, like an automatic /skill — with a toast naming it. Toggleable in Settings."
   },

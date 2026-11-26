@@ -332,6 +332,13 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Routing** (`routeSkill` in `model/slash.ts`): plain prompts matching a folder skill (name ×3, description ×1, needs ≥3 with a strict winner) send with its instructions and a toast. Matching is synchronous so sends keep exact timing — an earlier async version hung the double-Enter test; only folder skills route since Muse loads its own itself.
 - Test isolation lesson: server tests now run with an empty temp home, after the real machine's 12k-skill agents folder leaked into catalogs and crashed a run printing the diff.
 
+### v1.1.0 — guided install, message Edit/Rollback
+
+- **Guided install**: the setup screen's Muse steps grew an Install Muse button. `POST /api/env/install` runs Meta's official installer (PowerShell `irm|iex` on Windows, `curl|bash` elsewhere) through a 15-minute runner, then re-probes and returns the fresh environment. No redistribution — bytes come from Meta. Also fixed the server never passing its `home` option into the environment probe.
+- **Edit**: sent messages offer Edit alongside Copy — an inline editor resends the revised text as a new turn (Enter sends, Esc cancels, IME-safe). Read-only threads keep copy only.
+- **Rollback**: sent messages offer Rollback, which forks the session with a cut point through that turn (`session/fork` + `cutPoint.lastTurnId`, per the SDK spec) and opens the `(rollback)` branch; the original stays intact. Only finished turns roll back (the button disables mid-turn, and `forkBoundaryInvalid` explains otherwise).
+- Test lesson: a failing controller test that throws before `stop()` leaves the runner hanging at teardown with workers idle — bisect with `--test-name-pattern` and look for the skipped cleanup.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or
