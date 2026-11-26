@@ -2369,6 +2369,24 @@ export class MuseCodeIconController {
     }
   }
 
+  /**
+   * Asks Muse to review the thread's edited files, most important findings first. The files ride
+   * along as a list; Muse reads them itself, so no diff text bloats the prompt.
+   */
+  async reviewChanges(sessionId: string, paths: string[]): Promise<boolean> {
+    if (paths.length === 0) {
+      this.toast("info", "Nothing to review", "This thread has not edited any files yet.");
+      return false;
+    }
+    const session = this.state.sessions[sessionId];
+    if (!session) {
+      return false;
+    }
+    return this.send(`Review these changed files for bugs, risks and nits, most important first:\n${paths.map((path) => `- ${path}`).join("\n")}`, {
+      sessionId,
+    });
+  }
+
   /** Shelves a thread in its project's Settled list, or brings it back. */
   async setSettled(sessionId: string, settled: boolean): Promise<void> {
     const current = this.state.sessions[sessionId];

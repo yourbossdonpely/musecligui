@@ -1,4 +1,4 @@
-import { ArrowUUpLeftIcon, CaretRightIcon, CheckIcon, ChecksIcon, EyeIcon, PencilSimpleLineIcon, WarningCircleIcon } from "../ui/icons.js";
+import { ArrowUUpLeftIcon, CaretRightIcon, CheckIcon, ChecksIcon, EyeIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, WarningCircleIcon } from "../ui/icons.js";
 import { useEffect, useMemo, useState } from "react";
 import { useApp, useController } from "../../app/context.js";
 import { basename } from "../../model/format.js";
@@ -104,6 +104,9 @@ export function ChangedFiles(props: { sessionId: string }) {
           <div className="flex shrink-0 items-center gap-0.5">
             <ActionButton label={diag.running ? "Checking…" : "Check syntax"} onClick={() => void runDiag()}>
               {diag.running ? <Spinner size={12} /> : <ChecksIcon size={12} />}
+            </ActionButton>
+            <ActionButton label="Ask Muse to review these changes" onClick={() => void controller.reviewChanges(props.sessionId, pending.map((f) => f.path))}>
+              <MagnifyingGlassIcon size={12} />
             </ActionButton>
             <ActionButton
               label={review ? "Hide review" : "Review"}

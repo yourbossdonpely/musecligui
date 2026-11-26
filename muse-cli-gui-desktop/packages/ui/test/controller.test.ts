@@ -2192,6 +2192,18 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("asks Muse to review the thread's edited files", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.reviewChanges("s1", ["src/a.ts", "src/b.ts"]), true);
+    const sent = client.sent.at(-1)!;
+    assert.ok(sent.text.includes("Review these changed files"));
+    assert.ok(sent.text.includes("- src/a.ts") && sent.text.includes("- src/b.ts"));
+    assert.equal(await controller.reviewChanges("s1", []), false);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Nothing to review");
+    stop();
+  });
+
   it("checks nothing when the thread edited no files", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);
