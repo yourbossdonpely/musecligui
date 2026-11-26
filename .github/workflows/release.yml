@@ -156,6 +156,29 @@ jobs:
           # One universal .dmg for Apple Silicon and Intel; the bundle targets come from
           # tauri.macos.conf.json (app + dmg, ad-hoc signing).
           args: --target universal-apple-darwin
+      # An ARM runner happily ships an arm64-only "universal" build if the Intel half ever
+      # drops (missing target, skipped lipo), and the smoke test below only exercises the
+      # ARM slice. So assert both slices exist in the app and its Node sidecar, then prove
+      # the Intel slice executes by running it under Rosetta. Before any upload, so a
+      # regression fails the run instead of shipping a half-universal release.
+      - name: Verify the Intel half of the universal build
+        shell: bash
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          app="$(find apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -name '*.app' -type d | head -1)"
+          [ -n "$app" ] && [ -d "$app" ] || { echo "::error::No .app bundle to verify" >&2; exit 1; }
+          for f in "$app/Contents/MacOS/musecodeicon" "$app/Contents/MacOS/node"; do
+            [ -f "$f" ] || { echo "::error::Missing $f" >&2; exit 1; }
+            archs="$(lipo -archs "$f")"
+            echo "$f: $archs"
+            case "$archs" in
+              *x86_64*arm64*|*arm64*x86_64*) ;;
+              *) echo "::error::$f is not universal ($archs)" >&2; exit 1 ;;
+            esac
+          done
+          sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 "$app/Contents/MacOS/node" --version
       # A zip of the .app itself, for people who want the app in ~/Applications without mounting a
       # disk image. ditto keeps the bundle's symlinks, permissions and signature intact.
       - name: Package and upload the macOS zip

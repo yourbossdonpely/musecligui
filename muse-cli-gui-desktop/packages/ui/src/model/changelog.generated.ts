@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "1.2.1",
+    "body": "### Fixed\n\n- **Proven Intel support.** Every release now asserts the macOS app and its Node sidecar carry both Intel and Apple Silicon slices, and runs the Intel slice under Rosetta — so a half-universal build fails CI instead of shipping."
+  },
+  {
     "version": "1.2.0",
     "body": "### Added\n\n- **Command palette actions.** Settings/usage pages plus stop, compact, read aloud, share link, syntax check, fork, archive and delete for the open thread.\n- **Turn timeline.** A minimap rail beside the transcript; click a segment to jump to that turn.\n- **Prompt templates.** Keep named starters in the composer toolbar; the input now auto-grows.\n- **Starter prompts.** Empty threads and fresh projects suggest first prompts that fill the composer.\n- **Compact density.** Tighter thread and sidebar rows, in Settings Appearance or the palette.\n- **Cancellable progress.** Long operations show a spinner toast with Cancel instead of silence."
   },
