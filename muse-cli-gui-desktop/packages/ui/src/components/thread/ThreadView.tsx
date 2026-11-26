@@ -1,6 +1,6 @@
 import { copyText } from "../../app/clipboard.js";
 import { stopSpeech } from "../../app/speech.js";
-import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TreeStructureIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TrashIcon, TreeStructureIcon } from "../ui/icons.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
 import { useApp, useController, useNow } from "../../app/context.js";
@@ -234,6 +234,17 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
           <MenuSeparator />
           <MenuItem icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(session.sessionId)}>
             Archive thread
+          </MenuItem>
+          <MenuItem
+            icon={<TrashIcon size={14} />}
+            tone="danger"
+            onSelect={() => {
+              if (window.confirm(`Delete "${session.title}"? This cannot be undone.`)) {
+                void controller.deleteThread(session.sessionId);
+              }
+            }}
+          >
+            Delete thread
           </MenuItem>
         </MenuContent>
       </Menu>

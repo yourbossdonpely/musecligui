@@ -359,6 +359,16 @@ class FakeClient implements MuseCodeIconClient {
     return { path: "", outcome: "reverted" as const };
   }
 
+  deleted: string[] = [];
+  deleteError: Error | null = null;
+  async deleteSession(sessionId: string) {
+    if (this.deleteError) {
+      const error = this.deleteError;
+      this.deleteError = null;
+      throw error;
+    }
+    this.deleted.push(sessionId);
+  }
   diagnoses: { cwd: string; paths: string[] }[] = [];
   diagnoseResult: import("../src/types.js").DiagnosticReport = { checked: 0, skipped: [], issues: [] };
   diagnoseError: Error | null = null;
@@ -2159,6 +2169,31 @@ describe("MuseCodeIconController", () => {
     assert.equal(await controller.send("/compact"), true);
     assert.ok(client.actions.includes("compact"));
     assert.ok(client.sent.every((s) => !s.text.startsWith("MODE:")), "no framing leaks into commands");
+    stop();
+  });
+
+  it("deletes a thread and leaves it when it is open", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    await controller.deleteThread("s1");
+    const state = controller.store.get();
+    assert.deepEqual(client.deleted, ["s1"]);
+    assert.equal(state.sessions["s1"], undefined);
+    assert.equal(state.threads["s1"], undefined);
+    assert.deepEqual(state.route, { kind: "new", cwd: "/work/app" });
+    assert.equal(state.toasts.at(-1)?.title, "Thread deleted");
+    stop();
+  });
+
+  it("restores the thread when deleting fails", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    client.deleteError = new Error("daemon away");
+    await controller.deleteThread("s1");
+    const state = controller.store.get();
+    assert.ok(state.sessions["s1"], "the thread is back");
+    assert.ok(state.threads["s1"], "with its transcript");
+    assert.equal(state.toasts.at(-1)?.title, "Could not delete the thread");
     stop();
   });
 

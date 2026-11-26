@@ -183,6 +183,8 @@ export interface MuseCodeIconClient {
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }): Promise<{ id: string; url: string }>;
   /** Syntax-checks project files and reports what each installed checker found. */
   diagnose(cwd: string, paths: string[]): Promise<DiagnosticReport>;
+  /** Deletes a thread and everything kept for it. Refused while a turn is running. */
+  deleteSession(sessionId: string): Promise<void>;
   /** Subscribe to server events; returns an unsubscribe function. */
   subscribe(handler: EventHandler): () => void;
 }

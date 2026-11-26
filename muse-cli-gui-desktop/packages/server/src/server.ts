@@ -1529,6 +1529,21 @@ export class MuseCodeIconServer {
         this.json(res, 200, { session: record ? this.summary(record, found.cwd) : null });
         return true;
       }
+      if (method === "DELETE" && !action) {
+        const found = this.store.findSession(sessionId);
+        if (!found) {
+          throw new HttpError(404, "Unknown session.");
+        }
+        if (this.isBusy(sessionId)) {
+          throw new HttpError(409, "Stop the running turn and answer its requests before deleting this thread.");
+        }
+        this.store.deleteSession(sessionId);
+        this.live.delete(sessionId);
+        this.sessionHosts.delete(sessionId);
+        this.sessionsChanged();
+        this.json(res, 200, { deleted: true });
+        return true;
+      }
       if (method === "POST" && action) {
         const body = await this.readBody(req);
         if (action === "resume") {
@@ -3098,6 +3113,10 @@ export class MuseCodeIconServer {
       }
       // A subagent's own session is part of the thread that spawned it, not a thread of its own.
       if (session["kind"] === "subagent") {
+        continue;
+      }
+      // Deleted here stays deleted, even though Muse itself still lists the session.
+      if (this.store.isDeletedSession(sessionId)) {
         continue;
       }
       const reported = firstString(session, ["workspaceRoot"]);

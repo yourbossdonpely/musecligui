@@ -462,6 +462,10 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call("POST", "/api/diagnostics", { cwd, paths });
   }
 
+  async deleteSession(sessionId: string): Promise<void> {
+    await call("DELETE", `/api/sessions/${enc(sessionId)}`);
+  }
+
   async searchFiles(cwd: string, query: string): Promise<FileEntry[]> {
     return (await call<{ files: FileEntry[] }>("GET", `/api/files/search?cwd=${enc(cwd)}&q=${enc(query)}`)).files;
   }

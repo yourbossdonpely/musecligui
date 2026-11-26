@@ -2856,3 +2856,36 @@ describe("diagnostics", () => {
     assert.equal((await send(base, "/api/diagnostics", { cwd })).status, 400);
   });
 });
+
+describe("deleting threads", () => {
+  it("deletes a thread and never resurrects it from the host", async () => {
+    const connection = new FakeConnection();
+    connection.replies.set("session/list", {
+      sessions: [{ sessionId: "tui-9", workspaceRoot: "/work/proj", updatedAt: "2026-09-01T00:00:00.000Z" }],
+      nextCursor: null,
+    });
+    const { base } = await start(connection);
+    await send(base, "/api/discover", {});
+    const ids = async () => (await get(base, "/api/sessions")).sessions.map((s: { sessionId: string }) => s.sessionId);
+    assert.deepEqual(await ids(), ["tui-9"]);
+
+    const gone = await send(base, "/api/sessions/tui-9", undefined, "DELETE");
+    assert.equal(gone.status, 200);
+    assert.deepEqual(await ids(), []);
+    assert.equal((await send(base, "/api/sessions/tui-9", undefined, "DELETE")).status, 404);
+
+    await send(base, "/api/discover", {});
+    assert.deepEqual(await ids(), [], "the tombstone keeps the host's copy from coming back");
+  });
+
+  it("refuses to delete a thread with a running turn", async () => {
+    const connection = new FakeConnection();
+    connection.replies.set("session/start", { session: { sessionId: "s1" } });
+    const { base } = await start(connection);
+    await send(base, "/api/sessions", { cwd: "/work/proj" });
+    connection.notify("turn/started", { sessionId: "s1", turnId: "t1" });
+    assert.equal((await send(base, "/api/sessions/s1", undefined, "DELETE")).status, 409);
+    connection.notify("turn/completed", { sessionId: "s1", turnId: "t1", terminal: "completed" });
+    assert.equal((await send(base, "/api/sessions/s1", undefined, "DELETE")).status, 200);
+  });
+});

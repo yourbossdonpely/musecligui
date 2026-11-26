@@ -2214,6 +2214,39 @@ export class MuseCodeIconController {
   }
 
   /**
+   * Deletes a thread and everything kept for it. The caller confirms first: unlike archiving,
+   * there is no undo. Muse itself keeps its own copy of the session.
+   */
+  async deleteThread(sessionId: string): Promise<void> {
+    const current = this.state.sessions[sessionId];
+    if (!current) {
+      return;
+    }
+    const thread = this.state.threads[sessionId] ?? null;
+    this.update((s) => {
+      const sessions = { ...s.sessions };
+      const threads = { ...s.threads };
+      delete sessions[sessionId];
+      delete threads[sessionId];
+      return { ...s, sessions, threads };
+    });
+    const route = this.state.route;
+    if (route.kind === "thread" && route.sessionId === sessionId) {
+      this.navigate({ kind: "new", cwd: current.cwd });
+    }
+    try {
+      await this.client.deleteSession(sessionId);
+      this.toast("success", "Thread deleted", current.title);
+    } catch (error) {
+      this.upsertSession(current);
+      if (thread) {
+        this.update((s) => ({ ...s, threads: { ...s.threads, [sessionId]: thread } }));
+      }
+      this.toast("error", "Could not delete the thread", errorMessage(error));
+    }
+  }
+
+  /**
    * Publishes a read-only replay page for the thread and hands back its link, or null when there
    * is nothing to share or publishing failed. The caller copies the link: the model never touches
    * the clipboard.

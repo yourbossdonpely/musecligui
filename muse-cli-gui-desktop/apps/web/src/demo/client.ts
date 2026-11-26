@@ -760,6 +760,10 @@ export class DemoClient implements MuseCodeIconClient {
   async diagnose(): Promise<DiagnosticReport> {
     throw new Error("Diagnostics are disabled in this demo.");
   }
+
+  async deleteSession(): Promise<void> {
+    throw new Error("Deleting threads is disabled in this demo.");
+  }
   async searchFiles(cwd: string, query: string) {
     return this.files.search(cwd, query);
   }

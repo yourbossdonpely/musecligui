@@ -209,6 +209,10 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS deleted_sessions (
+  id TEXT PRIMARY KEY,
+  deleted_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_shell_runs_session ON shell_runs(session_id, at);
 CREATE INDEX IF NOT EXISTS idx_usage_at ON usage(at);
@@ -716,6 +720,31 @@ export class MuseCodeIconStore {
   getSession(id: string): SessionRecord | null {
     const row = this.db.prepare(`SELECT * FROM sessions WHERE id = ?`).get(id) as Row | undefined;
     return row ? this.toSession(row) : null;
+  }
+
+  /** True when the user deleted the thread: discovery must not resurrect it from the host. */
+  isDeletedSession(id: string): boolean {
+    const row = this.db.prepare(`SELECT id FROM deleted_sessions WHERE id = ?`).get(id) as Row | undefined;
+    return Boolean(row);
+  }
+
+  /**
+   * Deletes a thread and everything kept for it: turns, attachments, shell runs and usage rows.
+   * A tombstone stays behind so discovery skips the session if Muse still lists it. False when
+   * there was nothing to delete.
+   */
+  deleteSession(id: string): boolean {
+    const existing = this.getSession(id);
+    if (!existing) {
+      return false;
+    }
+    this.db.prepare(`DELETE FROM turns WHERE session_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM attachments WHERE session_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM shell_runs WHERE session_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM usage WHERE session_id = ?`).run(id);
+    this.db.prepare(`DELETE FROM sessions WHERE id = ?`).run(id);
+    this.db.prepare(`INSERT OR IGNORE INTO deleted_sessions (id, deleted_at) VALUES (?, ?)`).run(id, nowIso());
+    return true;
   }
 
   /** The session plus the project directory it belongs to, in one lookup. */

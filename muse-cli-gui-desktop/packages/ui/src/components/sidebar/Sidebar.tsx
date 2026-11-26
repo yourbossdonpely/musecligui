@@ -1,5 +1,5 @@
 import { copyText } from "../../app/clipboard.js";
-import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, XIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, TrashIcon, XIcon } from "../ui/icons.js";
 import { memo, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from "react";
 import { shallowEqual, useApp, useController, useNow } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
@@ -84,7 +84,7 @@ function SidebarTop(props: { newThreadRef: Ref<HTMLButtonElement> }) {
     <div data-drag-region {...drag} className="flex flex-col gap-px px-2 pt-2 pb-1.5">
       <div className="mb-2 flex h-8 items-center gap-2 pr-0.5 pl-1.5">
         <Logo size={20} />
-        <span className="truncate text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap text-fg">MuseCodeIcon by Don Peli</span>
+        <span className="truncate text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap text-fg">MuseCodeIcon by Don PELY</span>
         <span className="flex-1" />
         <Tip label="Hide sidebar" shortcut={[MOD, "B"]}>
           <IconButton label="Hide sidebar" onClick={() => controller.toggleSidebar()}>
@@ -786,6 +786,17 @@ function ThreadMenu(props: { session: SessionSummary; onRename: () => void }) {
         <MenuSeparator />
         <MenuItem icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(props.session.sessionId)}>
           Archive thread
+        </MenuItem>
+        <MenuItem
+          icon={<TrashIcon size={14} />}
+          tone="danger"
+          onSelect={() => {
+            if (window.confirm(`Delete "${props.session.title}"? This cannot be undone.`)) {
+              void controller.deleteThread(props.session.sessionId);
+            }
+          }}
+        >
+          Delete thread
         </MenuItem>
       </MenuContent>
     </Menu>
