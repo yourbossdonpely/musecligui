@@ -401,6 +401,10 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Controller** (`bulkArchive`/`bulkDelete`/`bulkPin`): optimistic removals, navigate-away when the open thread is affected, one summary toast; archive keeps a single Undo for all of them; per-item failures roll back and are counted, never silent.
 - Suites at release: ui 475/475, daemon 61/61, web 69/69, server 250 pass with the same 10 pre-existing Windows file-viewer failures.
 
+### Unreleased — follow-up chips fill the composer
+
+- **UX** (`FollowUpChips` in `Transcript.tsx`): clicking a suggestion now puts it in the thread's composer via the existing `prefillComposer`/`draftHandoff` path for editing, instead of sending it immediately.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

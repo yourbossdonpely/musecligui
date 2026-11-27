@@ -436,8 +436,8 @@ function FollowUpChips(props: { turn: TurnView; readOnly: boolean; sessionId: st
           size="sm"
           variant="secondary"
           data-testid="suggest-chip"
-          title="Send this follow-up"
-          onClick={() => void controller.send(suggestion)}
+          title="Edit this follow-up in the composer"
+          onClick={() => controller.prefillComposer(props.sessionId, suggestion)}
         >
           {suggestion}
         </Button>

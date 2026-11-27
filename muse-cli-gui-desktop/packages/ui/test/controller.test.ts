@@ -1629,6 +1629,15 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("prefills the composer with a suggestion instead of sending it", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.prefillComposer("s1", "Check the edge cases");
+    assert.deepEqual(controller.store.get().draftHandoff, { key: "s1", text: "Check the edge cases" });
+    assert.deepEqual(client.sent, []);
+    stop();
+  });
+
   it("hands the files back with the prompt when a first send fails", async () => {
     const client = new FakeClient();
     client.sendResult = async () => {
