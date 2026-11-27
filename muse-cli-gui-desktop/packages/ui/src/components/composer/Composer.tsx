@@ -27,7 +27,7 @@ import { TASK_MODES, type TaskMode } from "../../model/modes.js";
 import { isSshPath } from "../../model/paths.js";
 import { matchSlash, parseSlash, resolveSlash, slashCommands, type SlashCommand } from "../../model/slash.js";
 import type { SkillsState } from "../../model/store.js";
-import { lastTurnSpeed, streamingSpeed } from "../../model/usage.js";
+import { contextUsageOf, lastTurnSpeed, streamingSpeed } from "../../model/usage.js";
 import type { ApprovalMode, ReasoningEffort } from "../../types.js";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Modal, Tip, FLOATING } from "../ui/overlays.js";
 import { Button, IconButton, MOD, Spinner, cn } from "../ui/primitives.js";
@@ -643,6 +643,7 @@ export function Composer(props: ComposerProps) {
       <label htmlFor={id} className="sr-only">
         {threadTitle ? `Message Muse in ${threadTitle}` : "Message Muse"}
       </label>
+      <TopContextMeter sessionId={props.sessionId} />
       {shell ? (
         <div className="flex items-center gap-1.5 px-4 pt-2.5 text-xs text-muted">
           <TerminalWindowIcon size={13} className="shrink-0" />
@@ -689,27 +690,28 @@ export function Composer(props: ComposerProps) {
           shell ? "pt-1.5 font-mono text-sm" : "pt-3.5",
         )}
       />
-      <div className="flex min-w-0 flex-wrap items-center gap-0.5 px-2 pb-2">
+      {/* One line that never wraps: the pickers squeeze, then scroll, so the meters and the send button stay pinned at the right. */}
+      <div className="flex min-w-0 items-center gap-0.5 px-2 pb-2">
         {/* The new-thread composer sits high, so its menus open downward; they still flip when there is no room. */}
-        <AttachButton onFiles={(picked) => addFiles(Array.from(picked))} disabled={props.readOnly || files.length >= MAX_FILES} />
-        <TemplatesPicker
-          side={props.variant === "home" ? "bottom" : "top"}
-          draft={text}
-          disabled={props.readOnly}
-          onFill={(filled) => {
-            setText(filled);
-            ref.current?.focus();
-          }}
-        />
-        <TaskModePicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
-        <ModelPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
-        <EffortPicker side={props.variant === "home" ? "bottom" : "top"} />
-        <AccessPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
-        <AccountPicker sessionId={props.sessionId} cwd={props.cwd} variant={props.variant} />
-        <span className="min-w-2 flex-1" />
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <AttachButton onFiles={(picked) => addFiles(Array.from(picked))} disabled={props.readOnly || files.length >= MAX_FILES} />
+          <TemplatesPicker
+            side={props.variant === "home" ? "bottom" : "top"}
+            draft={text}
+            disabled={props.readOnly}
+            onFill={(filled) => {
+              setText(filled);
+              ref.current?.focus();
+            }}
+          />
+          <TaskModePicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
+          <ModelPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
+          <EffortPicker side={props.variant === "home" ? "bottom" : "top"} />
+          <AccessPicker sessionId={props.sessionId} side={props.variant === "home" ? "bottom" : "top"} />
+          <AccountPicker sessionId={props.sessionId} cwd={props.cwd} variant={props.variant} />
+        </div>
         {props.sessionId ? <SpeedReadout sessionId={props.sessionId} /> : null}
         {props.sessionId ? <CostMeter sessionId={props.sessionId} /> : null}
-        {props.sessionId ? <ContextMeter sessionId={props.sessionId} /> : null}
         {props.running && props.sessionId && hasText ? (
           <Tip label="Stop the turn" shortcut={["Esc"]}>
             <IconButton
@@ -1291,7 +1293,30 @@ function AccessPicker(props: { sessionId: string | null; side: PickerSide }) {
   );
 }
 
-/** Output speed beside the context ring: an estimate while text streams, else the last turn's measured speed. */
+/**
+ * The context ring on its own row above the input, right-aligned over the send button.
+ * Rendered only when the ring itself would show, so threads without usage yet keep no empty row.
+ */
+function TopContextMeter(props: { sessionId: string | null }) {
+  const show = useApp((s) => {
+    if (!props.sessionId) {
+      return false;
+    }
+    const fold = s.threads[props.sessionId]?.fold;
+    const usage = fold ? contextUsageOf(fold, s.models) : null;
+    return Boolean(usage?.windowTokens);
+  });
+  if (!show || !props.sessionId) {
+    return null;
+  }
+  return (
+    <div className="flex items-center justify-end px-3 pt-2">
+      <ContextMeter sessionId={props.sessionId} />
+    </div>
+  );
+}
+
+/** Output speed beside the send button: an estimate while text streams, else the last turn's measured speed. */
 function SpeedReadout(props: { sessionId: string }) {
   const controller = useController();
   const running = useApp((s) => Boolean(s.threads[props.sessionId]?.fold.activeTurnId));
