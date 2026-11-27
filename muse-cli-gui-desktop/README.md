@@ -25,6 +25,8 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 
 > **MuseCodeIcon** - home of the Muses. An open-source desktop + web ADE for Meta's **Muse Code CLI** (`muse`), in the spirit of the Claude Code desktop app and the Codex / ChatGPT desktop app.
 
+> If it helps you, [star the repo](https://github.com/yourbossdonpely/musecligui) — it helps others find it.
+
 **Sidebar-first:** all projects grouped by working directory, each with its tasks and sessions - resume anything, including sessions started from the `muse` terminal TUI.
 
 ![A thread: every edited file as a chip with its line counts, the files that thread changed, and the model, speed and cost for the reply](docs/assets/app-thread.png)

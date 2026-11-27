@@ -6,6 +6,8 @@
 
 **MuseCodeIcon by Don PELY** — desktop app for Meta's Muse Code CLI — gold on black, on Windows, macOS and Linux.
 
+Think **Claude Code desktop** or the **Codex desktop app**, but for **Meta Muse Code**: agentic coding threads, approvals, diffs and usage meters in a fast Tauri window instead of the terminal. Free and open source (MIT).
+
 **[→ Read the MuseCodeIcon README](muse-cli-gui-desktop/README.md)**
 
 [![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecligui)](LICENSE)
@@ -13,6 +15,8 @@
 [![Also in this repo](https://img.shields.io/badge/also%20in%20this%20repo-portable%20Windows%20bridge%20GUI-6b7280)](#muse-cli-gui--the-bridge-gui-older)
 
 [Read the desktop app write-up](muse-cli-gui-desktop/README.md) · [Build MuseCodeIcon](#build-musecodeicon-windows-installer) · [Bridge GUI — the older app](#muse-cli-gui--the-bridge-gui-older)
+
+If MuseCodeIcon helps you, [star the repo](https://github.com/yourbossdonpely/musecligui) — it helps others find it.
 
 </div>
 
