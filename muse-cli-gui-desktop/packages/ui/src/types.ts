@@ -543,6 +543,14 @@ export interface OutgoingAttachment {
   height?: number;
 }
 
+/** One named definition in a file, for `@file#symbol` mentions. */
+export interface FileSymbolView {
+  name: string;
+  kind: string;
+  /** 1-based definition line. */
+  line: number;
+}
+
 /** A usage window as a percentage of the plan's allowance, with when it resets. */
 export interface PlanWindow {
   usedPercent: number;

@@ -377,6 +377,11 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **UI** (project menu → Worktrees… modal): list with main/stale/locked badges, add-by-branch, remove with confirm plus force-after-refusal, prune button, per-row New thread here (adds the folder as a project first via `newThreadIn`).
 - Test notes: route tests stub shellRunner and assert argv (no shell strings); one end-to-end test drives real git in a temp repo (skips when git is absent) — it caught two real bugs: `--verbose` cannot combine with `--porcelain`, and Windows backslash-vs-slash paths need normalizing before comparison.
 
+### Unreleased — `@file#symbol` mentions
+
+- **Server** (`server/src/symbols.ts`, `/api/files/symbols`, `/api/files/symbol`): regex definition finder per language family (TS/JS, Python, Rust, Go, Java, PHP, Markdown headings), capped (200/file, 256KB files skipped). Snippets capture the definition block — brace depth for braced languages, indentation for Python — plus decorators above, bounded (100 lines/8k chars) with a truncation marker.
+- **UI**: typing `#` after a file path in `@` completes its definitions (🔣 rows, `name · kind`); sending `@path#name` attaches just that block (`File @path#name:`), sharing the 3-file cap; unknown symbols stay literal like missing files. `splitMentionRef` in `model/mentions.ts`.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

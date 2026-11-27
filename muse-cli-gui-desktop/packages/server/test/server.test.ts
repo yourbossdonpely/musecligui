@@ -2343,6 +2343,53 @@ describe("file viewer", () => {
   });
 });
 
+describe("file symbols", () => {
+  async function project() {
+    const { mkdtemp, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const root = await mkdtemp(join(tmpdir(), "musecodeicon-symbols-"));
+    await writeFile(
+      join(root, "app.ts"),
+      ["export function greet(name: string) {", '  return `hi ${name}`;', "}", "", "export class Store {", "  items: string[] = [];", "}", ""].join("\n"),
+    );
+    await writeFile(join(root, "tool.py"), ["def run(path):", "    return path", "", "class Job:", "    pass", ""].join("\n"));
+    const connection = new FakeConnection();
+    const { base } = await start(connection, { platform: process.platform });
+    const added = await send(base, "/api/projects", { cwd: root });
+    const cwd = added.json.project.cwd as string;
+    const q = (path: string, extra = "") => `cwd=${encodeURIComponent(cwd)}&path=${encodeURIComponent(path)}${extra}`;
+    return { base, q };
+  }
+
+  it("lists definitions and serves their blocks", async () => {
+    const { base, q } = await project();
+    const listed = await get(base, `/api/files/symbols?${q("app.ts")}`);
+    assert.deepEqual(
+      listed.symbols.map((s: { name: string; kind: string }) => `${s.kind}:${s.name}`),
+      ["function:greet", "class:Store"],
+    );
+    const py = await get(base, `/api/files/symbols?${q("tool.py")}`);
+    assert.deepEqual(
+      py.symbols.map((s: { name: string }) => s.name),
+      ["run", "Job"],
+    );
+    const block = await get(base, `/api/files/symbol?${q("app.ts", "&name=greet")}`);
+    assert.match(block.snippet, /export function greet/);
+    assert.match(block.snippet, /return `hi/);
+    assert.ok(!block.snippet.includes("class Store"), "stops at the block end");
+    assert.equal(block.line, 1);
+  });
+
+  it("answers 404 for unknown symbols, files and projects", async () => {
+    const { base, q } = await project();
+    const status = async (url: string) => (await fetch(`${base}${url}`)).status;
+    assert.equal(await status(`/api/files/symbol?${q("app.ts", "&name=nope")}`), 404);
+    assert.equal(await status(`/api/files/symbol?${q("missing.ts", "&name=x")}`), 404);
+    assert.equal(await status(`/api/files/symbols?cwd=${encodeURIComponent("/nope")}&path=a.ts`), 404);
+  });
+});
+
 describe("slash commands, skills and shell", () => {
   const LIST = JSON.stringify({
     diagnostics: [],

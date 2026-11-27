@@ -67,6 +67,7 @@ import {
   type SshRunFn,
 } from "./ssh.js";
 import { buildThreadTitlePrompt, deriveTitle, parseExecTitle, sanitizeThreadTitle } from "./threadTitles.js";
+import { extractSymbols, symbolSnippet } from "./symbols.js";
 import { importOmpUsage, resolveOmpSessionsDirs } from "./ompUsage.js";
 import {
   DEFAULT_TAIL_TIMING,
@@ -4487,6 +4488,24 @@ export class MuseCodeIconServer {
     }
     if (method === "GET" && path === "/api/files/search") {
       this.json(res, 200, { files: await searchProjectFiles(root, url.searchParams.get("q") ?? "") });
+      return true;
+    }
+    if (method === "GET" && path === "/api/files/symbols") {
+      const read = await readProjectFile(root, cwd, target);
+      this.json(res, 200, { symbols: read.content ? extractSymbols(target, read.content) : [] });
+      return true;
+    }
+    if (method === "GET" && path === "/api/files/symbol") {
+      const name = (url.searchParams.get("name") ?? "").trim();
+      if (!name) {
+        throw new HttpError(400, "name is required.");
+      }
+      const read = await readProjectFile(root, cwd, target);
+      const found = read.content ? extractSymbols(target, read.content).find((s) => s.name === name) ?? null : null;
+      if (!found || !read.content) {
+        throw new HttpError(404, "No such symbol in that file.");
+      }
+      this.json(res, 200, { snippet: symbolSnippet(read.content, found), line: found.line });
       return true;
     }
     if (method === "PUT" && path === "/api/files/write") {

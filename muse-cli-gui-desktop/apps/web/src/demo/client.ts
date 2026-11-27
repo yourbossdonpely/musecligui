@@ -3,7 +3,7 @@
  * server. It seeds realistic sample projects, threads, usage and models, and plays back turns as MSP
  * events. Copied from the landing page's demo client (landing/src/demo/client.ts).
  */
-import { listedPrice, type DiagnosticReport, type EventHandler, type McpServerView, type MuseCodeIconClient, type ScheduleView, type SkillFoldersView, type TurnOptions, type WorktreeView } from "@musecodeicon/ui";
+import { listedPrice, type DiagnosticReport, type EventHandler, type FileSymbolView, type McpServerView, type MuseCodeIconClient, type ScheduleView, type SkillFoldersView, type TurnOptions, type WorktreeView } from "@musecodeicon/ui";
 import { DemoFiles } from "./files.js";
 import type {
   ApprovalRequest,
@@ -749,6 +749,12 @@ export class DemoClient implements MuseCodeIconClient {
   }
   async readFile(cwd: string, path: string) {
     return this.files.read(cwd, path);
+  }
+  async listFileSymbols(): Promise<FileSymbolView[]> {
+    return [];
+  }
+  async readFileSymbol(): Promise<{ snippet: string; line: number }> {
+    throw new Error("Symbols are disabled in this demo.");
   }
   async writeFile(cwd: string, path: string, content: string) {
     return this.files.write(cwd, path, content);

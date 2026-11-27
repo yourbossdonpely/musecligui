@@ -18,6 +18,7 @@ import {
   type FileContent,
   type FileEntry,
   type FileListing,
+  type FileSymbolView,
   type GoalAction,
   type MuseCodeIconClient,
   type MuseCodeIconEvent,
@@ -465,6 +466,14 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   readFile(cwd: string, path: string): Promise<FileContent> {
     return call<FileContent>("GET", `/api/files/read?cwd=${enc(cwd)}&path=${enc(path)}`);
+  }
+
+  async listFileSymbols(cwd: string, path: string): Promise<FileSymbolView[]> {
+    return (await call<{ symbols: FileSymbolView[] }>("GET", `/api/files/symbols?cwd=${enc(cwd)}&path=${enc(path)}`)).symbols;
+  }
+
+  readFileSymbol(cwd: string, path: string, name: string): Promise<{ snippet: string; line: number }> {
+    return call("GET", `/api/files/symbol?cwd=${enc(cwd)}&path=${enc(path)}&name=${enc(name)}`);
   }
 
   writeFile(cwd: string, path: string, content: string, baseMtimeMs: number | null): Promise<{ path: string; size: number; mtimeMs: number }> {

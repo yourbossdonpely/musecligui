@@ -442,6 +442,15 @@ class FakeClient implements MuseCodeIconClient {
   async readFile(_cwd: string, path: string) {
     return { path, name: path, size: 3, mtimeMs: 100, kind: "markdown" as const, mediaType: "text/markdown", content: "# a", truncated: false };
   }
+  async listFileSymbols() {
+    return [{ name: "greet", kind: "function", line: 1 }];
+  }
+  async readFileSymbol(_cwd: string, _path: string, name: string) {
+    if (name !== "greet") {
+      throw new Error("No such symbol in that file.");
+    }
+    return { snippet: "export function greet() {}", line: 1 };
+  }
   async writeFile(_cwd: string, path: string, content: string, baseMtimeMs: number | null) {
     if (this.writeError) {
       const error = this.writeError;

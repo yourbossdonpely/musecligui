@@ -3753,6 +3753,14 @@ export class MuseCodeIconController {
     return this.client.readFile(cwd, path);
   }
 
+  listFileSymbols(cwd: string, path: string) {
+    return this.client.listFileSymbols(cwd, path);
+  }
+
+  readFileSymbol(cwd: string, path: string, name: string) {
+    return this.client.readFileSymbol(cwd, path, name);
+  }
+
   searchFiles(cwd: string, query: string) {
     return this.client.searchFiles(cwd, query);
   }

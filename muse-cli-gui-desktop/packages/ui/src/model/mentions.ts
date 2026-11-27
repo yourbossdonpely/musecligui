@@ -45,6 +45,22 @@ export function applyMention(value: string, caret: number, start: number, rel: s
 
 const EXTRACT_RE = /(?:^|\s)@([^\s@]+)/g;
 
+/** A mention with an optional `#symbol` pinned to one definition in the file. */
+export interface MentionRef {
+  rel: string;
+  symbol: string | null;
+}
+
+/** Splits `path/to/file.ts#name` into its file and symbol halves. */
+export function splitMentionRef(rel: string): MentionRef {
+  const hash = rel.indexOf("#");
+  if (hash < 0) {
+    return { rel, symbol: null };
+  }
+  const symbol = rel.slice(hash + 1).trim();
+  return { rel: rel.slice(0, hash), symbol: symbol ? symbol : null };
+}
+
 export function extractMentions(text: string): string[] {
   const found: string[] = [];
   EXTRACT_RE.lastIndex = 0;
@@ -92,10 +108,13 @@ export function extractBarePaths(text: string, skip: readonly string[] = []): st
   return found;
 }
 
-export function buildMentionContext(files: { rel: string; content: string; bare?: boolean }[]): string {
+export function buildMentionContext(files: { rel: string; content: string; bare?: boolean; symbol?: string }[]): string {
   if (!files.length) {
     return "";
   }
-  const parts = files.map(({ rel, content, bare }) => `File ${bare ? rel : `@${rel}`}:\n\`\`\`\n${content}\n\`\`\``);
+  const parts = files.map(({ rel, content, bare, symbol }) => {
+    const label = bare ? rel : `@${rel}`;
+    return `File ${label}${symbol ? `#${symbol}` : ""}:\n\`\`\`\n${content}\n\`\`\``;
+  });
   return `\n\n[Attached files]\n${parts.join("\n\n")}`;
 }

@@ -5,6 +5,7 @@ import type {
   FeedSettings,
   FileContent,
   FileEntry,
+  FileSymbolView,
   FileListing,
   GoalAction,
   McpServerView,
@@ -185,6 +186,10 @@ export interface MuseCodeIconClient {
   openFileExternally(cwd: string, path: string): Promise<void>;
   /** Where the browser loads a project file's bytes from, for images, video, audio and PDFs. */
   fileUrl(cwd: string, path: string): string;
+  /** Named definitions in a project file, for `@file#symbol` mentions. */
+  listFileSymbols(cwd: string, path: string): Promise<FileSymbolView[]>;
+  /** One definition's block; refused for unknown files and symbols. */
+  readFileSymbol(cwd: string, path: string, name: string): Promise<{ snippet: string; line: number }>;
   /** Publishes a read-only replay page for a thread; the link dies with the daemon. */
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }, opts?: { signal?: AbortSignal }): Promise<{ id: string; url: string }>;
   /** Writes a thread's handoff file into its project folder; refused for unknown threads and oversized bodies. */

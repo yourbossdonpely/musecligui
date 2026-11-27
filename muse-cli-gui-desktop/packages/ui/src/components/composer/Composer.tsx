@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { AttachButton, AttachmentTray, readFiles, restoreFiles, toOutgoing, toPreview, type PendingFile } from "./attachments.js";
-import { applyMention, buildMentionContext, extractBarePaths, extractMentions, findMentionToken, splitMentionQuery } from "../../model/mentions.js";
+import { applyMention, buildMentionContext, extractBarePaths, extractMentions, findMentionToken, splitMentionQuery, splitMentionRef } from "../../model/mentions.js";
 import { CostMeter } from "./CostPanel.js";
 import { resolveSteer } from "./keys.js";
 import { Popover, Slider, Switch } from "radix-ui";
@@ -82,6 +82,9 @@ type SlashMenuView = SlashMenuState & { prefix: string };
 interface MentionItem {
   rel: string;
   dir: boolean;
+  /** Set for `@file#symbol` rows: shown instead of the full rel. */
+  label?: string;
+  symbol?: boolean;
 }
 
 export function mentionOptionId(menuId: string, index: number): string {
@@ -104,7 +107,7 @@ function MentionMenu(props: {
     <div
       id={props.id}
       role="listbox"
-      aria-label="Matching files"
+      aria-label="Matching files and symbols"
       className={
         "absolute right-3 left-3 z-30 max-h-56 overflow-y-auto rounded-xl border border-line bg-raised p-1 shadow-xl " +
         (props.placement === "below" ? "top-full mt-1" : "bottom-full mb-1")
@@ -126,8 +129,8 @@ function MentionMenu(props: {
             (index === props.active ? "bg-active text-fg" : "text-muted")
           }
         >
-          <span aria-hidden="true">{item.dir ? "📁" : "📄"}</span>
-          <span className="min-w-0 truncate">{item.rel}</span>
+          <span aria-hidden="true">{item.dir ? "📁" : item.symbol ? "🔣" : "📄"}</span>
+          <span className="min-w-0 truncate">{item.label ?? item.rel}</span>
         </div>
       ))}
     </div>
@@ -286,7 +289,32 @@ export function Composer(props: ComposerProps) {
     const seq = (mentionSeq.current += 1);
     const cwd = props.cwd;
     const { dir, file } = splitMentionQuery(mentionToken.query);
+    const hash = file.indexOf("#");
     const timer = setTimeout(() => {
+      // `@path#sym` completes definitions inside the file instead of files.
+      if (hash >= 0) {
+        const rel = (dir ? `${dir}/` : "") + file.slice(0, hash);
+        const query = file.slice(hash + 1).toLowerCase();
+        controller
+          .listFileSymbols(cwd, rel)
+          .then((symbols) => {
+            if (mentionSeq.current !== seq) {
+              return;
+            }
+            const items = symbols
+              .filter((sym) => sym.name.toLowerCase().includes(query))
+              .slice(0, 8)
+              .map((sym) => ({ rel: `${rel}#${sym.name}`, dir: false, label: `${sym.name} · ${sym.kind}`, symbol: true }));
+            setMentionItems(items.length ? items : null);
+            setMentionActive(0);
+          })
+          .catch(() => {
+            if (mentionSeq.current === seq) {
+              setMentionItems(null);
+            }
+          });
+        return;
+      }
       controller
         .listFiles(cwd, dir)
         .then((listing) => {
@@ -379,21 +407,32 @@ export function Composer(props: ComposerProps) {
     setFiles([]);
     // A new prompt takes the floor: anything being read aloud stops.
     stopSpeech();
-    // @file mentions and bare paths named in the prompt resolve to fenced context on
-    // the wire; the echo keeps what was typed. Unreadable paths stay literal so
-    // nothing is ever lost.
+    // @file mentions, @file#symbol pins and bare paths named in the prompt resolve
+    // to fenced context on the wire; the echo keeps what was typed. Unreadable
+    // paths stay literal so nothing is ever lost.
     let full = value;
     const rels = props.cwd ? extractMentions(value) : [];
     const bare = props.cwd ? extractBarePaths(value, rels) : [];
-    const wanted = [...rels.map((rel) => ({ rel, bare: false })), ...bare.map((rel) => ({ rel, bare: true }))].slice(0, 3);
+    const wanted = [
+      ...rels.map((rel) => ({ ...splitMentionRef(rel), bare: false })),
+      ...bare.map((rel) => ({ rel, symbol: null as string | null, bare: true })),
+    ].slice(0, 3);
     if (wanted.length && props.cwd) {
       const cwd = props.cwd;
-      const parts: { rel: string; content: string; bare: boolean }[] = [];
-      for (const { rel, bare: isBare } of wanted) {
+      const parts: { rel: string; content: string; bare: boolean; symbol?: string }[] = [];
+      for (const { rel, symbol, bare: isBare } of wanted) {
+        if (!rel) {
+          continue;
+        }
         try {
-          const file = await controller.readFile(cwd, rel);
-          if (file.content) {
-            parts.push({ rel, content: file.content.slice(0, 20000), bare: isBare });
+          if (symbol && !isBare) {
+            const block = await controller.readFileSymbol(cwd, rel, symbol);
+            parts.push({ rel, content: block.snippet.slice(0, 20000), bare: isBare, symbol });
+          } else {
+            const file = await controller.readFile(cwd, rel);
+            if (file.content) {
+              parts.push({ rel, content: file.content.slice(0, 20000), bare: isBare });
+            }
           }
         } catch {
           // Named path is missing or binary: leave the text for the model to see.

@@ -7,6 +7,7 @@ import {
   extractMentions,
   findMentionToken,
   splitMentionQuery,
+  splitMentionRef,
 } from "../src/model/mentions.js";
 
 describe("mentions", () => {
@@ -43,6 +44,17 @@ describe("mentions", () => {
     assert.match(block, /File @a\.txt:/);
     assert.match(block, /```/);
     assert.equal(buildMentionContext([]), "");
+  });
+
+  it("splits file#symbol refs", () => {
+    assert.deepEqual(splitMentionRef("a/b.ts#greet"), { rel: "a/b.ts", symbol: "greet" });
+    assert.deepEqual(splitMentionRef("a.ts"), { rel: "a.ts", symbol: null });
+    assert.deepEqual(splitMentionRef("a.ts#"), { rel: "a.ts", symbol: null });
+  });
+
+  it("labels pinned symbols with their #name", () => {
+    const block = buildMentionContext([{ rel: "a.ts", content: "hi", symbol: "greet" }]);
+    assert.match(block, /File @a\.ts#greet:/);
   });
 
   it("labels bare paths without the @", () => {
