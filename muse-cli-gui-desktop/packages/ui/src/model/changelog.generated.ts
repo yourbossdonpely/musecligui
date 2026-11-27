@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "3.0.1",
+    "body": "### Fixed\n\n- **Canonical updater URL.** The app checks `latest.json` at the renamed `musecodeicon` repo directly instead of through GitHub's redirect from the old name.\n- **Composer send button pinned right.** The bottom bar never wraps now: the pickers squeeze, then scroll, so the meters and the send/stop button stay at the right. The context ring moved to its own row above the input, right-aligned over the send button."
+  },
+  {
     "version": "3.0.0",
     "body": "### Added\n\n- **Prompt history.** Up/Down in an empty composer recalls prompts you sent, terminal-style.\n- **MCP servers.** Settings manages user-scope servers: add a command or URL, remove with one click, and new threads pick them up.\n- **One-click review.** The files-changed card sends the thread's diff for a review pass, most important findings first.\n- **Terminal card.** Run shell commands from the thread dock; output stays with the thread.\n- **Scheduled prompts.** Daily-clock prompts that run themselves in their threads while the app is open, with per-day picks and one catch-up run for missed days.\n- **Auto-attached context.** Bare `dir/file.ext` paths named in a prompt attach like `@` mentions; unreadable paths stay literal."
   },

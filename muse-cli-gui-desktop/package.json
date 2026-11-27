@@ -1,7 +1,7 @@
 {
   "name": "musecodeicon",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "MuseCodeIcon - open-source desktop + web ADE for Meta's Muse Code CLI",
   "workspaces": [
     "packages/*",
