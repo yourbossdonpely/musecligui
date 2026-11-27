@@ -387,6 +387,11 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Model** (`model/plan.ts`): each meter row gains a forecast from the burn rate, projected linearly from the window start through the reading (weekly defaults to a 7-day window): "Cap in 1h 3m" when the cap lands before reset, "On pace · ~62% at reset" otherwise, "May already be capped" when the projection is already past, "On pace" for untouched windows, nothing once reset. Computed at the observed time since readings lag reality; relative durations only, so no locale-dependent clocks.
 - **UI** (`PlanMeter`): appended to each row's resets line and to the sidebar pill's tooltip.
 
+### Unreleased — apply review findings
+
+- **Model** (`model/review.ts`): review turns are recognized by their prompt head (`REVIEW_PROMPT_HEAD`, shared with the send path so the marker can never drift); `APPLY_REVIEW_PROMPT` sends the model back over its own review file by file.
+- **Flow** (`controller.applyReview` + `ApplyReviewButton` in `Transcript.tsx`): replies to review turns grow an "Apply findings" button (hidden when read-only); the controller re-verifies a finished review exists and otherwise toasts "Review the changes first". No finding-parsing: the model re-reads its own review.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

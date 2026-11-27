@@ -53,6 +53,7 @@ import {
   type ThreadFold,
 } from "./fold.js";
 import { buildHandoffMarkdown, buildResumeMessage, handoffTurns, type HandoffData } from "./handoff.js";
+import { APPLY_REVIEW_PROMPT, buildReviewPrompt, isReviewTurn } from "./review.js";
 import {
   FILES_WIDTH_MAX,
   FILES_WIDTH_MIN,
@@ -2557,9 +2558,28 @@ export class MuseCodeIconController {
     if (!session) {
       return false;
     }
-    return this.send(`Review these changed files for bugs, risks and nits, most important first:\n${paths.map((path) => `- ${path}`).join("\n")}`, {
+    return this.send(buildReviewPrompt(paths), {
       sessionId,
     });
+  }
+
+  /**
+   * Sends the model back over its own review, file by file. Only offered on turns
+   * that actually reviewed, and refused when none has.
+   */
+  async applyReview(sessionId: string): Promise<boolean> {
+    const session = this.state.sessions[sessionId];
+    const thread = this.state.threads[sessionId];
+    if (!session || !thread) {
+      return false;
+    }
+    const turns = buildTurns(thread.fold, inheritedTurns(thread.fold, sideStart(session)));
+    const reviewed = turns.some((turn) => isReviewTurn(turn) && (turn.final?.text ?? "").trim().length > 0);
+    if (!reviewed) {
+      this.toast("info", "Review the changes first", "Run a review pass, then apply its findings.");
+      return false;
+    }
+    return this.send(APPLY_REVIEW_PROMPT, { sessionId });
   }
 
   /** Shelves a thread in its project's Settled list, or brings it back. */

@@ -1422,6 +1422,32 @@ describe("MuseCodeIconController", () => {
     stop();
   });
 
+  it("applies a review by sending the model back over its findings", async () => {
+    const client = new FakeClient();
+    client.transcript = async () =>
+      load({
+        events: [
+          { method: "turn/started", params: { turnId: "t9" } },
+          { method: "item/completed", params: { item: { itemId: "u1", kind: "userMessage", turnId: "t9", revision: 1, status: "completed", text: "Review these changed files for bugs:\n- a.ts" } } },
+          { method: "item/completed", params: { item: { itemId: "a1", kind: "agentMessage", turnId: "t9", revision: 1, status: "completed", text: "Two findings." } } },
+          { method: "turn/completed", params: { turnId: "t9", terminal: "completed" } },
+        ] as never,
+      });
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.applyReview("s1"), true);
+    assert.match(client.sent.at(-1)?.text ?? "", /file by file/);
+    stop();
+  });
+
+  it("refuses to apply findings when nothing reviewed", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.applyReview("s1"), false);
+    assert.deepEqual(client.sent, []);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Review the changes first");
+    stop();
+  });
+
   it("asks for follow-up suggestions on the wire while the echo stays clean", async () => {
     const client = new FakeClient();
     const { controller, stop } = await started(client);

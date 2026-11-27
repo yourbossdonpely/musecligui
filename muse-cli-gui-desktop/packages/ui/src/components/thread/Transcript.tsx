@@ -22,6 +22,7 @@ import { streamingSpeed, turnCosts, turnSpeeds, type TurnCost, type TurnSpeed } 
 import { STARTER_PROMPTS, fallbackSuggestions, parseSuggestions, stripSuggestions } from "../../model/suggestions.js";
 import { formatCost } from "../../model/pricing.js";
 import { signedOut, stuckThread } from "../../model/errors.js";
+import { isReviewTurn } from "../../model/review.js";
 import { HelpLink, MUSE_HELP_URL } from "../home/Home.js";
 import type { ThreadState } from "../../model/store.js";
 import type { AttachmentView, MspItem, OutgoingAttachment, ShellRun, UserInputAnswer } from "../../types.js";
@@ -332,6 +333,9 @@ const TurnBlock = memo(
           <Entry item={final} answers={null} sessionId={props.sessionId} />
           <TurnFooter turn={turn} speed={props.speed} cost={props.cost} />
           <FollowUpChips turn={turn} readOnly={props.readOnly} sessionId={props.sessionId} />
+          {isReviewTurn(turn) && !props.readOnly ? (
+            <ApplyReviewButton sessionId={props.sessionId} />
+          ) : null}
         </div>,
       );
     }
@@ -437,6 +441,18 @@ function FollowUpChips(props: { turn: TurnView; readOnly: boolean; sessionId: st
           {suggestion}
         </Button>
       ))}
+    </div>
+  );
+}
+
+/** Sends the model back over its own review. Shown only on turns that actually reviewed. */
+function ApplyReviewButton(props: { sessionId: string }) {
+  const controller = useController();
+  return (
+    <div className="flex flex-wrap gap-2 pt-1">
+      <Button size="sm" variant="secondary" title="Fix each finding from the review above" onClick={() => void controller.applyReview(props.sessionId)}>
+        Apply findings
+      </Button>
     </div>
   );
 }
