@@ -1426,15 +1426,77 @@ export class MuseCodeIconController {
   }
 
   async unqueue(sessionId: string, echo: LocalEcho): Promise<void> {
+    await this.takeQueued(sessionId, echo);
+  }
+
+  /**
+   * Lifts a queued message out of the queue so its text can go again, edited or now.
+   * False when the turn already started (with a toast); the caller must not re-send then.
+   */
+  private async takeQueued(sessionId: string, echo: LocalEcho): Promise<boolean> {
     if (!echo.turnId) {
+      // Not acknowledged yet: only the local copy exists. The in-flight send may still
+      // land afterwards — the same race `unqueue` has always accepted.
       this.patchFold(sessionId, (f) => removeEcho(f, echo.localId));
-      return;
+      return true;
     }
     try {
       await this.client.unqueueTurn(sessionId, echo.turnId);
       this.patchFold(sessionId, (f) => removeEcho(f, echo.localId));
+      return true;
     } catch (error) {
       this.toast("info", "That message already started", errorMessage(error));
+      return false;
+    }
+  }
+
+  /**
+   * Edits a queued message: the old turn leaves the queue and the new text queues behind
+   * the running turn, or starts when idle. Muse offers no edit-in-place, so an edited
+   * message goes to the back of the queue, without the files the first send resolved.
+   */
+  async editQueuedMessage(sessionId: string, echo: LocalEcho, text: string): Promise<boolean> {
+    const clean = text.trim();
+    // Re-read by id: a retry after a failed send finds the echo already taken, and sends directly.
+    const current = this.state.threads[sessionId]?.fold.echoes.find((e) => e.localId === echo.localId);
+    if (!clean || clean === (current?.text ?? echo.text)) {
+      return false;
+    }
+    if (this.state.threads[sessionId]?.readOnly) {
+      return false;
+    }
+    if (current && !(await this.takeQueued(sessionId, current))) {
+      return false;
+    }
+    this.warnDroppedFiles(current ?? echo);
+    const running = this.state.threads[sessionId]?.fold.activeTurnId != null;
+    return this.send(clean, { sessionId, ...(running ? { queue: true } : {}) });
+  }
+
+  /**
+   * Sends a queued message now: steered into the running turn, or started as its own
+   * turn when idle. Files-only messages stay queued — their files cannot go again.
+   */
+  async sendQueuedNow(sessionId: string, echo: LocalEcho): Promise<boolean> {
+    if (!echo.text.trim()) {
+      this.toast("info", "Keeping that message queued", "It was files only, and files cannot be sent again.");
+      return false;
+    }
+    if (this.state.threads[sessionId]?.readOnly) {
+      return false;
+    }
+    if (!(await this.takeQueued(sessionId, echo))) {
+      return false;
+    }
+    this.warnDroppedFiles(echo);
+    const running = this.state.threads[sessionId]?.fold.activeTurnId != null;
+    return this.send(echo.text, { sessionId, ...(running ? { steer: true } : {}) });
+  }
+
+  /** Attachments resolve at first send, so a re-sent message goes without them. Say so once. */
+  private warnDroppedFiles(echo: LocalEcho): void {
+    if (echo.attachments?.length) {
+      this.toast("info", "Sent without its files", "Attached files resolve at first send; add them to the composer to send them again.");
     }
   }
 

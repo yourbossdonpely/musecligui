@@ -1,5 +1,5 @@
-import { CaretDownIcon, CaretUpIcon, ChatCircleDotsIcon, CheckCircleIcon, CheckIcon, CircleIcon, ClockIcon, ListChecksIcon, LockIcon, PencilSimpleIcon, PlugsIcon, ShieldWarningIcon, XCircleIcon, XIcon } from "../ui/icons.js";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { CaretDownIcon, CaretUpIcon, ChatCircleDotsIcon, CheckCircleIcon, CheckIcon, CircleIcon, ClockIcon, ListChecksIcon, LockIcon, NotePencilIcon, PaperPlaneRightIcon, PencilSimpleIcon, PlugsIcon, ShieldWarningIcon, XCircleIcon, XIcon } from "../ui/icons.js";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useApp, useController } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
 import type { LocalEcho } from "../../model/fold.js";
@@ -606,22 +606,94 @@ export function PlanPanel(props: { sessionId: string; items: TodoItem[] }) {
   );
 }
 
-export function QueuedList(props: { sessionId: string; items: LocalEcho[] }) {
-  const controller = useController();
+export function QueuedList(props: { sessionId: string; items: LocalEcho[]; readOnly: boolean }) {
   return (
     <div className="flex flex-col gap-1.5">
       {props.items.map((echo) => (
-        <div key={echo.localId} className="enter-up flex items-center gap-2.5 rounded-xl bg-sunken py-1.5 pr-1.5 pl-3 shadow-[0_0_0_1px_var(--border)]">
-          <ClockIcon size={14} className="shrink-0 text-subtle" />
-          <span className="shrink-0 text-xs font-medium text-subtle">Queued</span>
-          <span className="min-w-0 flex-1 truncate text-sm text-muted">{echo.text}</span>
-          <Tip label="Remove from the queue">
-            <IconButton size="xs" label="Remove from the queue" onClick={() => void controller.unqueue(props.sessionId, echo)}>
-              <XIcon size={13} />
-            </IconButton>
-          </Tip>
-        </div>
+        <QueuedRow key={echo.localId} sessionId={props.sessionId} echo={echo} readOnly={props.readOnly} />
       ))}
+    </div>
+  );
+}
+
+function QueuedRow(props: { sessionId: string; echo: LocalEcho; readOnly: boolean }) {
+  const controller = useController();
+  const ime = useImeGuard();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const { echo } = props;
+  const startEdit = () => {
+    setDraft(echo.text);
+    setEditing(true);
+  };
+  const saveEdit = async () => {
+    // Stays open on failure so the draft survives for a retry; a turn that already
+    // started flips out of the queue and unmounts the row on its own.
+    if (await controller.editQueuedMessage(props.sessionId, echo, draft)) {
+      setEditing(false);
+    }
+  };
+  return (
+    <div className="enter-up flex items-center gap-2.5 rounded-xl bg-sunken py-1.5 pr-1.5 pl-3 shadow-[0_0_0_1px_var(--border)]">
+      <ClockIcon size={14} className="shrink-0 text-subtle" />
+      <span className="shrink-0 text-xs font-medium text-subtle">Queued</span>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onCompositionStart={ime.onCompositionStart}
+          onCompositionEnd={ime.onCompositionEnd}
+          onKeyUp={ime.onKeyUp}
+          onKeyDown={(e: ReactKeyboardEvent<HTMLInputElement>) => {
+            if (ime.isImeKey(e)) {
+              return;
+            }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void saveEdit();
+            } else if (e.key === "Escape") {
+              setEditing(false);
+            }
+          }}
+          aria-label="Edit queued message"
+          title="Enter to save, Esc to cancel"
+          spellCheck={false}
+          className="h-7 min-w-0 flex-1 rounded-md bg-raised px-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        />
+      ) : props.readOnly ? (
+        <span className="min-w-0 flex-1 truncate text-sm text-muted">{echo.text}</span>
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          title="Edit queued message"
+          className="min-w-0 flex-1 truncate rounded-md text-left text-sm text-muted outline-none transition-colors hover:text-fg focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          {echo.text}
+        </button>
+      )}
+      {!editing && !props.readOnly ? (
+        <Tip label="Edit queued message">
+          <IconButton size="xs" label="Edit queued message" onClick={startEdit}>
+            <NotePencilIcon size={13} />
+          </IconButton>
+        </Tip>
+      ) : null}
+      {!editing && !props.readOnly ? (
+        <Tip label="Send now">
+          <IconButton size="xs" label="Send now" onClick={() => void controller.sendQueuedNow(props.sessionId, echo)}>
+            <PaperPlaneRightIcon size={13} />
+          </IconButton>
+        </Tip>
+      ) : null}
+      {!editing ? (
+        <Tip label="Remove from the queue">
+          <IconButton size="xs" label="Remove from the queue" onClick={() => void controller.unqueue(props.sessionId, echo)}>
+            <XIcon size={13} />
+          </IconButton>
+        </Tip>
+      ) : null}
     </div>
   );
 }

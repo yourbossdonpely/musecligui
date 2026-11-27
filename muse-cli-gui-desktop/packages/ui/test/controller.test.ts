@@ -121,7 +121,16 @@ class FakeClient implements MuseCodeIconClient {
     return this.sendResult();
   }
   async interruptTurn() {}
-  async unqueueTurn() {}
+  unqueued: { sessionId: string; turnId: string }[] = [];
+  unqueueError: Error | null = null;
+  async unqueueTurn(sessionId: string, turnId: string) {
+    if (this.unqueueError) {
+      const error = this.unqueueError;
+      this.unqueueError = null;
+      throw error;
+    }
+    this.unqueued.push({ sessionId, turnId });
+  }
   decided: { approvalId: string; choiceId: string }[] = [];
   async decideApproval(input: { approvalId: string; choiceId: string }) {
     this.decided.push({ approvalId: input.approvalId, choiceId: input.choiceId });
@@ -1255,6 +1264,77 @@ describe("MuseCodeIconController", () => {
     client.sendResult = async () => ({ turnId: "t1", disposition: "steered" });
     await controller.send("actually use tabs", { steer: true });
     assert.equal(client.sent.at(-1)?.ifBusy, "steer");
+    stop();
+  });
+
+  it("edits a queued message by re-queueing the new text", async () => {
+    const client = new FakeClient();
+    client.transcript = async () => load({ msp: { status: "running", activeTurnId: "t1", modelId: null, approvalMode: null, workspaceRoot: null, turnCount: 3 } });
+    client.sendResult = async () => ({ turnId: "t2", disposition: "queued" });
+    const { controller, stop } = await started(client);
+    await controller.send("first thing");
+    const echo = controller.store.get().threads["s1"]!.fold.echoes[0]!;
+    assert.equal(echo.disposition, "queued");
+    client.sendResult = async () => ({ turnId: "t3", disposition: "queued" });
+    assert.equal(await controller.editQueuedMessage("s1", echo, "first thing, better"), true);
+    assert.deepEqual(client.unqueued, [{ sessionId: "s1", turnId: "t2" }]);
+    assert.equal(client.sent.at(-1)?.ifBusy, "queue");
+    assert.equal(client.sent.at(-1)?.displayText, "first thing, better");
+    const echoes = controller.store.get().threads["s1"]!.fold.echoes;
+    assert.equal(echoes.length, 1);
+    assert.equal(echoes[0]?.text, "first thing, better");
+    assert.equal(echoes[0]?.turnId, "t3");
+    stop();
+  });
+
+  it("leaves a queued message alone when the edit changes nothing or it already started", async () => {
+    const client = new FakeClient();
+    client.transcript = async () => load({ msp: { status: "running", activeTurnId: "t1", modelId: null, approvalMode: null, workspaceRoot: null, turnCount: 3 } });
+    client.sendResult = async () => ({ turnId: "t2", disposition: "queued" });
+    const { controller, stop } = await started(client);
+    await controller.send("first thing");
+    const echo = controller.store.get().threads["s1"]!.fold.echoes[0]!;
+    assert.equal(await controller.editQueuedMessage("s1", echo, "first thing"), false);
+    assert.equal(await controller.editQueuedMessage("s1", echo, "   "), false);
+    assert.deepEqual(client.unqueued, []);
+    assert.equal(client.sent.length, 1);
+    client.unqueueError = new Error("turn started");
+    assert.equal(await controller.editQueuedMessage("s1", echo, "changed"), false);
+    assert.equal(client.sent.length, 1, "no re-send after a failed take");
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "That message already started");
+    stop();
+  });
+
+  it("sends a queued message now, steered when running and started when idle", async () => {
+    const running = new FakeClient();
+    running.transcript = async () => load({ msp: { status: "running", activeTurnId: "t1", modelId: null, approvalMode: null, workspaceRoot: null, turnCount: 3 } });
+    running.sendResult = async () => ({ turnId: "t2", disposition: "queued" });
+    const startedRunning = await started(running);
+    await startedRunning.controller.send("later thing");
+    const echo = startedRunning.controller.store.get().threads["s1"]!.fold.echoes[0]!;
+    running.sendResult = async () => ({ turnId: "t1", disposition: "steered" });
+    assert.equal(await startedRunning.controller.sendQueuedNow("s1", echo), true);
+    assert.deepEqual(running.unqueued, [{ sessionId: "s1", turnId: "t2" }]);
+    assert.equal(running.sent.at(-1)?.ifBusy, "steer");
+    startedRunning.stop();
+
+    const idle = new FakeClient();
+    idle.sendResult = async () => ({ turnId: "t9", disposition: "queued" });
+    const startedIdle = await started(idle);
+    await startedIdle.controller.send("solo thing", { queue: true });
+    const queued = startedIdle.controller.store.get().threads["s1"]!.fold.echoes[0]!;
+    assert.equal(await startedIdle.controller.sendQueuedNow("s1", queued), true);
+    assert.equal(idle.sent.at(-1)?.ifBusy, undefined);
+    startedIdle.stop();
+  });
+
+  it("keeps a files-only queued message queued on send-now", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    const echo = { localId: "local-1", text: "  ", turnId: "t9", disposition: "queued" as const, createdAt: 0 };
+    assert.equal(await controller.sendQueuedNow("s1", echo), false);
+    assert.deepEqual(client.unqueued, []);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Keeping that message queued");
     stop();
   });
 

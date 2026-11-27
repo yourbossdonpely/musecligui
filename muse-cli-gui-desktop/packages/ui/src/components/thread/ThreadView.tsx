@@ -440,7 +440,7 @@ function Dock(props: { session: SessionSummary; thread: ThreadState | null; runn
         {fold && !thread?.readOnly ? <BackgroundTasks sessionId={session.sessionId} /> : null}
         <GoalPanel sessionId={session.sessionId} running={props.running} readOnly={Boolean(thread?.readOnly)} />
         {showPlan && todo ? <PlanPanel sessionId={session.sessionId} items={todo} /> : null}
-        {queued.length > 0 ? <QueuedList sessionId={session.sessionId} items={queued} /> : null}
+        {queued.length > 0 ? <QueuedList sessionId={session.sessionId} items={queued} readOnly={Boolean(thread?.readOnly)} /> : null}
         {fold ? <Monitors sessionId={session.sessionId} /> : null}
         {fold ? <ChangedFiles sessionId={session.sessionId} /> : null}
         {fold && !session.cwd.startsWith("ssh://") ? (
