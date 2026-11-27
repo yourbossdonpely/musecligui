@@ -227,8 +227,8 @@ function TurnRail(props: { turns: TurnView[]; sessionId: string }) {
   const jump = (key: string) => {
     document.getElementById(`turn-${props.sessionId}-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Sits left of the scrollbar track rather than over it.
   return (
-    {/* Sits left of the scrollbar track rather than over it. */}
     <nav aria-label="Turns" className="absolute top-0 right-5 bottom-0 hidden w-3.5 flex-col gap-[3px] py-8 @min-[720px]:flex">
       {props.turns.map((turn, index) => {
         const prompt = (turn.prompt?.displayText ?? turn.prompt?.text ?? "").replace(/\s+/g, " ").trim();
