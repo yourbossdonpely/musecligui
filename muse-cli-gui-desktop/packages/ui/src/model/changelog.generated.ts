@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "3.1.0",
+    "body": "### Added\n\n- **Queued message edit + send-now.** Click any queued message to revise it (or the pencil beside it); the paper plane sends it immediately - steered into the running turn, or started when idle.\n- **File tree icon colors.** Folders are gold, with purpose colors by name (`.git`, `api`, `server`, `tests` and more), and every file type gets its own VS Code-conventional hue."
+  },
+  {
     "version": "3.0.1",
     "body": "### Fixed\n\n- **Canonical updater URL.** The app checks `latest.json` at the renamed `musecodeicon` repo directly instead of through GitHub's redirect from the old name.\n- **Composer send button pinned right.** The bottom bar never wraps now: the pickers squeeze, then scroll, so the meters and the send/stop button stay at the right. The context ring moved to its own row above the input, right-aligned over the send button."
   },

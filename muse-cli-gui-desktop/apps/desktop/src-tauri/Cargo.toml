@@ -1,6 +1,6 @@
 [package]
 name = "musecodeicon"
-version = "3.0.1"
+version = "3.1.0"
 description = "MuseCodeIcon: desktop ADE for the Muse Code CLI"
 edition = "2021"
 
