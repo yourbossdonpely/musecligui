@@ -215,6 +215,25 @@ The installer appears under `apps/desktop/src-tauri/target/release/bundle/nsis/`
 All build output is gitignored (`**/target/`, `**/src-tauri/binaries/`,
 `apps/desktop/.cache/`, `dist/`, `*.exe`).
 
+## 11. Repo renamed to musecodeicon; bridge GUI moved to bridge-gui/
+
+After v3.0.0 the repo itself was renamed `musecligui` → `musecodeicon`
+(`gh repo rename`; GitHub redirects the old web/git URLs, and the updater feed
+keeps working through the redirect). All `yourbossdonpely/musecligui`
+references were updated to the new path — docs, the Tauri updater endpoint in
+`tauri.conf.json`, in-app links, and tests — while the `MuseCLIGUI.exe`
+launcher binary name is unchanged.
+
+The older bridge GUI was moved out of the repo root into `bridge-gui/` with
+`git mv` (history kept): `muse-bridge.js`, `muse-gui.html`, `Launcher.cs` +
+`MuseCLIGUI.exe`, the `.bat`/`.cmd`/`.ps1` launchers, `READ-ME-FIRST.txt`,
+`package.json`/`package-lock.json`, `apidesign.md`/`uiredesign.md`, and the
+`gui/`, `tests/`, `docs/`, `assets/`, `opencode-agents/`, and
+`opencode-plugin-muse-cwd/` folders. The whole subtree moved intact, so its
+internal relative paths still resolve; only the root README's bridge section
+needed `bridge-gui/` prefixes. Root now holds the README, LICENSE, this log,
+`.github/`, `muse-cli-gui-desktop/`, and `bridge-gui/`.
+
 ---
 
 MuseCodeIcon is an unofficial community project: not made, endorsed, or

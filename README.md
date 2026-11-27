@@ -22,7 +22,7 @@ If MuseCodeIcon helps you, [star the repo](https://github.com/yourbossdonpely/mu
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](muse-cli-gui-desktop/docs/assets/app-home.png)
 
-**This repo has two apps.** The one to start with is **MuseCodeIcon**, the desktop app in [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) — its full write-up, with features, screenshots, install steps and caveats, is [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). The older portable Windows bridge GUI that lives in this folder still works and is documented further down.
+**This repo has two apps.** The one to start with is **MuseCodeIcon**, the desktop app in [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) — its full write-up, with features, screenshots, install steps and caveats, is [`muse-cli-gui-desktop/README.md`](muse-cli-gui-desktop/README.md). The older portable Windows bridge GUI that lives in `bridge-gui/` still works and is documented further down.
 
 MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI in a real window: the UI, a Node sidecar and one `muse serve` per workspace, all bundled. Projects → threads → turns, readable approvals, inline diffs, a file viewer, real plan and usage meters, goals, background workflows, slash commands, command palette. Dark by default with gold accents, on every platform.
 
@@ -33,7 +33,7 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 | App | Where | What it is |
 |-----|-------|------------|
 | **MuseCodeIcon** | [`muse-cli-gui-desktop/`](muse-cli-gui-desktop/README.md) | A standalone **desktop app** (Tauri 2: Windows, macOS, Linux) for the `muse` CLI. Gold on black, dark theme by default. Projects → threads → turns, readable approvals, inline diffs, file viewer, plan/usage meters, goals, background workflows, command palette. |
-| **Muse CLI GUI** (the bridge GUI) | repo root (this README) | The portable Windows GUI + WebSocket bridge described below: agent chat, file browser, browser/research panel, and an OpenAI-compatible API on `localhost:8766`. |
+| **Muse CLI GUI** (the bridge GUI) | [`bridge-gui/`](bridge-gui/README.md) (this README) | The portable Windows GUI + WebSocket bridge described below: agent chat, file browser, browser/research panel, and an OpenAI-compatible API on `localhost:8766`. |
 
 **Start here →** [MuseCodeIcon, the desktop app](muse-cli-gui-desktop/README.md). It is the current app and the one to reach for on a desktop; everything below the table is about it first. The bridge GUI further down still works and is unchanged.
 
@@ -91,11 +91,11 @@ Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `app
 
 ## Muse CLI GUI — the bridge GUI (older)
 
-**The older app.** A portable Windows GUI plus a WebSocket bridge for the same `muse` CLI, launched from `MuseCLIGUI.exe` in this folder. No desktop shell, no macOS or Linux build, and unchanged since MuseCodeIcon took over. Everything from here down documents it.
+**The older app.** A portable Windows GUI plus a WebSocket bridge for the same `muse` CLI, launched from `bridge-gui/MuseCLIGUI.exe`. No desktop shell, no macOS or Linux build, and unchanged since MuseCodeIcon took over. Everything from here down documents it.
 
 A custom GUI that drives **Meta Muse Code** (your paid subscription) through the official `muse` CLI — no permission prompts unless you want them, live streaming agent runs, real skills/models/usage from the CLI, a real file browser, a browser + deep-research panel, and per-run permission control. It also serves an OpenAI-compatible API, so OpenCode or FreeBuff can drive the same subscription.
 
-**Portable:** this folder is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded.
+**Portable:** `bridge-gui/` is self-contained — copy or move it anywhere and it runs from there. All launchers resolve paths from their own location; no folder is hardcoded.
 
 ## Features
 
@@ -129,19 +129,19 @@ A custom GUI that drives **Meta Muse Code** (your paid subscription) through the
 
 **Agent chat** — streaming replies, live tool cards, real file tree, skills, and subscription meters:
 
-![Agent chat](docs/screenshots/chat.png)
+![Agent chat](bridge-gui/docs/screenshots/chat.png)
 
 **Browser tab** — preview any page beside your chat, research it with one click:
 
-![Browser tab](docs/screenshots/browser.png)
+![Browser tab](bridge-gui/docs/screenshots/browser.png)
 
 **More tab** — MCP servers, sessions, git changes, bridge status, OpenCode wiring, and API access:
 
-![More tab](docs/screenshots/more.png)
+![More tab](bridge-gui/docs/screenshots/more.png)
 
 ## How It Works
 
-- The GUI (React, single-file `gui/dist` build) talks WebSocket to `muse-bridge.js` on `ws://localhost:8765`. Legacy single-file `muse-gui.html` is kept as a fallback.
+- The GUI (React, single-file `bridge-gui/gui/dist` build) talks WebSocket to `bridge-gui/muse-bridge.js` on `ws://localhost:8765`. Legacy single-file `bridge-gui/muse-gui.html` is kept as a fallback.
 - The bridge spawns the real `muse` binary directly (`muse-bin-*.exe`, newest wins — falls back to `muse.cmd`, then `muse` on PATH) and streams `muse exec --json` events: text deltas, tool/task lifecycle, token usage, terminal result.
 - Prompts travel via `--prompt-file`, so any text (quotes, symbols, newlines) is passed safely with zero shell-quoting risk.
 - Each run executes inside the selected project's folder. The bridge refuses to run when the OS temp folder is inside the project folder (the Muse runtime fails there — e.g. never pick your home folder as a project).
@@ -160,16 +160,16 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 
 ## Launchers (all portable)
 
-- `launch-muse-gui.bat` — One click: starts the bridge if needed, then opens the GUI
-- `start-bridge.cmd` — Runs the bridge server (installs `ws` dependency on first run)
-- `stop-bridge.cmd` — Stops the bridge (same as the Quit button in the GUI footer)
-- `muse-full.cmd` — Launches Muse CLI directly with all permission flags disabled
-- `opencode.cmd` — Shim for the OpenCode desktop CLI
-- `setup.ps1` — First-run setup brain (run by the exe): downloads Node.js if missing, installs the ws dependency, checks the muse CLI, persists the API key, wires the OpenCode provider and offers to restart OpenCode when wiring changes
+- `bridge-gui/launch-muse-gui.bat` — One click: starts the bridge if needed, then opens the GUI
+- `bridge-gui/start-bridge.cmd` — Runs the bridge server (installs `ws` dependency on first run)
+- `bridge-gui/stop-bridge.cmd` — Stops the bridge (same as the Quit button in the GUI footer)
+- `bridge-gui/muse-full.cmd` — Launches Muse CLI directly with all permission flags disabled
+- `bridge-gui/opencode.cmd` — Shim for the OpenCode desktop CLI
+- `bridge-gui/setup.ps1` — First-run setup brain (run by the exe): downloads Node.js if missing, installs the ws dependency, checks the muse CLI, persists the API key, wires the OpenCode provider and offers to restart OpenCode when wiring changes
 
 ## 🚀 Quick Start
 
-1. Double-click **`MuseCLIGUI.exe`** (or `launch-muse-gui.bat`). If Windows SmartScreen asks, choose More info > Run anyway. First run sets up everything automatically: Node.js (downloaded if missing), dependencies, API key, and OpenCode wiring.
+1. Double-click **`bridge-gui/MuseCLIGUI.exe`** (or `bridge-gui/launch-muse-gui.bat`). If Windows SmartScreen asks, choose More info > Run anyway. First run sets up everything automatically: Node.js (downloaded if missing), dependencies, API key, and OpenCode wiring.
 2. Click **+ Add Project**, enter a name and a real project folder (not your home folder).
 3. Pick a mode in the toolbar (Build / Supervised / Plan / Research) or open **Permissions** to tune flags.
 4. Click the model stat to pick a model/effort; type below and Send. Stop interrupts a run.
@@ -180,7 +180,7 @@ Actions: `exec` (command, cwd, mode, model, effort, contributor, sessionId, maxS
 The bridge doubles as an OpenAI-compatible server, so your Muse subscription works two ways: the built-in GUI, or any external client that supports custom OpenAI endpoints (verified live with OpenCode 2026-11-21).
 
 - **Endpoint:** `http://127.0.0.1:8766/v1` (localhost only, never exposed to the network)
-- **API key:** GUI Inspector -> More -> API access (copy button), or the `.muse-api-key` file next to `muse-bridge.js` (auto-created on first run, never committed to git)
+- **API key:** GUI Inspector -> More -> API access (copy button), or the `.muse-api-key` file next to `bridge-gui/muse-bridge.js` (auto-created on first run, never committed to git)
 - **Models:** live from `muse exec --list-models` (e.g. `muse-spark-1.3`); `GET /v1/models` lists them
 - **Context:** all four Muse models have a 1,048,576-token window (Meta Model API docs); per-call token usage is reported on buffered + stream responses so clients can show used-vs-total context. Reported input/output is metered from the client's own request/response size (the CLI's internal ~38k baseline is kept in the bridge log only, not billed to the client's meter)
 - **Calls:** `POST /v1/chat/completions`, buffered or SSE (`stream: true`); send `{"metadata": {"cwd": "C:\\proj"}}` to run in a folder; max 3 concurrent runs
@@ -208,18 +208,18 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 
 ## Development (GUI source + tests)
 
-- GUI source lives in `gui/` (React + TypeScript + Vite + Tailwind, single-file `dist/` build).
-- `cd gui && npm install`, then `npm run dev` (dev server), `npm test` (unit + component), `npm run test:e2e` (needs stub bridge — see below), `npm run build` (rebuilds committed `gui/dist`).
-- Bridge protocol suite: `npm install` at root once, then `npm run test:bridge` (self-contained: spawns stub-backed bridge, 30 checks).
-- Rebuilding the exe after `Launcher.cs` changes: `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /win32icon:assets\app.ico /out:MuseCLIGUI.exe /reference:System.Windows.Forms.dll Launcher.cs`, then re-sign it with `signtool` before release.
-- The exe/launcher open `gui/dist/index.html`, falling back to legacy `muse-gui.html` if dist is absent.
+- GUI source lives in `bridge-gui/gui/` (React + TypeScript + Vite + Tailwind, single-file `dist/` build).
+- `cd bridge-gui/gui && npm install`, then `npm run dev` (dev server), `npm test` (unit + component), `npm run test:e2e` (needs stub bridge — see below), `npm run build` (rebuilds committed `bridge-gui/gui/dist`).
+- Bridge protocol suite: `npm install` in `bridge-gui/` once, then `npm run test:bridge` (self-contained: spawns stub-backed bridge, 30 checks).
+- Rebuilding the exe after `bridge-gui/Launcher.cs` changes (run from `bridge-gui/`): `C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe /win32icon:assets\app.ico /out:MuseCLIGUI.exe /reference:System.Windows.Forms.dll Launcher.cs`, then re-sign it with `signtool` before release.
+- The exe/launcher open `bridge-gui/gui/dist/index.html`, falling back to legacy `bridge-gui/muse-gui.html` if dist is absent.
 
 ## Environment Overrides (optional)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `MUSE_CMD` | newest `muse-bin-*.exe`, else `muse.cmd`, else PATH | Which Muse executable the bridge runs (or a `.js` stub for tests) |
-| `MUSE_BRIDGE_PORT` | `8765` | Bridge port (must match `BRIDGE_URL` in `muse-gui.html`) |
+| `MUSE_BRIDGE_PORT` | `8765` | Bridge port (must match `BRIDGE_URL` in `bridge-gui/muse-gui.html`) |
 
 ## Requirements
 
@@ -232,20 +232,20 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 
 1. **Subscription keys only work in the official `muse` CLI** (`client_attestation_denied` elsewhere). This GUI works by driving that CLI — nothing bypasses Meta's client check.
 2. **Headless runs cannot answer approval prompts**, so the practical approval default here is `never`; use Supervised/Plan modes (sandbox on, writes/shell gated) when you want guardrails.
-3. **Bridge must be running** for real CLI control (`launch-muse-gui.bat` starts it; otherwise Demo Mode).
-4. **Moved folder?** If you pinned the old taskbar shortcut, delete it and re-pin `launch-muse-gui.bat` from the new location.
+3. **Bridge must be running** for real CLI control (`bridge-gui/launch-muse-gui.bat` starts it; otherwise Demo Mode).
+4. **Moved folder?** If you pinned the old taskbar shortcut, delete it and re-pin `bridge-gui/launch-muse-gui.bat` from the new location.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| GUI won't connect | Run `start-bridge.cmd`, then click the status bar to retry |
+| GUI won't connect | Run `bridge-gui/start-bridge.cmd`, then click the status bar to retry |
 | "temp folder is inside" error | Pick a project folder that does not contain the OS temp dir (never your home folder) |
 | No projects showing | Click "+ Add Project" and add one, then select it |
 | File browser empty/errors | Select a project first; check the folder path exists |
 | Model not changing | Click the model stat in the status bar |
-| Bridge crashes | Restart with `start-bridge.cmd` from this folder |
-| Can't stop the bridge / console window | Click **Stop** (pause) or **Quit** (exit) in the GUI footer, close the window titled "Muse Bridge", or run `stop-bridge.cmd` |
+| Bridge crashes | Restart with `bridge-gui/start-bridge.cmd` from `bridge-gui/` |
+| Can't stop the bridge / console window | Click **Stop** (pause) or **Quit** (exit) in the GUI footer, close the window titled "Muse Bridge", or run `bridge-gui/stop-bridge.cmd` |
 | OpenCode agent runs in a temp/scratch folder | Relaunch the exe once (installs the `muse-cwd` plugin), then restart OpenCode; every folder then runs in its own directory automatically |
 
 ## Verification (all observed passing)
@@ -364,5 +364,5 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 
 ---
 
-**Projects:** **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/` ([its README](muse-cli-gui-desktop/README.md)) — and Muse CLI GUI, the portable bridge GUI in this folder. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
+**Projects:** **MuseCodeIcon**, the desktop app in `muse-cli-gui-desktop/` ([its README](muse-cli-gui-desktop/README.md)) — and Muse CLI GUI, the portable bridge GUI in `bridge-gui/`. Both drive the Meta Muse Code CLI with your own login; neither is affiliated with Meta.
 

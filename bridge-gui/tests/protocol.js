@@ -10,7 +10,7 @@ let WebSocket;
 try {
   WebSocket = require(path.join(ROOT, 'node_modules', 'ws'));
 } catch (e) {
-  console.error('Missing dependency: run `npm install` in the repo root first.');
+  console.error('Missing dependency: run `npm install` in bridge-gui/ first.');
   process.exit(2);
 }
 
