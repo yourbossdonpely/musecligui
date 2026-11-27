@@ -285,7 +285,7 @@ What still stands between this tree and a release people can trust unconditional
 
 | Blocker | State | What clears it |
 |---------|-------|----------------|
-| Windows installer unsigned | Was: SmartScreen showed "Windows protected your PC" → More info → Run anyway | Cleared 0.23.8 as far as money allows: self-signed with the author cert (DigiCert timestamped), so SmartScreen names the publisher. Zero-warning needs a commercial OV/EV certificate |
+| Windows installer unsigned | Was: SmartScreen showed "Windows protected your PC" → More info → Run anyway | Self-signed once for 0.23.8 with the author cert (DigiCert timestamped); the re-sign step lapsed afterwards — v1.2.1, v3.0.0 and v3.0.1 ship unsigned (verified on the release assets, Nov 27). Zero-warning needs a commercial OV/EV certificate |
 | macOS build not notarized | `tauri.macos.conf.json` signs ad-hoc (`signingIdentity: "-"`, `hardenedRuntime: false`) | An Apple Developer ID plus notarization, before Gatekeeper opens it without "Open Anyway" |
 | Draft releases cannot hold the tag | tauri-action looks releases up with `getReleaseByTag`, which 404s for drafts, then tries to create one and gets `422 already_exists` | Let the first CI run create the release; do not pre-create a draft for `v0.23.6` |
 | No updater | Was: plugin removed, CI ran with `includeUpdaterJson: false` | Restored 0.23.8 with own `latest.json` feed + minisign key (`~/.tauri/musecodeicon.key`, pubkey in `tauri.conf.json`); CI needs the `TAURI_SIGNING_PRIVATE_KEY` secret for future runs |
@@ -358,6 +358,11 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Schedules** (daemon `schedules` table, `GET/POST/PATCH/DELETE /api/schedules`, sweep in `server.ts`, `ScheduleSettings`): local-HH:MM daily clock per thread with per-day picks; fires while the app runs, catches up once for missed days, queues behind busy turns, is deleted with its thread, and is disabled instead of fired when its thread vanished another way.
 - **Auto-attached context** (`extractBarePaths` in `model/mentions.ts`, Composer send path): bare `dir/file.ext` tokens share the 3-file, 20k-char cap with `@` mentions and get `File <rel>:` headers (no `@`). URLs, traversal, extensionless and single-word tokens are rejected; unreadable paths stay literal.
 - Suites at release: ui 439/439, daemon 61/61, web 69/69, server 232 pass with the same 10 pre-existing Windows file-viewer symlink failures. Shipped as v3.0.0 because v2.0.0 already names an old-bridge release.
+
+### Unreleased — queued message edit + send-now, file tree icon colors
+
+- **Queue** (`controller.takeQueued/editQueuedMessage/sendQueuedNow`, `QueuedRow` in `components/requests/Requests.tsx`): queued rows offer Edit (pencil, or click the text) and Send now (paper plane) beside Remove. Muse exposes only `turn/unqueue`, so both lift the turn and re-send: edits re-queue the new text behind the running turn, send-now steers it into the running turn (or starts it when idle). Already-started turns refuse with a toast and never double-send; files-only messages stay queued; attachments don't ride along (toast says so); read-only threads keep text + remove only. Editor is IME-safe, Enter saves, Esc cancels, and a failed send keeps the draft for retry.
+- **Icons** (`model/fileicons.ts`, `components/files/FilesPanel.tsx`): folders are gold, with purpose colors by name (`.git` orange, `api` sky, `server` violet, `scripts` emerald, `config` slate, `docs` blue, `tests` green, `assets` pink, `components` cyan, build output stone, `node_modules` dimmed); every file type gets its VS Code-conventional hue (JS yellow, TS blue, JSON amber, Markdown sky, HTML orange, Python green, Rust stone, Go teal, media pink/rose/violet/red). Exact names beat extensions (`Dockerfile`, `Makefile`, `.gitignore`); unknown dotfiles stay quiet. Every tone ships a light/dark pair; classes are full literals because Tailwind cannot see interpolated names. Tabs and search results share the tree's colors through `iconFor`.
 
 ## Unofficial notice
 
