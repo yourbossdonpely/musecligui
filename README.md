@@ -8,6 +8,8 @@
 
 Think **Claude Code desktop** or the **Codex desktop app**, but for **Meta Muse Code**: agentic coding threads, approvals, diffs and usage meters in a fast Tauri window instead of the terminal. Free and open source (MIT).
 
+🏆 **Why MuseCodeIcon:** forked from Helicon v0.23.6 and pushed far past it — **25+ exclusive features** no other Muse GUI has together: scheduled prompts, skill routing, MCP manager, review pass, terminal card, edit + rollback, task modes, follow-up chips, read aloud, share links, diagnostics, and more. [Full list](muse-cli-gui-desktop/README.md#idea).
+
 **[→ Read the MuseCodeIcon README](muse-cli-gui-desktop/README.md)**
 
 [![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecodeicon)](LICENSE)
