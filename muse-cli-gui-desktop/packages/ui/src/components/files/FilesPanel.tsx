@@ -5,6 +5,7 @@ import { useImeGuard } from "../../app/ime.js";
 import { useOverlayDragProps } from "../../app/frame.js";
 import { errorKind, errorMessage } from "../../client.js";
 import { basenameOf, dirnameOf, fileKey, fileTarget, formatFileSize, isMarkdownPath, type LineRange } from "../../model/files.js";
+import { fileIconTone, folderTone } from "../../model/fileicons.js";
 import { DEFAULT_FILES_WIDTH } from "../../model/store.js";
 import type { FileContent, FileEntry } from "../../types.js";
 import { FileLinksContext, Markdown, languageFromPath, type FileLinks } from "../ui/Markdown.js";
@@ -17,22 +18,24 @@ const HIGHLIGHT_LIMIT = 300_000;
 
 function iconFor(name: string): ReactNode {
   const ext = name.slice(name.lastIndexOf(".") + 1).toLowerCase();
+  const isCode = languageFromPath(name) != null;
+  const tone = fileIconTone(name, isCode);
   if (isMarkdownPath(name) || ext === "txt") {
-    return <FileTextIcon size={14} />;
+    return <FileTextIcon size={14} className={tone} />;
   }
   if (["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "bmp"].includes(ext)) {
-    return <FileImageIcon size={14} />;
+    return <FileImageIcon size={14} className={tone} />;
   }
   if (["mp4", "webm", "mov", "m4v", "ogv"].includes(ext)) {
-    return <FileVideoIcon size={14} />;
+    return <FileVideoIcon size={14} className={tone} />;
   }
   if (["mp3", "wav", "ogg", "m4a", "flac"].includes(ext)) {
-    return <FileAudioIcon size={14} />;
+    return <FileAudioIcon size={14} className={tone} />;
   }
   if (ext === "pdf") {
-    return <FileTxtIcon size={14} />;
+    return <FileTxtIcon size={14} className={tone} />;
   }
-  return languageFromPath(name) ? <FileCodeIcon size={14} /> : <FileIcon size={14} />;
+  return isCode ? <FileCodeIcon size={14} className={tone} /> : <FileIcon size={14} className={tone} />;
 }
 
 /** The file viewer beside a thread: open files as tabs, or the project's tree to find one. */
@@ -92,7 +95,7 @@ export function FilesPanel(props: { sessionId: string; cwd: string }) {
                   className="flex min-w-0 items-center gap-1.5"
                   onClick={() => controller.activateFile(props.sessionId, path)}
                 >
-                  <span className="shrink-0 text-subtle">{iconFor(path)}</span>
+                  <span className="shrink-0">{iconFor(path)}</span>
                   <span className="truncate">{basenameOf(path)}</span>
                 </button>
                 <button
@@ -243,7 +246,7 @@ function FileTree(props: { sessionId: string; cwd: string }) {
                 onClick={() => controller.openFile(props.sessionId, entry.path)}
                 className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-hover"
               >
-                <span className="shrink-0 text-subtle">{iconFor(entry.name)}</span>
+                <span className="shrink-0">{iconFor(entry.name)}</span>
                 <span className="min-w-0 truncate text-fg">{entry.name}</span>
                 <span className="min-w-0 truncate text-xs text-subtle">{dirnameOf(entry.path)}</span>
               </button>
@@ -329,7 +332,7 @@ function TreeDir(props: { sessionId: string; cwd: string; entry: FileEntry; dept
         style={{ paddingLeft: `${props.depth * 12 + 4}px` }}
       >
         <CaretRightIcon size={12} className={cn("shrink-0 text-subtle transition-transform duration-150", open && "rotate-90")} />
-        <Icon size={14} className="shrink-0 text-subtle" />
+        <Icon size={14} className={cn("shrink-0", folderTone(props.entry.name))} />
         <span className="truncate">{props.entry.name}</span>
       </button>
       {open ? <TreeFolder sessionId={props.sessionId} cwd={props.cwd} path={props.entry.path} depth={props.depth + 1} /> : null}
@@ -352,7 +355,7 @@ function TreeFile(props: { sessionId: string; cwd: string; entry: FileEntry; dep
       )}
       style={{ paddingLeft: `${props.depth * 12 + 22}px` }}
     >
-      <span className="shrink-0 text-subtle">{iconFor(props.entry.name)}</span>
+      <span className="shrink-0">{iconFor(props.entry.name)}</span>
       <span className="min-w-0 flex-1 truncate">{props.entry.name}</span>
       <span className="shrink-0 text-2xs text-subtle tabular-nums">{formatFileSize(props.entry.size)}</span>
     </button>
