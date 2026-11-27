@@ -39,15 +39,19 @@ import {
 import {
   addEcho,
   applyEvents,
+  buildTurns,
   emptyFold,
   foldFromLoad,
+  inheritedTurns,
   removeEcho,
   requirementIndex,
+  sideStart,
   updateEcho,
   type EchoAttachment,
   type LocalEcho,
   type ThreadFold,
 } from "./fold.js";
+import { buildHandoffMarkdown, buildResumeMessage, handoffTurns, type HandoffData } from "./handoff.js";
 import {
   FILES_WIDTH_MAX,
   FILES_WIDTH_MIN,
@@ -2406,6 +2410,55 @@ export class MuseCodeIconController {
       this.toast("error", "Could not share the thread", errorMessage(error));
       return null;
     }
+  }
+
+  /**
+   * Exports a thread to a handoff file in its project folder and opens it in the viewer,
+   * or null when there is nothing to export or writing failed. Side chats export only
+   * their own turns, like the transcript shows.
+   */
+  async exportThread(sessionId: string): Promise<string | null> {
+    const session = this.state.sessions[sessionId];
+    const thread = this.state.threads[sessionId];
+    if (!session || !thread) {
+      return null;
+    }
+    const since = sideStart(session);
+    const turns = handoffTurns(buildTurns(thread.fold, inheritedTurns(thread.fold, since)), thread.fold.echoes);
+    if (turns.length === 0) {
+      this.toast("info", "Nothing to export yet", "Send a message first, then export the thread.");
+      return null;
+    }
+    const markdown = buildHandoffMarkdown({
+      title: session.title,
+      cwd: session.cwd,
+      modelId: thread.fold.meta.modelId ?? null,
+      exportedAt: new Date().toISOString(),
+      turns,
+    });
+    try {
+      const saved = await this.tracked(`export:${sessionId}`, "Exporting thread", "Writing the handoff file.", () =>
+        this.client.exportThread(sessionId, markdown),
+      );
+      if (!saved) {
+        return null;
+      }
+      this.toast("success", "Thread exported", saved.path);
+      this.openFile(sessionId, saved.path);
+      return saved.path;
+    } catch (error) {
+      this.toast("error", "Could not export the thread", errorMessage(error));
+      return null;
+    }
+  }
+
+  /** Resumes an imported handoff as a new thread, with its transcript as the opening context. */
+  async resumeImportedThread(cwd: string, handoff: HandoffData): Promise<void> {
+    const resume = buildResumeMessage(handoff);
+    // Full text rides as `typed` so a failed first send lands recoverable in the new composer.
+    await this.startThread(cwd, resume.text, (sessionId) =>
+      this.sendToThread(sessionId, resume.text, { displayText: resume.displayText }, false),
+    );
   }
 
   /**

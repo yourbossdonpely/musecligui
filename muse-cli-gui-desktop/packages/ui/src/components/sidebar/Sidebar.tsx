@@ -1,5 +1,6 @@
 import { copyText } from "../../app/clipboard.js";
-import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, TrashIcon, XIcon } from "../ui/icons.js";
+import { errorMessage } from "../../client.js";
+import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, TrashIcon, UploadSimpleIcon, XIcon } from "../ui/icons.js";
 import { memo, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from "react";
 import { shallowEqual, useApp, useController, useNow } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
@@ -20,8 +21,9 @@ import {
 import { CODE_THEMES, DEFAULT_SIDEBAR_WIDTH, type CodeTheme } from "../../model/store.js";
 import type { UpdateState } from "../../model/updates.js";
 import type { ProjectView, SessionSummary } from "../../types.js";
-import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuSeparator, ContextMenuTrigger, Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Tip } from "../ui/overlays.js";
-import { IconButton, Logo, MOD, NEW_THREAD_KEYS, Shortcut, Spinner, cn, isMac } from "../ui/primitives.js";
+import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuSeparator, ContextMenuTrigger, Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Modal, Tip } from "../ui/overlays.js";
+import { Button, IconButton, Logo, MOD, NEW_THREAD_KEYS, Shortcut, Spinner, cn, isMac } from "../ui/primitives.js";
+import { parseHandoffFile, type HandoffData } from "../../model/handoff.js";
 import { StatusGlyph } from "../ui/StatusGlyph.js";
 
 const PROJECT_PREVIEW = 6;
@@ -816,6 +818,9 @@ function ThreadMenuItems(props: {
       <Item icon={<FolderOpenIcon size={14} />} onSelect={() => void controller.openFolder(props.session.cwd, "files")}>
         {revealLabel()}
       </Item>
+      <Item icon={<ArrowLineDownIcon size={14} />} onSelect={() => void controller.exportThread(props.session.sessionId)}>
+        Export thread
+      </Item>
       <Separator />
       <Item icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(props.session.sessionId)}>
         Archive thread
@@ -853,11 +858,77 @@ export function revealLabel(): string {
 function ProjectMenuItems(props: { project: ProjectView; Item: typeof MenuItem; Separator: typeof MenuSeparator }) {
   const controller = useController();
   const { project, Item, Separator } = props;
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [pending, setPending] = useState<HandoffData | null>(null);
+  const pickFile = async (file: File | undefined) => {
+    if (!file) {
+      return;
+    }
+    try {
+      setPending(parseHandoffFile(file.name, await file.text()));
+    } catch (error) {
+      controller.toast("error", "Could not import that file", errorMessage(error));
+    }
+  };
+  const resume = async () => {
+    if (!pending) {
+      return;
+    }
+    setPending(null);
+    await controller.resumeImportedThread(project.cwd, pending);
+  };
   return (
     <>
       <Item icon={<NotePencilIcon size={14} />} onSelect={() => controller.newThread(project.cwd)}>
         New thread
       </Item>
+      <Item icon={<UploadSimpleIcon size={14} />} onSelect={() => fileRef.current?.click()}>
+        Import thread…
+      </Item>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".md,.markdown,.txt"
+        aria-hidden="true"
+        tabIndex={-1}
+        className="hidden"
+        onChange={(e) => {
+          void pickFile(e.currentTarget.files?.[0]);
+          e.currentTarget.value = "";
+        }}
+      />
+      <Modal
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPending(null);
+          }
+        }}
+        title="Import thread"
+        description={`Starts a new thread in ${project.displayName} with this transcript as its opening context.`}
+      >
+        {pending ? (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg bg-sunken px-3 py-2 text-sm">
+              <p className="font-medium text-fg">{pending.title}</p>
+              <p className="mt-0.5 text-xs text-muted">
+                {pending.turns.length} {pending.turns.length === 1 ? "turn" : "turns"}
+                {pending.modelId ? ` · ${pending.modelId}` : ""}
+                {pending.exportedAt ? ` · exported ${pending.exportedAt.slice(0, 10)}` : ""}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs text-subtle">{pending.turns[0]?.prompt}</p>
+            </div>
+            <div className="flex items-center justify-end gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => setPending(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void resume()}>
+                Start thread
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
       <Item
         icon={project.pinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
         onSelect={() => void controller.togglePin(project.cwd)}

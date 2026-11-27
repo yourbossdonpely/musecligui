@@ -761,6 +761,10 @@ export class DemoClient implements MuseCodeIconClient {
     throw new Error("Sharing is disabled in this demo.");
   }
 
+  async exportThread(): Promise<{ path: string }> {
+    throw new Error("Export needs the real server.");
+  }
+
   async diagnose(): Promise<DiagnosticReport> {
     throw new Error("Diagnostics are disabled in this demo.");
   }

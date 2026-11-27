@@ -1,6 +1,6 @@
 import { copyText } from "../../app/clipboard.js";
 import { stopSpeech } from "../../app/speech.js";
-import { ArchiveIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, PuzzlePieceIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TrashIcon, TreeStructureIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowLineDownIcon, ArrowsInIcon, CodeIcon, CopyIcon, DotsThreeIcon, FolderIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, LockIcon, NotePencilIcon, PencilSimpleIcon, PuzzlePieceIcon, ShieldSlashIcon, SquareHalfBottomIcon, SquareIcon, StopCircleIcon, TrashIcon, TreeStructureIcon } from "../ui/icons.js";
 import { SkillFolderForm, WorkspaceSkills } from "../skills/SkillsPanel.js";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { announce, FOCUS_SCOPE } from "../../app/a11y.js";
@@ -277,6 +277,9 @@ function ThreadHeader(props: { session: SessionSummary; thread: ThreadState | nu
           </MenuItem>
           <MenuItem icon={<LinkIcon size={14} />} onSelect={() => void copyShareLink()}>
             Copy share link
+          </MenuItem>
+          <MenuItem icon={<ArrowLineDownIcon size={14} />} onSelect={() => void controller.exportThread(session.sessionId)}>
+            Export thread
           </MenuItem>
           <MenuSeparator />
           <MenuItem icon={<ArchiveIcon size={14} />} onSelect={() => void controller.archive(session.sessionId)}>

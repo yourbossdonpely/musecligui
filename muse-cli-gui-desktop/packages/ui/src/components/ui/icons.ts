@@ -105,6 +105,7 @@ export { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 export { TargetIcon } from "@phosphor-icons/react/dist/csr/Target";
 export { TerminalWindowIcon } from "@phosphor-icons/react/dist/csr/TerminalWindow";
 export { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
+export { UploadSimpleIcon } from "@phosphor-icons/react/dist/csr/UploadSimple";
 export { TreeStructureIcon } from "@phosphor-icons/react/dist/csr/TreeStructure";
 export { TreeViewIcon } from "@phosphor-icons/react/dist/csr/TreeView";
 export { UserIcon } from "@phosphor-icons/react/dist/csr/User";

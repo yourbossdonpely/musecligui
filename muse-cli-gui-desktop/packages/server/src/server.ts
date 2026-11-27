@@ -1400,6 +1400,24 @@ export class MuseCodeIconServer {
       this.json(res, 200, { id, url: `http://${host}/share/${id}` });
       return true;
     }
+    if (method === "POST" && path === "/api/threads/export") {
+      const body = await this.readBody(req);
+      const sessionId = str(body["sessionId"]) ?? "";
+      const markdown = str(body["markdown"]) ?? "";
+      const found = sessionId ? this.store.findSession(sessionId) : null;
+      if (!found) {
+        throw new HttpError(404, "Unknown thread.");
+      }
+      if (!markdown.startsWith("<!-- musecodeicon-handoff v1 -->")) {
+        throw new HttpError(400, "Not a thread export.");
+      }
+      if (markdown.length > 1_000_000) {
+        throw new HttpError(400, "That export is too large (1MB cap).");
+      }
+      const path = await this.writeHandoffFile(found.cwd, found.session.title, markdown);
+      this.json(res, 200, { path });
+      return true;
+    }
     if (method === "POST" && path === "/api/diagnostics") {
       const body = await this.readBody(req);
       const cwd = str(body["cwd"]);
@@ -3078,6 +3096,34 @@ export class MuseCodeIconServer {
       files,
       prompt: (text: string) => [text, ...mentions].filter((part) => part.length > 0).join("\n\n"),
     };
+  }
+
+  /**
+   * Writes a thread's handoff file into its project folder. The name is generated
+   * server-side from the title, so no request bytes can escape the folder.
+   */
+  private async writeHandoffFile(cwd: string, title: string, markdown: string): Promise<string> {
+    const slug =
+      title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40) || "thread";
+    const day = new Date().toISOString().slice(0, 10);
+    const stem = `musecodeicon-thread-${slug}-${day}`;
+    let candidate = `${stem}.md`;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      const taken = await stat(join(cwd, candidate)).then(
+        () => true,
+        () => false,
+      );
+      if (!taken) {
+        break;
+      }
+      candidate = `${stem}-${attempt + 2}.md`;
+    }
+    await writeFile(join(cwd, candidate), markdown, "utf8");
+    return candidate;
   }
 
   /** Writes an attached file into the workspace, keeping its name unless one is already taken. */

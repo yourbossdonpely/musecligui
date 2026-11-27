@@ -492,6 +492,17 @@ class FakeClient implements MuseCodeIconClient {
     this.shares.push(input);
     return { id: "demo", url: "http://127.0.0.1:3127/share/demo" };
   }
+  exports: { sessionId: string; markdown: string }[] = [];
+  exportError: Error | null = null;
+  async exportThread(sessionId: string, markdown: string) {
+    if (this.exportError) {
+      const error = this.exportError;
+      this.exportError = null;
+      throw error;
+    }
+    this.exports.push({ sessionId, markdown });
+    return { path: "musecodeicon-thread-probe.md" };
+  }
   fileUrl(cwd: string, path: string) {
     return `/raw?${cwd}&${path}`;
   }
@@ -2288,6 +2299,49 @@ describe("MuseCodeIconController", () => {
     client.shareError = new Error("daemon away");
     assert.equal(await controller.shareThread("s1"), null);
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not share the thread");
+    stop();
+  });
+
+  it("exports a thread to a handoff file", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.exportThread("s1"), "musecodeicon-thread-probe.md");
+    assert.equal(client.exports.length, 1);
+    const saved = client.exports[0]!;
+    assert.equal(saved.sessionId, "s1");
+    assert.ok(saved.markdown.startsWith("<!-- musecodeicon-handoff v1 -->"));
+    assert.match(saved.markdown, /Reply with exactly one word: pong/);
+    assert.match(saved.markdown, /```json handoff-data/);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Thread exported");
+    stop();
+  });
+
+  it("exports nothing when the thread has no conversation yet", async () => {
+    const client = new FakeClient();
+    client.transcript = async () => load({ events: [] });
+    const { controller, stop } = await started(client);
+    assert.equal(await controller.exportThread("s1"), null);
+    assert.deepEqual(client.exports, []);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Nothing to export yet");
+    stop();
+  });
+
+  it("resumes an imported handoff as a new thread with its transcript first", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    await controller.resumeImportedThread("/work/app", {
+      version: 1,
+      title: "Old work",
+      cwd: "/work/app",
+      modelId: null,
+      exportedAt: "",
+      turns: [{ prompt: "fix it", reply: "fixed" }],
+    });
+    assert.equal(client.startCalls.at(-1)?.cwd, "/work/app");
+    const sent = client.sent.at(-1)!;
+    assert.match(sent.text, /Old work/);
+    assert.match(sent.text, /fix it/);
+    assert.equal(sent.displayText, 'Resumed "Old work" (1 turn)');
     stop();
   });
 

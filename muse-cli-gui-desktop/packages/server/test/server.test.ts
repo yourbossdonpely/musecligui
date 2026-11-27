@@ -2832,6 +2832,46 @@ describe("share links", () => {
   });
 });
 
+describe("thread export", () => {
+  const MARKDOWN = "<!-- musecodeicon-handoff v1 -->\n# Probe\n";
+
+  async function sessionInTempDir(server: { store: unknown }) {
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const cwd = await mkdtemp(join(tmpdir(), "musecodeicon-export-"));
+    // Seeded directly: starting a session over HTTP would try to run Muse.
+    const store = server.store as {
+      upsertProject: (cwd: string) => { id: number };
+      recordSession: (input: object) => void;
+    };
+    const project = store.upsertProject(cwd);
+    store.recordSession({ id: "s-export", projectId: project.id, title: "Probe" });
+    return { cwd, sessionId: "s-export" };
+  }
+
+  it("writes the handoff file into the project folder", async () => {
+    const { base, server } = await start(new FakeConnection());
+    const { cwd, sessionId } = await sessionInTempDir(server as unknown as { store: unknown });
+    const res = await send(base, "/api/threads/export", { sessionId, markdown: MARKDOWN });
+    assert.equal(res.status, 200);
+    assert.match(res.json.path, /^musecodeicon-thread-[a-z0-9-]+\.md$/);
+    const { readFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    assert.equal(await readFile(join(cwd, res.json.path), "utf8"), MARKDOWN);
+  });
+
+  it("refuses unknown threads, non-exports and oversized bodies", async () => {
+    const { base, server } = await start(new FakeConnection());
+    const { sessionId } = await sessionInTempDir(server as unknown as { store: unknown });
+    assert.equal((await send(base, "/api/threads/export", { sessionId: "nope", markdown: MARKDOWN })).status, 404);
+    assert.equal((await send(base, "/api/threads/export", { sessionId, markdown: "# just notes" })).status, 400);
+    assert.equal((await send(base, "/api/threads/export", { sessionId })).status, 400);
+    const big = "<!-- musecodeicon-handoff v1 -->\n" + "x".repeat(1_000_001);
+    assert.equal((await send(base, "/api/threads/export", { sessionId, markdown: big })).status, 400);
+  });
+});
+
 describe("diagnostics", () => {
   async function diagProject() {
     const { mkdtemp, writeFile } = await import("node:fs/promises");

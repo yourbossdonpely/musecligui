@@ -478,6 +478,10 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
     return call("POST", "/api/shares", input, CALL_TIMEOUT_MS, opts?.signal);
   }
 
+  exportThread(sessionId: string, markdown: string): Promise<{ path: string }> {
+    return call("POST", "/api/threads/export", { sessionId, markdown });
+  }
+
   diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport> {
     return call("POST", "/api/diagnostics", { cwd, paths }, CALL_TIMEOUT_MS, opts?.signal);
   }

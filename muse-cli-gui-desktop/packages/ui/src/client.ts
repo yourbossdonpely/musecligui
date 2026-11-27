@@ -186,6 +186,8 @@ export interface MuseCodeIconClient {
   fileUrl(cwd: string, path: string): string;
   /** Publishes a read-only replay page for a thread; the link dies with the daemon. */
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }, opts?: { signal?: AbortSignal }): Promise<{ id: string; url: string }>;
+  /** Writes a thread's handoff file into its project folder; refused for unknown threads and oversized bodies. */
+  exportThread(sessionId: string, markdown: string): Promise<{ path: string }>;
   /** Syntax-checks project files and reports what each installed checker found. */
   diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport>;
   /** Deletes a thread and everything kept for it. Refused while a turn is running. */
