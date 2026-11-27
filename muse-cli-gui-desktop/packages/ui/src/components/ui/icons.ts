@@ -104,6 +104,7 @@ export { StopCircleIcon } from "@phosphor-icons/react/dist/csr/StopCircle";
 export { SunIcon } from "@phosphor-icons/react/dist/csr/Sun";
 export { TargetIcon } from "@phosphor-icons/react/dist/csr/Target";
 export { TerminalWindowIcon } from "@phosphor-icons/react/dist/csr/TerminalWindow";
+export { CheckSquareIcon } from "@phosphor-icons/react/dist/csr/CheckSquare";
 export { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
 export { UploadSimpleIcon } from "@phosphor-icons/react/dist/csr/UploadSimple";
 export { TreeStructureIcon } from "@phosphor-icons/react/dist/csr/TreeStructure";

@@ -2387,6 +2387,142 @@ export class MuseCodeIconController {
     }
   }
 
+  /** Ticks or unticks a thread for a bulk action. */
+  toggleThreadSelected(sessionId: string): void {
+    this.update((s) => ({
+      ...s,
+      selectedSessions: s.selectedSessions.includes(sessionId)
+        ? s.selectedSessions.filter((id) => id !== sessionId)
+        : [...s.selectedSessions, sessionId],
+    }));
+  }
+
+  /** Clears the bulk-action ticking. */
+  clearThreadSelection(): void {
+    if (this.state.selectedSessions.length > 0) {
+      this.update((s) => ({ ...s, selectedSessions: [] }));
+    }
+  }
+
+  /**
+   * Archives every given thread with one summary toast and one undo for all of them.
+   * Failures roll their threads back and are counted, never silent.
+   */
+  async bulkArchive(sessionIds: string[]): Promise<void> {
+    const currents = sessionIds.map((id) => this.state.sessions[id]).filter((s) => s !== undefined);
+    if (currents.length === 0) {
+      return;
+    }
+    const ids = new Set(currents.map((s) => s.sessionId));
+    this.update((s) => {
+      const sessions = { ...s.sessions };
+      for (const id of ids) {
+        delete sessions[id];
+      }
+      return { ...s, sessions, selectedSessions: [] };
+    });
+    const route = this.state.route;
+    if (route.kind === "thread" && ids.has(route.sessionId)) {
+      const first = currents[0]!;
+      this.navigate({ kind: "new", cwd: first.cwd });
+    }
+    const archived: typeof currents = [];
+    for (const current of currents) {
+      try {
+        await this.client.updateSession(current.sessionId, { archived: true });
+        archived.push(current);
+      } catch {
+        this.upsertSession(current);
+      }
+    }
+    const failed = currents.length - archived.length;
+    if (archived.length > 0) {
+      this.toast("info", archived.length === 1 ? "Thread archived" : `Archived ${archived.length} threads`, failed > 0 ? `${failed} could not be archived.` : archived.map((s) => s.title).join(", "), {
+        label: "Undo",
+        run: () => {
+          for (const current of archived) {
+            void this.unarchive(current);
+          }
+        },
+      });
+    } else {
+      this.toast("error", "Could not archive the threads", "Nothing was archived.");
+    }
+  }
+
+  /**
+   * Deletes every given thread with one summary toast. The caller confirms first:
+   * unlike archiving, there is no undo.
+   */
+  async bulkDelete(sessionIds: string[]): Promise<void> {
+    const currents = sessionIds.map((id) => this.state.sessions[id]).filter((s) => s !== undefined);
+    if (currents.length === 0) {
+      return;
+    }
+    const ids = new Set(currents.map((s) => s.sessionId));
+    const threads = new Map(currents.map((s) => [s.sessionId, this.state.threads[s.sessionId] ?? null] as const));
+    this.update((s) => {
+      const sessions = { ...s.sessions };
+      const rest = { ...s.threads };
+      for (const id of ids) {
+        delete sessions[id];
+        delete rest[id];
+      }
+      return { ...s, sessions, threads: rest, selectedSessions: [] };
+    });
+    const route = this.state.route;
+    if (route.kind === "thread" && ids.has(route.sessionId)) {
+      const first = currents[0]!;
+      this.navigate({ kind: "new", cwd: first.cwd });
+    }
+    const deleted: typeof currents = [];
+    for (const current of currents) {
+      try {
+        await this.client.deleteSession(current.sessionId);
+        deleted.push(current);
+      } catch {
+        this.upsertSession(current);
+        const thread = threads.get(current.sessionId);
+        if (thread) {
+          this.update((s) => ({ ...s, threads: { ...s.threads, [current.sessionId]: thread } }));
+        }
+      }
+    }
+    const failed = currents.length - deleted.length;
+    if (deleted.length > 0) {
+      this.toast("success", deleted.length === 1 ? "Thread deleted" : `Deleted ${deleted.length} threads`, failed > 0 ? `${failed} could not be deleted.` : deleted.map((s) => s.title).join(", "));
+    } else {
+      this.toast("error", "Could not delete the threads", "Nothing was deleted.");
+    }
+  }
+
+  /** Pins or unpins every given thread with one summary toast; failures roll back. */
+  async bulkPin(sessionIds: string[], pinned: boolean): Promise<void> {
+    const currents = sessionIds.map((id) => this.state.sessions[id]).filter((s) => s !== undefined);
+    if (currents.length === 0) {
+      return;
+    }
+    this.update((s) => ({ ...s, selectedSessions: [] }));
+    let done = 0;
+    for (const current of currents) {
+      this.upsertSession({ ...current, pinned });
+      try {
+        const saved = await this.client.updateSession(current.sessionId, { pinned });
+        if (saved) {
+          this.upsertSession(saved);
+        }
+        done += 1;
+      } catch {
+        this.upsertSession(current);
+      }
+    }
+    if (done > 0) {
+      this.toast("success", pinned ? `Pinned ${done} thread${done === 1 ? "" : "s"}` : `Unpinned ${done} thread${done === 1 ? "" : "s"}`);
+    } else {
+      this.toast("error", pinned ? "Could not pin the threads" : "Could not unpin the threads", "Nothing changed.");
+    }
+  }
+
   /**
    * Publishes a read-only replay page for the thread and hands back its link, or null when there
    * is nothing to share or publishing failed. The caller copies the link: the model never touches

@@ -392,6 +392,12 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Model** (`model/review.ts`): review turns are recognized by their prompt head (`REVIEW_PROMPT_HEAD`, shared with the send path so the marker can never drift); `APPLY_REVIEW_PROMPT` sends the model back over its own review file by file.
 - **Flow** (`controller.applyReview` + `ApplyReviewButton` in `Transcript.tsx`): replies to review turns grow an "Apply findings" button (hidden when read-only); the controller re-verifies a finished review exists and otherwise toasts "Review the changes first". No finding-parsing: the model re-reads its own review.
 
+### Unreleased — bulk thread ops
+
+- **Selection** (`selectedSessions` in the store, `toggleThreadSelected`/`clearThreadSelection`): thread rows grow a Gmail-style checkbox over the status glyph on hover (always visible when ticked), with pressed-state labels; in-memory only, cleared by acting or by hand.
+- **Bulk bar** (top of the thread list while anything is ticked): count plus Archive, Pin/Unpin (label follows unanimity), Delete (one confirm for all), Clear.
+- **Controller** (`bulkArchive`/`bulkDelete`/`bulkPin`): optimistic removals, navigate-away when the open thread is affected, one summary toast; archive keeps a single Undo for all of them; per-item failures roll back and are counted, never silent.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

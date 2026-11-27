@@ -103,7 +103,15 @@ class FakeClient implements MuseCodeIconClient {
   loadTranscript() {
     return this.transcript();
   }
-  async updateSession() {
+  updated: { sessionId: string; patch: object }[] = [];
+  updateError: Error | null = null;
+  async updateSession(sessionId: string, patch: object) {
+    if (this.updateError) {
+      const error = this.updateError;
+      this.updateError = null;
+      throw error;
+    }
+    this.updated.push({ sessionId, patch });
     return SESSION;
   }
   async sendTurn(
@@ -1445,6 +1453,66 @@ describe("MuseCodeIconController", () => {
     assert.equal(await controller.applyReview("s1"), false);
     assert.deepEqual(client.sent, []);
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Review the changes first");
+    stop();
+  });
+
+  it("ticks and clears threads for bulk actions", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.toggleThreadSelected("s1");
+    assert.deepEqual(controller.store.get().selectedSessions, ["s1"]);
+    controller.toggleThreadSelected("s1");
+    assert.deepEqual(controller.store.get().selectedSessions, []);
+    controller.toggleThreadSelected("s1");
+    controller.clearThreadSelection();
+    assert.deepEqual(controller.store.get().selectedSessions, []);
+    stop();
+  });
+
+  it("archives ticked threads with one toast and one undo", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.store.set((s) => ({ ...s, sessions: { ...s.sessions, s2: { ...SESSION, sessionId: "s2", title: "Second" } } }));
+    await controller.bulkArchive(["s1", "s2", "missing"]);
+    assert.deepEqual(Object.keys(controller.store.get().sessions), []);
+    assert.deepEqual(controller.store.get().selectedSessions, []);
+    assert.equal(client.updated.length, 2);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Archived 2 threads");
+    stop();
+  });
+
+  it("rolls back bulk archives that fail and counts them", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.store.set((s) => ({ ...s, sessions: { ...s.sessions, s2: { ...SESSION, sessionId: "s2", title: "Second" } } }));
+    client.updateError = new Error("daemon away");
+    await controller.bulkArchive(["s1", "s2"]);
+    assert.deepEqual(Object.keys(controller.store.get().sessions).sort(), ["s1"]);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Thread archived");
+    stop();
+  });
+
+  it("deletes ticked threads with one summary toast", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.store.set((s) => ({ ...s, sessions: { ...s.sessions, s2: { ...SESSION, sessionId: "s2", title: "Second" } } }));
+    await controller.bulkDelete(["s1", "s2"]);
+    assert.deepEqual(Object.keys(controller.store.get().sessions), []);
+    assert.deepEqual(client.deleted.sort(), ["s1", "s2"]);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Deleted 2 threads");
+    stop();
+  });
+
+  it("pins and unpins ticked threads", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    controller.store.set((s) => ({ ...s, sessions: { ...s.sessions, s2: { ...SESSION, sessionId: "s2", title: "Second" } } }));
+    await controller.bulkPin(["s1", "s2"], true);
+    assert.equal(controller.store.get().sessions["s2"]?.pinned, true);
+    assert.equal(client.updated.filter((u) => (u.patch as { pinned?: boolean }).pinned === true).length, 2);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Pinned 2 threads");
+    await controller.bulkPin(["s2"], false);
+    assert.equal(controller.store.get().sessions["s2"]?.pinned, false);
     stop();
   });
 

@@ -1,6 +1,6 @@
 import { copyText } from "../../app/clipboard.js";
 import { errorMessage } from "../../client.js";
-import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, TrashIcon, UploadSimpleIcon, XIcon } from "../ui/icons.js";
+import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CheckSquareIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, SquareIcon, TargetIcon, TrashIcon, UploadSimpleIcon, XIcon } from "../ui/icons.js";
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from "react";
 import { shallowEqual, useApp, useController, useNow } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
@@ -158,6 +158,51 @@ function useSidebarEntries(): { entries: SidebarEntry[]; activeId: string | null
   return { entries, activeId };
 }
 
+/** Archive, pin and delete for ticked threads. Only exists while something is ticked. */
+function BulkBar() {
+  const controller = useController();
+  const selected = useApp((s) => s.selectedSessions);
+  const sessions = useApp((s) => s.sessions);
+  if (selected.length === 0) {
+    return null;
+  }
+  const ticked = selected.filter((id) => sessions[id]);
+  const allPinned = ticked.length > 0 && ticked.every((id) => sessions[id]?.pinned);
+  const remove = () => {
+    if (window.confirm(`Delete ${ticked.length} thread${ticked.length === 1 ? "" : "s"}? This cannot be undone.`)) {
+      void controller.bulkDelete(ticked);
+    }
+  };
+  return (
+    <div className="mx-2 mb-1 flex h-8 shrink-0 items-center gap-0.5 rounded-lg bg-active px-1.5" role="toolbar" aria-label="Bulk thread actions">
+      <span className="px-1 text-xs font-medium text-muted tabular-nums">
+        {ticked.length} selected
+      </span>
+      <span className="flex-1" />
+      <Tip label={allPinned ? "Unpin threads" : "Pin threads"}>
+        <IconButton size="xs" label={allPinned ? "Unpin threads" : "Pin threads"} onClick={() => void controller.bulkPin(ticked, !allPinned)}>
+          {allPinned ? <PushPinSlashIcon size={14} /> : <PushPinIcon size={14} />}
+        </IconButton>
+      </Tip>
+      <Tip label="Archive threads">
+        <IconButton size="xs" label="Archive threads" onClick={() => void controller.bulkArchive(ticked)}>
+          <ArchiveIcon size={14} />
+        </IconButton>
+      </Tip>
+      <Tip label="Delete threads">
+        <IconButton size="xs" label="Delete threads" onClick={remove}>
+          <TrashIcon size={14} />
+        </IconButton>
+      </Tip>
+      <Tip label="Clear selection">
+        <IconButton size="xs" label="Clear selection" onClick={() => controller.clearThreadSelection()}>
+          <XIcon size={13} />
+        </IconButton>
+      </Tip>
+    </div>
+  );
+}
+
 function ThreadList() {
   const controller = useController();
   const projects = useApp((s) => s.projects);
@@ -197,6 +242,7 @@ function ThreadList() {
           </Tip>
         </div>
       </div>
+      <BulkBar />
       <nav aria-label="Threads" className="min-h-0 flex-1 overflow-y-auto px-2 pt-1 pb-6">
         {!loaded ? (
           <SidebarSkeleton />
@@ -637,6 +683,7 @@ export const ThreadRow = memo(
     const { session, status } = props.entry;
     const [renaming, setRenaming] = useState(false);
     const compact = useApp((s) => s.prefs.density === "compact");
+    const selected = useApp((s) => s.selectedSessions.includes(session.sessionId));
     const emphasized = props.active || status === "unread" || isLive(status);
     return (
       <li>
@@ -654,10 +701,41 @@ export const ThreadRow = memo(
             <span aria-hidden="true" className="pointer-events-none absolute top-[calc(50%+8px)] -bottom-px left-[17px] border-l border-line" />
           ) : null}
           {props.entry.nested ? <TreeGuide last={props.entry.lastNested === true} /> : null}
-          {props.settled ? null : (
-            <span className={cn("absolute top-1/2 flex size-4 -translate-y-1/2 items-center justify-center", props.entry.nested ? "left-[26px]" : "left-[10px]")}>
-              <StatusGlyph status={status} />
-            </span>
+          {selected ? (
+            <button
+              type="button"
+              aria-label={`Unselect ${session.title}`}
+              aria-pressed="true"
+              onClick={() => controller.toggleThreadSelected(session.sessionId)}
+              className={cn("absolute top-1/2 flex size-4 -translate-y-1/2 items-center justify-center", props.entry.nested ? "left-[26px]" : "left-[10px]")}
+            >
+              <CheckSquareIcon size={14} className="text-accent-text" />
+            </button>
+          ) : (
+            <>
+              {props.settled ? null : (
+                <span
+                  className={cn(
+                    "absolute top-1/2 flex size-4 -translate-y-1/2 items-center justify-center group-hover/row:hidden group-focus-within/row:hidden",
+                    props.entry.nested ? "left-[26px]" : "left-[10px]",
+                  )}
+                >
+                  <StatusGlyph status={status} />
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label={`Select ${session.title}`}
+                aria-pressed="false"
+                onClick={() => controller.toggleThreadSelected(session.sessionId)}
+                className={cn(
+                  "absolute top-1/2 hidden size-4 -translate-y-1/2 items-center justify-center group-hover/row:flex group-focus-within/row:flex",
+                  props.entry.nested ? "left-[26px]" : "left-[10px]",
+                )}
+              >
+                <SquareIcon size={14} className="text-subtle" />
+              </button>
+            </>
           )}
           {renaming ? (
             <RenameField

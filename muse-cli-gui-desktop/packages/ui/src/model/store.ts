@@ -270,6 +270,8 @@ export interface AppState {
   bypassAll: boolean;
   /** Threads armed one at a time, for letting a single unattended run through. */
   bypassThreads: string[];
+  /** Threads ticked for a bulk action; in-memory only, cleared by acting or by hand. */
+  selectedSessions: string[];
   hostError: string | null;
   /** A prompt that could not be sent, waiting for the composer showing `key` to take it back, files and all. */
   draftHandoff: { key: string; text: string; attachments?: OutgoingAttachment[]; previews?: EchoAttachment[] } | null;
@@ -346,6 +348,7 @@ export function initialState(prefs: Prefs): AppState {
     busy: {},
     bypassAll: false,
     bypassThreads: [],
+    selectedSessions: [],
     hostError: null,
     planUsage: null,
     accounts: null,
