@@ -23,8 +23,8 @@ describe("plan meter", () => {
     );
     assert.equal(view?.tier, "High usage");
     assert.deepEqual(view?.rows, [
-      { key: "window", label: "5-hour window", percent: 72, used: "72%", tone: "warn", resets: "Resets in 2h 14m" },
-      { key: "weekly", label: "Weekly", percent: 94, used: "94%", tone: "danger", resets: "Reset" },
+      { key: "window", label: "5-hour window", percent: 72, used: "72%", tone: "warn", resets: "Resets in 2h 14m", forecast: "Cap in 1h 2m" },
+      { key: "weekly", label: "Weekly", percent: 94, used: "94%", tone: "danger", resets: "Reset", forecast: "On pace · ~94% at reset" },
     ]);
     assert.equal(view?.stale, false);
   });
@@ -134,5 +134,49 @@ describe("background tasks", () => {
     ].map((i): ViewEvent => ({ at: 1, method: "item/completed", params: { sessionId: "s1", item: i } }));
     const fold: ThreadFold = applyEvents(base, events);
     assert.deepEqual(backgroundTasks(fold), ["a"]);
+  });
+
+  it("forecasts the cap from the burn rate, or the landing percentage", () => {
+    const at = (usedPercent: number) =>
+      planView(
+        {
+          tier: "everyday",
+          observedAtMs: NOW,
+          window: { usedPercent, resetsAtMs: NOW + 60 * 60_000, windowDurationMins: 300 },
+          weekly: { usedPercent: 0, resetsAtMs: NOW + 60_000, windowDurationMins: null },
+        },
+        NOW,
+      )?.rows[0]?.forecast;
+    // 80% with one hour left of five burns 20%/h against 20 remaining: cap in ~1h.
+    assert.equal(at(80), "Cap in 1h");
+    // 8% at the same point lands around 10%.
+    assert.equal(at(8), "On pace · ~10% at reset");
+    assert.equal(at(0), "On pace");
+  });
+
+  it("says the cap may already have hit when the projection is in the past", () => {
+    const view = planView(
+      {
+        tier: "everyday",
+        observedAtMs: NOW - 30 * 60_000,
+        window: { usedPercent: 99, resetsAtMs: NOW + 60 * 60_000, windowDurationMins: 300 },
+        weekly: { usedPercent: 0, resetsAtMs: NOW + 60_000, windowDurationMins: null },
+      },
+      NOW,
+    );
+    assert.equal(view?.rows[0]?.forecast, "May already be capped");
+  });
+
+  it("forecasts nothing once the window reset at the reading", () => {
+    const view = planView(
+      {
+        tier: "everyday",
+        observedAtMs: NOW,
+        window: { usedPercent: 50, resetsAtMs: NOW - 1, windowDurationMins: 300 },
+        weekly: { usedPercent: 0, resetsAtMs: NOW + 60_000, windowDurationMins: null },
+      },
+      NOW,
+    );
+    assert.equal(view?.rows[0]?.forecast, null);
   });
 });

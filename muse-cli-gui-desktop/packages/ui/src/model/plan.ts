@@ -17,6 +17,11 @@ export interface PlanRow {
   tone: PlanTone;
   /** "Resets in 2h 14m", or "Reset" once the time has passed and Muse has not reported the new window yet. */
   resets: string;
+  /**
+   * Where the burn rate points: "Cap in 1h 3m", "On pace · ~62% at reset", or "May already be
+   * capped". Null when the window already reset at the reading, or the numbers cannot project.
+   */
+  forecast: string | null;
 }
 
 export interface PlanView {
@@ -75,7 +80,7 @@ export function formatReset(ms: number): string {
   return rest === 0 ? `${days}d` : `${days}d ${rest}h`;
 }
 
-function row(key: PlanRow["key"], label: string, window: PlanWindow, now: number): PlanRow {
+function row(key: PlanRow["key"], label: string, window: PlanWindow, observedAtMs: number, now: number): PlanRow {
   const percent = Math.max(0, Math.min(100, Math.round(window.usedPercent)));
   const left = window.resetsAtMs - now;
   const underOne = percent === 0 && window.usedPercent >= 0 && left > 0;
@@ -86,7 +91,32 @@ function row(key: PlanRow["key"], label: string, window: PlanWindow, now: number
     used: underOne ? "<1%" : `${percent}%`,
     tone: tone(percent),
     resets: left > 0 ? `Resets in ${formatReset(left)}` : "Reset",
+    forecast: forecast(window, observedAtMs, now),
   };
+}
+
+/**
+ * Projects the burn rate to the cap: linear from the window start through the reading.
+ * Computed at the observed time, not now, since the reading is always in the past —
+ * which is also why it can say the cap may already have hit.
+ */
+function forecast(window: PlanWindow, observedAtMs: number, now: number): string | null {
+  const windowMs = (window.windowDurationMins ?? 7 * 24 * 60) * MINUTE_MS;
+  const left = window.resetsAtMs - observedAtMs;
+  if (left <= 0) {
+    return null;
+  }
+  const elapsed = windowMs - left;
+  if (elapsed <= 0 || window.usedPercent <= 0) {
+    return "On pace";
+  }
+  const rate = window.usedPercent / elapsed;
+  const hitAt = observedAtMs + (100 - window.usedPercent) / rate;
+  if (hitAt <= window.resetsAtMs) {
+    return hitAt <= now ? "May already be capped" : `Cap in ${formatReset(hitAt - observedAtMs)}`;
+  }
+  const projected = Math.round(window.usedPercent + rate * left);
+  return `On pace · ~${projected}% at reset`;
 }
 
 /** The plan meter as the UI shows it: the short window and the weekly cap, each with how long until it resets. */
@@ -96,7 +126,10 @@ export function planView(usage: PlanUsage | null, now: number): PlanView | null 
   }
   return {
     tier: /^[a-z][a-z0-9_ -]{0,31}$/i.test(usage.tier) ? humanize(usage.tier) : null,
-    rows: [row("window", windowLabel(usage.window), usage.window, now), row("weekly", "Weekly", usage.weekly, now)],
+    rows: [
+      row("window", windowLabel(usage.window), usage.window, usage.observedAtMs, now),
+      row("weekly", "Weekly", usage.weekly, usage.observedAtMs, now),
+    ],
     observedAtMs: usage.observedAtMs,
     stale: now - usage.observedAtMs > STALE_MS,
     age: planAge(usage.observedAtMs, now),

@@ -382,6 +382,11 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Server** (`server/src/symbols.ts`, `/api/files/symbols`, `/api/files/symbol`): regex definition finder per language family (TS/JS, Python, Rust, Go, Java, PHP, Markdown headings), capped (200/file, 256KB files skipped). Snippets capture the definition block — brace depth for braced languages, indentation for Python — plus decorators above, bounded (100 lines/8k chars) with a truncation marker.
 - **UI**: typing `#` after a file path in `@` completes its definitions (🔣 rows, `name · kind`); sending `@path#name` attaches just that block (`File @path#name:`), sharing the 3-file cap; unknown symbols stay literal like missing files. `splitMentionRef` in `model/mentions.ts`.
 
+### Unreleased — usage forecasting
+
+- **Model** (`model/plan.ts`): each meter row gains a forecast from the burn rate, projected linearly from the window start through the reading (weekly defaults to a 7-day window): "Cap in 1h 3m" when the cap lands before reset, "On pace · ~62% at reset" otherwise, "May already be capped" when the projection is already past, "On pace" for untouched windows, nothing once reset. Computed at the observed time since readings lag reality; relative durations only, so no locale-dependent clocks.
+- **UI** (`PlanMeter`): appended to each row's resets line and to the sidebar pill's tooltip.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

@@ -82,7 +82,10 @@ function MeterCard(props: { view: PlanView; title: string; now: number }) {
             >
               <div className={cn("h-full rounded-full transition-[width] duration-300 ease-out", FILL[row.tone])} style={{ width: `${row.percent}%` }} />
             </div>
-            <p className="mt-1 text-2xs text-subtle tabular-nums">{row.resets}</p>
+            <p className="mt-1 text-2xs text-subtle tabular-nums">
+              {row.resets}
+              {row.forecast ? ` · ${row.forecast}` : ""}
+            </p>
           </div>
         ))}
       </div>
@@ -134,7 +137,9 @@ export function PlanPill() {
   if (!view || !first) {
     return null;
   }
-  const label = view.rows.map((row) => `${row.label}: ${row.used} used, ${row.resets.toLowerCase()}`).join(". ");
+  const label = view.rows
+    .map((row) => `${row.label}: ${row.used} used, ${row.resets.toLowerCase()}${row.forecast ? `, ${row.forecast.toLowerCase()}` : ""}`)
+    .join(". ");
   return (
     <Tip label={label} side="top">
       <button
