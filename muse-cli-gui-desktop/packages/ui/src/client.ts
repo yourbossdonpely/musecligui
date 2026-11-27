@@ -27,6 +27,7 @@ import type {
   TranscriptLoad,
   UserInputAnswer,
   WorkflowAction,
+  WorktreeView,
   YoloSettings,
 } from "./types.js";
 import { listedPrice } from "./model/pricing.js";
@@ -188,6 +189,14 @@ export interface MuseCodeIconClient {
   createShare(input: { title: string; project: string; messages: { role: string; text: string }[] }, opts?: { signal?: AbortSignal }): Promise<{ id: string; url: string }>;
   /** Writes a thread's handoff file into its project folder; refused for unknown threads and oversized bodies. */
   exportThread(sessionId: string, markdown: string): Promise<{ path: string }>;
+  /** A project's git checkouts; refused when it is not a git repository. */
+  listWorktrees(cwd: string): Promise<WorktreeView[]>;
+  /** Checks a branch out into `.worktrees/`; refused for bad names and taken folders. */
+  addWorktree(cwd: string, branch: string): Promise<{ path: string; branch: string; created: boolean }>;
+  /** Removes a checkout; refused for the main tree and lived-in checkouts unless forced. */
+  removeWorktree(cwd: string, path: string, force?: boolean): Promise<void>;
+  /** Drops git's admin files for deleted checkouts. */
+  pruneWorktrees(cwd: string): Promise<void>;
   /** Syntax-checks project files and reports what each installed checker found. */
   diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport>;
   /** Deletes a thread and everything kept for it. Refused while a turn is running. */

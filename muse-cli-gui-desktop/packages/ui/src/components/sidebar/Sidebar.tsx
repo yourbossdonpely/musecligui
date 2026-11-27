@@ -1,7 +1,7 @@
 import { copyText } from "../../app/clipboard.js";
 import { errorMessage } from "../../client.js";
 import { ArchiveIcon, ArrowClockwiseIcon, ArrowLineDownIcon, ArrowUUpLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, ChartBarIcon, CheckIcon, CodeIcon, CopyIcon, DotsThreeIcon, DownloadSimpleIcon, FolderIcon, FolderOpenIcon, FolderPlusIcon, FunnelSimpleIcon, GearSixIcon, GitBranchIcon, MagnifyingGlassIcon, MonitorIcon, MoonIcon, NotePencilIcon, PauseIcon, PencilSimpleIcon, PlayIcon, PushPinIcon, PushPinSlashIcon, ShieldSlashIcon, SidebarSimpleIcon, StackIcon, SunIcon, TargetIcon, TrashIcon, UploadSimpleIcon, XIcon } from "../ui/icons.js";
-import { memo, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode, type Ref } from "react";
 import { shallowEqual, useApp, useController, useNow } from "../../app/context.js";
 import { useImeGuard } from "../../app/ime.js";
 import { useOverlayDragProps, useTitlebarOverlay } from "../../app/frame.js";
@@ -20,7 +20,7 @@ import {
 } from "../../model/status.js";
 import { CODE_THEMES, DEFAULT_SIDEBAR_WIDTH, type CodeTheme } from "../../model/store.js";
 import type { UpdateState } from "../../model/updates.js";
-import type { ProjectView, SessionSummary } from "../../types.js";
+import type { ProjectView, SessionSummary, WorktreeView } from "../../types.js";
 import { ContextMenuContent, ContextMenuItem, ContextMenuRoot, ContextMenuSeparator, ContextMenuTrigger, Menu, MenuCheck, MenuContent, MenuItem, MenuOption, MenuRadioGroup, MenuSeparator, MenuTrigger, Modal, Tip } from "../ui/overlays.js";
 import { Button, IconButton, Logo, MOD, NEW_THREAD_KEYS, Shortcut, Spinner, cn, isMac } from "../ui/primitives.js";
 import { parseHandoffFile, type HandoffData } from "../../model/handoff.js";
@@ -860,6 +860,7 @@ function ProjectMenuItems(props: { project: ProjectView; Item: typeof MenuItem; 
   const { project, Item, Separator } = props;
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [pending, setPending] = useState<HandoffData | null>(null);
+  const [worktreesOpen, setWorktreesOpen] = useState(false);
   const pickFile = async (file: File | undefined) => {
     if (!file) {
       return;
@@ -884,6 +885,9 @@ function ProjectMenuItems(props: { project: ProjectView; Item: typeof MenuItem; 
       </Item>
       <Item icon={<UploadSimpleIcon size={14} />} onSelect={() => fileRef.current?.click()}>
         Import thread…
+      </Item>
+      <Item icon={<GitBranchIcon size={14} />} onSelect={() => setWorktreesOpen(true)}>
+        Worktrees…
       </Item>
       <input
         ref={fileRef}
@@ -952,7 +956,149 @@ function ProjectMenuItems(props: { project: ProjectView; Item: typeof MenuItem; 
       <Item icon={<XIcon size={14} />} tone="danger" onSelect={() => void controller.hideProject(project.cwd)}>
         Remove from sidebar
       </Item>
+      <WorktreesModal cwd={project.cwd} displayName={project.displayName} open={worktreesOpen} onOpenChange={setWorktreesOpen} />
     </>
+  );
+}
+
+/** A project's git checkouts: see them, add one per branch, remove them, prune the stale. */
+function WorktreesModal(props: { cwd: string; displayName: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const controller = useController();
+  const [entries, setEntries] = useState<WorktreeView[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [branch, setBranch] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [forcePath, setForcePath] = useState<string | null>(null);
+  const load = async () => {
+    const list = await controller.listWorktrees(props.cwd);
+    if (list) {
+      setEntries(list);
+      setFailed(false);
+    } else {
+      setFailed(true);
+    }
+  };
+  useEffect(() => {
+    if (props.open) {
+      setEntries(null);
+      setFailed(false);
+      setBranch("");
+      setForcePath(null);
+      void load();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.open]);
+  const add = async () => {
+    if (!branch.trim() || busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const added = await controller.addWorktree(props.cwd, branch);
+      if (added) {
+        setBranch("");
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async (path: string, force: boolean) => {
+    const sure = force
+      ? window.confirm(`Force-remove this checkout?\n\n${path}\n\nThreads and uncommitted work in it are left behind.`)
+      : window.confirm(`Remove this checkout?\n\n${path}`);
+    if (!sure) {
+      return;
+    }
+    if (await controller.removeWorktree(props.cwd, path, force)) {
+      setForcePath(null);
+      await load();
+    } else if (!force) {
+      setForcePath(path);
+    }
+  };
+  const prune = async () => {
+    if (await controller.pruneWorktrees(props.cwd)) {
+      await load();
+    }
+  };
+  return (
+    <Modal
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      title={`Worktrees — ${props.displayName}`}
+      description="Isolated checkouts of this repo, one per branch. Threads can run apart in them."
+    >
+      <div className="flex max-h-[50vh] min-h-16 flex-col gap-1 overflow-y-auto">
+        {entries === null && !failed ? (
+          <p className="flex items-center gap-2 px-1 py-3 text-xs text-subtle">
+            <Spinner size={13} /> Loading checkouts…
+          </p>
+        ) : null}
+        {failed ? <p className="px-1 py-3 text-xs text-muted">Could not load checkouts. Is this folder a git repository?</p> : null}
+        {(entries ?? []).map((entry, index) => (
+          <div key={entry.path} className="flex min-w-0 items-center gap-2 rounded-lg bg-sunken px-2.5 py-1.5">
+            <GitBranchIcon size={13} className="shrink-0 text-subtle" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-fg">
+                {entry.branch ?? (entry.bare ? "bare" : "detached")}
+                {index === 0 ? <span className="ml-1.5 font-normal text-subtle">main</span> : null}
+                {entry.prunable ? <span className="ml-1.5 font-normal text-warn-text">stale</span> : null}
+                {entry.locked ? <span className="ml-1.5 font-normal text-subtle">locked</span> : null}
+              </p>
+              <p title={entry.path} className="truncate font-mono text-2xs text-subtle">
+                {entry.path}
+              </p>
+            </div>
+            <Tip label="New thread here">
+              <IconButton
+                size="xs"
+                label="New thread here"
+                onClick={() => {
+                  props.onOpenChange(false);
+                  void controller.newThreadIn(entry.path);
+                }}
+              >
+                <NotePencilIcon size={13} />
+              </IconButton>
+            </Tip>
+            {index === 0 ? null : forcePath === entry.path ? (
+              <Button size="sm" variant="secondary" onClick={() => void remove(entry.path, true)}>
+                Force
+              </Button>
+            ) : (
+              <Tip label="Remove checkout">
+                <IconButton size="xs" label="Remove checkout" onClick={() => void remove(entry.path, false)}>
+                  <TrashIcon size={13} />
+                </IconButton>
+              </Tip>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-1.5">
+        <input
+          type="text"
+          value={branch}
+          onChange={(e) => setBranch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              void add();
+            }
+          }}
+          placeholder="feature/login"
+          aria-label="Branch to check out"
+          spellCheck={false}
+          className="h-7 min-w-0 flex-1 rounded-md bg-sunken px-2 font-mono text-xs text-fg outline-none placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-accent"
+        />
+        <Button size="sm" variant="secondary" disabled={!branch.trim() || busy} onClick={() => void add()}>
+          Add
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void prune()}>
+          Prune stale
+        </Button>
+      </div>
+    </Modal>
   );
 }
 

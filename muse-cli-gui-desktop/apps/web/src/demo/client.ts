@@ -3,7 +3,7 @@
  * server. It seeds realistic sample projects, threads, usage and models, and plays back turns as MSP
  * events. Copied from the landing page's demo client (landing/src/demo/client.ts).
  */
-import { listedPrice, type DiagnosticReport, type EventHandler, type McpServerView, type MuseCodeIconClient, type ScheduleView, type SkillFoldersView, type TurnOptions } from "@musecodeicon/ui";
+import { listedPrice, type DiagnosticReport, type EventHandler, type McpServerView, type MuseCodeIconClient, type ScheduleView, type SkillFoldersView, type TurnOptions, type WorktreeView } from "@musecodeicon/ui";
 import { DemoFiles } from "./files.js";
 import type {
   ApprovalRequest,
@@ -763,6 +763,22 @@ export class DemoClient implements MuseCodeIconClient {
 
   async exportThread(): Promise<{ path: string }> {
     throw new Error("Export needs the real server.");
+  }
+
+  async listWorktrees(): Promise<WorktreeView[]> {
+    throw new Error("Worktrees need the real server.");
+  }
+
+  async addWorktree(): Promise<{ path: string; branch: string; created: boolean }> {
+    throw new Error("Worktrees need the real server.");
+  }
+
+  async removeWorktree(): Promise<void> {
+    throw new Error("Worktrees need the real server.");
+  }
+
+  async pruneWorktrees(): Promise<void> {
+    throw new Error("Worktrees need the real server.");
   }
 
   async diagnose(): Promise<DiagnosticReport> {

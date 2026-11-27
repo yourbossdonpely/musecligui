@@ -45,6 +45,7 @@ import {
   type TurnImage,
 } from "@musecodeicon/daemon";
 import { diagnoseFiles } from "./diagnostics.js";
+import { branchProblem, parseWorktreeList, worktreeDirName, type WorktreeEntry } from "./worktrees.js";
 import { isMcpName, parseMcpList, type McpServerView } from "./mcp.js";
 import { FileError, listFolder, readProjectFile, resolveInRoot, revertProjectFile, searchProjectFiles, serveProjectFile, writeProjectFile } from "./files.js";
 import { scanSkillFolder } from "./skills.js";
@@ -1416,6 +1417,34 @@ export class MuseCodeIconServer {
       }
       const path = await this.writeHandoffFile(found.cwd, found.session.title, markdown);
       this.json(res, 200, { path });
+      return true;
+    }
+    if (method === "GET" && path === "/api/worktrees") {
+      const cwd = url.searchParams.get("cwd") ?? "";
+      this.json(res, 200, { worktrees: await this.listWorktrees(cwd) });
+      return true;
+    }
+    if (method === "POST" && path === "/api/worktrees") {
+      const body = await this.readBody(req);
+      const cwd = str(body["cwd"]) ?? "";
+      const branch = str(body["branch"]) ?? "";
+      this.json(res, 200, await this.addWorktree(cwd, branch));
+      return true;
+    }
+    if (method === "DELETE" && path === "/api/worktrees") {
+      const body = await this.readBody(req);
+      const cwd = str(body["cwd"]) ?? "";
+      const target = str(body["path"]) ?? "";
+      const force = body["force"] === true;
+      await this.removeWorktree(cwd, target, force);
+      this.json(res, 200, { removed: true });
+      return true;
+    }
+    if (method === "POST" && path === "/api/worktrees/prune") {
+      const body = await this.readBody(req);
+      const cwd = str(body["cwd"]) ?? "";
+      await this.pruneWorktrees(cwd);
+      this.json(res, 200, { pruned: true });
       return true;
     }
     if (method === "POST" && path === "/api/diagnostics") {
@@ -3124,6 +3153,138 @@ export class MuseCodeIconServer {
     }
     await writeFile(join(cwd, candidate), markdown, "utf8");
     return candidate;
+  }
+
+  /**
+   * Runs git in a workspace and hands back stdout; git's own complaint becomes the error.
+   * Argv, never a shell string: `git -C` carries the directory, so nothing needs quoting.
+   */
+  private async git(cwd: string, args: string[]): Promise<string> {
+    const result = await this.options.shellRunner("git", ["-C", cwd, ...args]);
+    if (result.exitCode !== 0) {
+      const complaint = result.output.trim().split("\n").at(-1) ?? "";
+      throw new Error(complaint || `git exited ${result.exitCode ?? "unknown"}`);
+    }
+    return result.output;
+  }
+
+  /** Worktrees need git beside the server: SSH and WSL checkouts refuse with an honest reason. */
+  private refuseRemoteWorktree(cwd: string): void {
+    if (isSshCwd(cwd)) {
+      throw new HttpError(400, "Worktrees are not available for SSH projects in this version.");
+    }
+    if (this.options.platform === "win32" && isWslAbs(cwd)) {
+      throw new HttpError(400, "Worktrees need a local checkout in this version.");
+    }
+  }
+
+  /** The repo root a workspace belongs to; throws when it belongs to no repo. */
+  private async gitRoot(cwd: string): Promise<string> {
+    try {
+      return (await this.git(cwd, ["rev-parse", "--show-toplevel"])).trim();
+    } catch {
+      throw new HttpError(404, "That project is not a git repository.");
+    }
+  }
+
+  private async listWorktrees(cwd: string): Promise<WorktreeEntry[]> {
+    if (!cwd.trim()) {
+      throw new HttpError(400, "cwd is required.");
+    }
+    this.refuseRemoteWorktree(cwd);
+    await this.gitRoot(cwd);
+    return parseWorktreeList(await this.git(cwd, ["worktree", "list", "--porcelain"]));
+  }
+
+  /**
+   * Checks a branch out into `.worktrees/<slug>`, creating the branch when it does
+   * not exist yet. Never touches the main checkout.
+   */
+  private async addWorktree(cwd: string, branch: string): Promise<{ path: string; branch: string; created: boolean }> {
+    if (!cwd.trim()) {
+      throw new HttpError(400, "cwd is required.");
+    }
+    this.refuseRemoteWorktree(cwd);
+    const problem = branchProblem(branch);
+    if (problem) {
+      throw new HttpError(400, problem);
+    }
+    const clean = branch.trim();
+    const root = await this.gitRoot(cwd);
+    const dir = join(root, ".worktrees", worktreeDirName(clean));
+    const taken = await stat(dir).then(
+      () => true,
+      () => false,
+    );
+    if (taken) {
+      throw new HttpError(409, "That worktree folder already exists.");
+    }
+    let exists = false;
+    try {
+      await this.git(cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${clean}`]);
+      exists = true;
+    } catch {
+      exists = false;
+    }
+    try {
+      await mkdir(join(root, ".worktrees"), { recursive: true });
+      await this.git(cwd, exists ? ["worktree", "add", "--", dir, clean] : ["worktree", "add", "-b", clean, "--", dir]);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "Could not create the worktree.");
+    }
+    return { path: dir, branch: clean, created: !exists };
+  }
+
+  /**
+   * Removes a worktree's checkout. Refuses the main tree, refuses checkouts that
+   * still hold threads unless forced, and lets git refuse dirty trees unless forced.
+   */
+  private async removeWorktree(cwd: string, target: string, force: boolean): Promise<void> {
+    if (!cwd.trim() || !target.trim()) {
+      throw new HttpError(400, "cwd and path are required.");
+    }
+    this.refuseRemoteWorktree(cwd);
+    const root = await this.gitRoot(cwd);
+    const entries = await this.listWorktrees(cwd);
+    // Git always lists the main checkout first; matching its own spelling keeps
+    // Windows case and separator differences from sneaking the main tree past the guard.
+    const norm = (p: string) => (this.options.platform === "win32" ? p.replace(/\\/g, "/").toLowerCase() : p);
+    const same = (a: string, b: string) => norm(a) === norm(b);
+    const match = entries.find((entry) => same(entry.path, target) || same(join(root, target), entry.path));
+    if (!match) {
+      throw new HttpError(400, "That path is not a worktree of this project.");
+    }
+    if (entries[0] && same(entries[0].path, match.path)) {
+      throw new HttpError(400, "The main checkout cannot be removed.");
+    }
+    if (!force) {
+      const project = this.store.getProject(match.path) ?? this.store.getProject(target);
+      if (project) {
+        const threads = this.store.listSessionsByProject(project.id, { includeArchived: true });
+        if (threads.length > 0) {
+          throw new HttpError(409, `That checkout still holds ${threads.length} thread${threads.length === 1 ? "" : "s"}.`);
+        }
+      }
+    }
+    try {
+      await this.git(cwd, force ? ["worktree", "remove", "--force", "--", match.path] : ["worktree", "remove", "--", match.path]);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "Could not remove the worktree.");
+    }
+  }
+
+  /** Drops git's admin files for checkouts deleted behind its back; data is never touched. */
+  private async pruneWorktrees(cwd: string): Promise<void> {
+    if (!cwd.trim()) {
+      throw new HttpError(400, "cwd is required.");
+    }
+    this.refuseRemoteWorktree(cwd);
+    await this.gitRoot(cwd);
+    try {
+      await this.git(cwd, ["worktree", "prune"]);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "Could not prune worktrees.");
+    }
   }
 
   /** Writes an attached file into the workspace, keeping its name unless one is already taken. */

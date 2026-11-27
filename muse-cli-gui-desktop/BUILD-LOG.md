@@ -371,6 +371,12 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Import** (project menu): file picker → `parseHandoffFile` (loud refusals for non-exports) → preview modal (title, turns, model, date) → `resumeImportedThread` starts a new thread with the transcript as its opening context (first turn for setup plus newest until 24k chars, trimmed middle disclosed; echo stays a one-liner).
 - **Scope note**: no archive storage — the `.md` file is the portable artifact, and resume is a fresh session, since MSP offers no import primitive. Diffs are not re-aggregated (that logic lives in the view layer); replies carry the story.
 
+### Unreleased — worktree manager
+
+- **Server** (`server/src/worktrees.ts`, `/api/worktrees`, `/api/worktrees/prune`): porcelain parsing, strict branch validation (no shell metacharacters, git's own ref rules), slug folders under `.worktrees/`. Git runs via argv (`git -C`, never a shell string) through the injectable shell runner. Add creates the branch with `-b` only when `show-ref` says it is new; remove matches git's own listing (main is always first, so it can never be removed), refuses lived-in checkouts (any threads, archived included) unless forced, and lets git refuse dirty trees unless forced; prune drops stale admin files. SSH and WSL checkouts refuse with honest reasons.
+- **UI** (project menu → Worktrees… modal): list with main/stale/locked badges, add-by-branch, remove with confirm plus force-after-refusal, prune button, per-row New thread here (adds the folder as a project first via `newThreadIn`).
+- Test notes: route tests stub shellRunner and assert argv (no shell strings); one end-to-end test drives real git in a temp repo (skips when git is absent) — it caught two real bugs: `--verbose` cannot combine with `--porcelain`, and Windows backslash-vs-slash paths need normalizing before comparison.
+
 ## Unofficial notice
 
 MuseCodeIcon is an unofficial community project. Not made, endorsed, or

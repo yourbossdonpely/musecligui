@@ -18,6 +18,7 @@ import type {
   UserInputRequest,
   ViewEvent,
   WorkflowAction,
+  WorktreeView,
 } from "../types.js";
 import { withSettled } from "./changes.js";
 import { describeTool, modelDisplayName, type RevertStep } from "./format.js";
@@ -2459,6 +2460,65 @@ export class MuseCodeIconController {
     await this.startThread(cwd, resume.text, (sessionId) =>
       this.sendToThread(sessionId, resume.text, { displayText: resume.displayText }, false),
     );
+  }
+
+  /** A project's git checkouts, or null with a toast when it has none to show. */
+  async listWorktrees(cwd: string): Promise<WorktreeView[] | null> {
+    try {
+      return await this.client.listWorktrees(cwd);
+    } catch (error) {
+      this.toast("error", "Could not list worktrees", errorMessage(error));
+      return null;
+    }
+  }
+
+  /** Checks a branch out into `.worktrees/`; the server names the folder. */
+  async addWorktree(cwd: string, branch: string): Promise<{ path: string; branch: string; created: boolean } | null> {
+    if (!branch.trim()) {
+      return null;
+    }
+    try {
+      const added = await this.client.addWorktree(cwd, branch.trim());
+      this.toast("success", added.created ? `Branch ${added.branch} checked out` : `Checked out ${added.branch}`, added.path);
+      return added;
+    } catch (error) {
+      this.toast("error", "Could not create the worktree", errorMessage(error));
+      return null;
+    }
+  }
+
+  /** Removes a checkout; force also takes lived-in and dirty ones. Server refuses the main tree. */
+  async removeWorktree(cwd: string, path: string, force = false): Promise<boolean> {
+    try {
+      await this.client.removeWorktree(cwd, path, force);
+      return true;
+    } catch (error) {
+      this.toast("error", "Could not remove the worktree", errorMessage(error));
+      return false;
+    }
+  }
+
+  /** Drops git's admin files for deleted checkouts. */
+  async pruneWorktrees(cwd: string): Promise<boolean> {
+    try {
+      await this.client.pruneWorktrees(cwd);
+      return true;
+    } catch (error) {
+      this.toast("error", "Could not prune worktrees", errorMessage(error));
+      return false;
+    }
+  }
+
+  /**
+   * Opens the new-thread screen for a folder, adding it as a project first when it
+   * is not one yet. Unlike `newThread`, an unknown folder never falls back elsewhere.
+   */
+  async newThreadIn(path: string): Promise<void> {
+    if (this.state.projects.some((p) => p.cwd === path)) {
+      this.newThread(path);
+      return;
+    }
+    await this.addProject(path);
   }
 
   /**

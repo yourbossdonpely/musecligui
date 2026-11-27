@@ -419,6 +419,20 @@ export interface McpServerView {
   args: string[];
 }
 
+/** One git checkout of a project: the main tree plus its linked worktrees. */
+export interface WorktreeView {
+  path: string;
+  /** Short branch name; null when detached or bare. */
+  branch: string | null;
+  bare: boolean;
+  detached: boolean;
+  locked: boolean;
+  lockReason: string | null;
+  /** Why the entry is stale; null when healthy. */
+  prunable: string | null;
+  head: string | null;
+}
+
 /** A prompt that runs itself in a thread on a daily clock; empty days means every day. */
 export interface ScheduleView {
   id: string;

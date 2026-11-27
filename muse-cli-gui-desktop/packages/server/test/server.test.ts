@@ -2832,6 +2832,130 @@ describe("share links", () => {
   });
 });
 
+describe("worktrees", () => {
+  const LIST = "worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\nworktree /repo/.worktrees/feat\nHEAD bbb\nbranch refs/heads/feat\n\n";
+
+  function gitStub(runs: { command: string; args: string[] }[], outputs: Record<string, { output: string; exitCode: number }>) {
+    return async (command: string, args: string[]) => {
+      runs.push({ command, args });
+      const key = args.join(" ");
+      const hit = Object.entries(outputs).find(([needle]) => key.includes(needle));
+      if (hit) {
+        return { output: hit[1].output, exitCode: hit[1].exitCode, truncated: false };
+      }
+      return { output: "", exitCode: 0, truncated: false };
+    };
+  }
+
+  it("lists worktrees for a git project", async () => {
+    const runs: { command: string; args: string[] }[] = [];
+    const { base } = await start(new FakeConnection(), {
+      shellRunner: gitStub(runs, {
+        "rev-parse": { output: "/repo\n", exitCode: 0 },
+        "worktree list": { output: LIST, exitCode: 0 },
+      }),
+    });
+    const res = await fetch(`${base}/api/worktrees?cwd=${encodeURIComponent("/repo")}`);
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { worktrees: { path: string; branch: string | null }[] };
+    assert.deepEqual(
+      body.worktrees.map((w) => w.branch),
+      ["main", "feat"],
+    );
+    assert.ok(runs.every((r) => r.command === "git"), "argv, never a shell string");
+  });
+
+  it("refuses non-repos, bad branches and SSH projects", async () => {
+    const { base } = await start(new FakeConnection(), {
+      shellRunner: gitStub([], { "rev-parse": { output: "fatal: not a git repository", exitCode: 128 } }),
+    });
+    assert.equal((await fetch(`${base}/api/worktrees?cwd=${encodeURIComponent("/tmp/x")}`)).status, 404);
+    assert.equal((await send(base, "/api/worktrees", { cwd: "/tmp/x", branch: "../evil" })).status, 400);
+    assert.equal((await send(base, "/api/worktrees", { cwd: "ssh://h/root", branch: "feat" })).status, 400);
+  });
+
+  it("creates a branch checkout and refuses to remove a lived-in one", async () => {
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const cwd = await mkdtemp(join(tmpdir(), "musecodeicon-wt-"));
+    const runs: { command: string; args: string[] }[] = [];
+    let extra = "";
+    const { base, server } = await start(new FakeConnection(), {
+      shellRunner: async (command: string, args: string[]) => {
+        runs.push({ command, args });
+        const key = args.join(" ");
+        if (key.includes("rev-parse")) {
+          return { output: `${cwd}\n`, exitCode: 0, truncated: false };
+        }
+        if (key.includes("show-ref")) {
+          return { output: "", exitCode: 1, truncated: false };
+        }
+        if (key.includes("worktree list")) {
+          return { output: `worktree ${cwd}\nHEAD a\nbranch refs/heads/main\n\n${extra}`, exitCode: 0, truncated: false };
+        }
+        return { output: "", exitCode: 0, truncated: false };
+      },
+    });
+    const created = await send(base, "/api/worktrees", { cwd, branch: "Feature/Login" });
+    assert.equal(created.status, 200);
+    assert.equal(created.json.branch, "Feature/Login");
+    assert.equal(created.json.created, true);
+    assert.ok(created.json.path.endsWith(join(".worktrees", "feature-login")));
+    assert.ok(runs.some((r) => r.args.includes("-b")), "new branch gets -b");
+    // Second add collides on the folder git would have made; fake it into existence.
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(join(cwd, ".worktrees", "feature-login"), { recursive: true });
+    assert.equal((await send(base, "/api/worktrees", { cwd, branch: "Feature/Login" })).status, 409);
+
+    // A checkout holding threads refuses removal until forced.
+    const store = (server as unknown as { store: { upsertProject: (cwd: string) => { id: number }; recordSession: (input: object) => void } }).store;
+    const target = join(cwd, ".worktrees", "lived-in");
+    await mkdir(target, { recursive: true });
+    extra = `worktree ${target}\nHEAD b\nbranch refs/heads/lived\n\n`;
+    const project = store.upsertProject(target);
+    store.recordSession({ id: "s-wt", projectId: project.id, title: "T" });
+    assert.equal((await send(base, "/api/worktrees", { cwd, path: target }, "DELETE")).status, 409);
+    assert.equal((await send(base, "/api/worktrees", { cwd, path: target, force: true }, "DELETE")).status, 200);
+    // The main checkout itself is never removable.
+    assert.equal((await send(base, "/api/worktrees", { cwd, path: cwd }, "DELETE")).status, 400);
+  });
+
+  it("manages real worktrees end to end", async () => {
+    const { execFileSync } = await import("node:child_process");
+    try {
+      execFileSync("git", ["--version"], { stdio: "ignore" });
+    } catch {
+      return;
+    }
+    const { mkdtemp, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const cwd = await mkdtemp(join(tmpdir(), "musecodeicon-wtreal-"));
+    execFileSync("git", ["init", "-b", "main", cwd], { stdio: "ignore" });
+    execFileSync("git", ["-C", cwd, "config", "user.email", "t@t.t"], { stdio: "ignore" });
+    execFileSync("git", ["-C", cwd, "config", "user.name", "t"], { stdio: "ignore" });
+    await writeFile(join(cwd, "a.txt"), "a\n");
+    execFileSync("git", ["-C", cwd, "add", "."], { stdio: "ignore" });
+    execFileSync("git", ["-C", cwd, "commit", "-m", "init"], { stdio: "ignore" });
+    const { base } = await start(new FakeConnection(), { platform: process.platform === "win32" ? "win32" : "linux" });
+    const added = await send(base, "/api/worktrees", { cwd, branch: "feat/one" });
+    assert.equal(added.status, 200);
+    const listed = (await (await fetch(`${base}/api/worktrees?cwd=${encodeURIComponent(cwd)}`)).json()) as {
+      worktrees: { branch: string | null }[];
+    };
+    assert.deepEqual(
+      (listed.worktrees as { branch: string | null }[]).map((w) => w.branch),
+      ["main", "feat/one"],
+    );
+    assert.equal((await send(base, "/api/worktrees", { cwd, path: added.json.path }, "DELETE")).status, 200);
+    const relisted = (await (await fetch(`${base}/api/worktrees?cwd=${encodeURIComponent(cwd)}`)).json()) as {
+      worktrees: { branch: string | null }[];
+    };
+    assert.equal(relisted.worktrees.length, 1);
+  });
+});
+
 describe("thread export", () => {
   const MARKDOWN = "<!-- musecodeicon-handoff v1 -->\n# Probe\n";
 

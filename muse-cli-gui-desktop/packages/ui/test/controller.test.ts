@@ -503,6 +503,44 @@ class FakeClient implements MuseCodeIconClient {
     this.exports.push({ sessionId, markdown });
     return { path: "musecodeicon-thread-probe.md" };
   }
+  worktrees: import("../src/types.js").WorktreeView[] = [
+    { path: "/repo", branch: "main", bare: false, detached: false, locked: false, lockReason: null, prunable: null, head: "a" },
+  ];
+  worktreeError: Error | null = null;
+  worktreeCalls: string[] = [];
+  async listWorktrees() {
+    if (this.worktreeError) {
+      const error = this.worktreeError;
+      this.worktreeError = null;
+      throw error;
+    }
+    return [...this.worktrees];
+  }
+  async addWorktree(cwd: string, branch: string) {
+    this.worktreeCalls.push(`add:${cwd}:${branch}`);
+    if (this.worktreeError) {
+      const error = this.worktreeError;
+      this.worktreeError = null;
+      throw error;
+    }
+    return { path: `${cwd}/.worktrees/x`, branch, created: true };
+  }
+  async removeWorktree(cwd: string, path: string, force?: boolean) {
+    this.worktreeCalls.push(`remove:${cwd}:${path}:${force === true}`);
+    if (this.worktreeError) {
+      const error = this.worktreeError;
+      this.worktreeError = null;
+      throw error;
+    }
+  }
+  async pruneWorktrees(cwd: string) {
+    this.worktreeCalls.push(`prune:${cwd}`);
+    if (this.worktreeError) {
+      const error = this.worktreeError;
+      this.worktreeError = null;
+      throw error;
+    }
+  }
   fileUrl(cwd: string, path: string) {
     return `/raw?${cwd}&${path}`;
   }
@@ -1346,6 +1384,32 @@ describe("MuseCodeIconController", () => {
     assert.equal(await controller.sendQueuedNow("s1", echo), false);
     assert.deepEqual(client.unqueued, []);
     assert.equal(controller.store.get().toasts.at(-1)?.title, "Keeping that message queued");
+    stop();
+  });
+
+  it("manages worktrees and toasts failures", async () => {
+    const client = new FakeClient();
+    const { controller, stop } = await started(client);
+    assert.deepEqual(await controller.listWorktrees("/repo"), client.worktrees);
+    const added = await controller.addWorktree("/repo", "feat/x");
+    assert.equal(added?.branch, "feat/x");
+    assert.equal(await controller.addWorktree("/repo", "   "), null);
+    assert.equal(await controller.removeWorktree("/repo", "/repo/.worktrees/x"), true);
+    assert.equal(await controller.pruneWorktrees("/repo"), true);
+    assert.deepEqual(client.worktreeCalls, [
+      "add:/repo:feat/x",
+      "remove:/repo:/repo/.worktrees/x:false",
+      "prune:/repo",
+    ]);
+    client.worktreeError = new Error("not a repo");
+    assert.equal(await controller.listWorktrees("/repo"), null);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not list worktrees");
+    client.worktreeError = new Error("taken");
+    assert.equal(await controller.addWorktree("/repo", "feat/x"), null);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not create the worktree");
+    client.worktreeError = new Error("lived-in");
+    assert.equal(await controller.removeWorktree("/repo", "/repo/.worktrees/x"), false);
+    assert.equal(controller.store.get().toasts.at(-1)?.title, "Could not remove the worktree");
     stop();
   });
 

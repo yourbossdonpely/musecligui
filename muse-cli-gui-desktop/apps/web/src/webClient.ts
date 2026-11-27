@@ -43,6 +43,7 @@ import {
   type UsageReport,
   type UserInputAnswer,
   type WorkflowAction,
+  type WorktreeView,
   type YoloSettings,
 } from "@musecodeicon/ui";
 
@@ -480,6 +481,22 @@ export class WebMuseCodeIconClient implements MuseCodeIconClient {
 
   exportThread(sessionId: string, markdown: string): Promise<{ path: string }> {
     return call("POST", "/api/threads/export", { sessionId, markdown });
+  }
+
+  async listWorktrees(cwd: string): Promise<WorktreeView[]> {
+    return (await call<{ worktrees: WorktreeView[] }>("GET", `/api/worktrees?cwd=${encodeURIComponent(cwd)}`)).worktrees;
+  }
+
+  addWorktree(cwd: string, branch: string): Promise<{ path: string; branch: string; created: boolean }> {
+    return call("POST", "/api/worktrees", { cwd, branch });
+  }
+
+  async removeWorktree(cwd: string, path: string, force?: boolean): Promise<void> {
+    await call("DELETE", "/api/worktrees", { cwd, path, force: force ?? false });
+  }
+
+  async pruneWorktrees(cwd: string): Promise<void> {
+    await call("POST", "/api/worktrees/prune", { cwd });
   }
 
   diagnose(cwd: string, paths: string[], opts?: { signal?: AbortSignal }): Promise<DiagnosticReport> {
