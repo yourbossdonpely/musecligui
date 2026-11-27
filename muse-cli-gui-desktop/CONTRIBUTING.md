@@ -4,16 +4,16 @@ Thanks for helping. MuseCodeIcon is an open-source desktop and web app for Meta'
 
 ## Before you start
 
-The app lives in this folder (`muse-cli-gui-desktop/`) of the [yourbossdonpely/musecligui](https://github.com/yourbossdonpely/musecligui) repository. Every workspace and every command below is rooted here, so clone and then change into this folder.
+The app lives in this folder (`muse-cli-gui-desktop/`) of the [yourbossdonpely/musecodeicon](https://github.com/yourbossdonpely/musecodeicon) repository. Every workspace and every command below is rooted here, so clone and then change into this folder.
 
-The repository has no issues and no pull-request template yet. For anything bigger than a small fix, [open an issue](https://github.com/yourbossdonpely/musecligui/issues/new) saying what you want to change and which files you expect to touch, so the shape can be agreed before you write code. There is no triage rota: one maintainer reviews when they get to it, and nothing is assigned to anyone in advance.
+The repository has no issues and no pull-request template yet. For anything bigger than a small fix, [open an issue](https://github.com/yourbossdonpely/musecodeicon/issues/new) saying what you want to change and which files you expect to touch, so the shape can be agreed before you write code. There is no triage rota: one maintainer reviews when they get to it, and nothing is assigned to anyone in advance.
 
 ## Set up (about 5 minutes)
 
 You need Node 22 or newer and git. If you use NVM, run `nvm use` from this folder after installing and configuring NVM to activate the Node.js version specified by `.nvmrc`. Rust and the Tauri prerequisites are only needed for the desktop shell.
 
 ```bash
-git clone https://github.com/<you>/musecligui && cd musecligui/muse-cli-gui-desktop
+git clone https://github.com/<you>/musecodeicon && cd musecodeicon/muse-cli-gui-desktop
 nvm use
 npm install
 npm run build --workspace @musecodeicon/daemon --workspace @musecodeicon/ui --workspace @musecodeicon/server
@@ -98,7 +98,7 @@ For UI changes, check light and dark themes and a narrow window, and add a scree
 2. Don't use the `Muse` mark in new binary names, bundle IDs, domains or titles.
 3. Never commit credentials (`auth.json`, `.env`, API keys). Use your own `muse login`.
 4. Never bypass approvals or billing. Surface approval modes honestly.
-5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecligui/security/advisories/new) if the repository's Security tab offers one, not to a public issue.
+5. Security problems go to a [private report](https://github.com/yourbossdonpely/musecodeicon/security/advisories/new) if the repository's Security tab offers one, not to a public issue.
 
 Everyone here is expected to be civil and to assume good faith.
 

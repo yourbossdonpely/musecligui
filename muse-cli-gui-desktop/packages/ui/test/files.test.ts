@@ -21,7 +21,7 @@ describe("file links", () => {
   });
 
   it("leaves web links, anchors and mail alone", () => {
-    for (const href of ["https://github.com/yourbossdonpely/musecligui", "mailto:a@b.c", "#section", "", "javascript:alert(1)"]) {
+    for (const href of ["https://github.com/yourbossdonpely/musecodeicon", "mailto:a@b.c", "#section", "", "javascript:alert(1)"]) {
       assert.equal(fileTarget(href, "/work/app"), null, href);
     }
   });

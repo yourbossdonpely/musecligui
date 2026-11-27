@@ -6,7 +6,7 @@ describe("desktop links", () => {
   const origin = "http://127.0.0.1:52314";
   it("sends outside web and mail links to the browser", () => {
     assert.equal(externalHref("https://github.com/o/r/pull/90", origin), "https://github.com/o/r/pull/90");
-    assert.equal(externalHref("mailto:hi@github.com/yourbossdonpely/musecligui", origin), "mailto:hi@github.com/yourbossdonpely/musecligui");
+    assert.equal(externalHref("mailto:hi@github.com/yourbossdonpely/musecodeicon", origin), "mailto:hi@github.com/yourbossdonpely/musecodeicon");
   });
   it("keeps MuseCodeIcon's own pages and file links in the app", () => {
     assert.equal(externalHref("/threads/abc", origin), null);

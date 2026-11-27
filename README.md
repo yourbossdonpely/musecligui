@@ -10,13 +10,13 @@ Think **Claude Code desktop** or the **Codex desktop app**, but for **Meta Muse 
 
 **[→ Read the MuseCodeIcon README](muse-cli-gui-desktop/README.md)**
 
-[![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecligui)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/yourbossdonpely/musecodeicon)](LICENSE)
 [![Desktop app](https://img.shields.io/badge/desktop-Tauri%202%20%C2%B7%20Windows%20%7C%20macOS%20%7C%20Linux-FFC131)](muse-cli-gui-desktop/README.md)
 [![Also in this repo](https://img.shields.io/badge/also%20in%20this%20repo-portable%20Windows%20bridge%20GUI-6b7280)](#muse-cli-gui--the-bridge-gui-older)
 
 [Read the desktop app write-up](muse-cli-gui-desktop/README.md) · [Build MuseCodeIcon](#build-musecodeicon-windows-installer) · [Bridge GUI — the older app](#muse-cli-gui--the-bridge-gui-older)
 
-If MuseCodeIcon helps you, [star the repo](https://github.com/yourbossdonpely/musecligui) — it helps others find it.
+If MuseCodeIcon helps you, [star the repo](https://github.com/yourbossdonpely/musecodeicon) — it helps others find it.
 
 </div>
 
@@ -45,11 +45,11 @@ MuseCodeIcon drives **Meta Muse Code** (your paid subscription) through the offi
 
 | Platform | File |
 |----------|------|
-| Windows | [`MuseCodeIcon_3.0.0_x64-setup.exe`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_x64-portable.zip), unzip and run |
-| macOS | [`MuseCodeIcon_3.0.0_universal.dmg`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_universal.dmg) — universal, ad-hoc signed (not notarized). Or the `.app` in [`…universal-macos.zip`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_universal-macos.zip) |
-| Linux | [`MuseCodeIcon_3.0.0_amd64.AppImage`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_amd64.AppImage), [`.deb`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon_3.0.0_amd64.deb), [`.rpm`](https://github.com/yourbossdonpely/musecligui/releases/download/v3.0.0/MuseCodeIcon-3.0.0-1.x86_64.rpm) |
+| Windows | [`MuseCodeIcon_3.0.0_x64-setup.exe`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_x64-setup.exe) — ≈27 MB, installs the app, bundled Node.js and the UI. Portable instead: [`…x64-portable.zip`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_x64-portable.zip), unzip and run |
+| macOS | [`MuseCodeIcon_3.0.0_universal.dmg`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_universal.dmg) — universal, ad-hoc signed (not notarized). Or the `.app` in [`…universal-macos.zip`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_universal-macos.zip) |
+| Linux | [`MuseCodeIcon_3.0.0_amd64.AppImage`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_amd64.AppImage), [`.deb`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon_3.0.0_amd64.deb), [`.rpm`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.0.0/MuseCodeIcon-3.0.0-1.x86_64.rpm) |
 
-Windows, macOS and Linux are on the [`v3.0.0` release](https://github.com/yourbossdonpely/musecligui/releases/tag/v3.0.0) (self-updating from here on).
+Windows, macOS and Linux are on the [`v3.0.0` release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.0.0) (self-updating from here on).
 
 > ⚠️ **Do not download `MuseCLIGUI.exe` for this app.** The 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases is the *bridge GUI's launcher*, not MuseCodeIcon, and it is not standalone: it needs `muse-bridge.js` and `gui/` from `MuseCLIGUI-v2.6.2-win-x64.zip` next to it, so run on its own it stops with `Missing file: …\muse-bridge.js`. Use the installer in the table above.
 
@@ -85,7 +85,7 @@ npm run build
 | Windows NSIS installer | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/bundle/nsis/MuseCodeIcon_3.0.0_x64-setup.exe` (≈27 MB) |
 | App executable | `muse-cli-gui-desktop/apps/desktop/src-tauri/target/release/musecodeicon.exe` (≈14 MB) |
 
-The installer is signed with the author's certificate (DigiCert timestamped), so SmartScreen names the publisher instead of "unknown"; it may still ask on unfamiliar machines until the signature builds reputation. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecligui/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. CI also launches every bundle it ships: the macOS `.app` and the extracted AppImage are started headlessly and must answer their own UI on the server port the app publishes, so a release cannot go out compiled-but-never-started. What CI cannot do is click through them: no one has driven the macOS or Linux builds on a real desktop.
+The installer is signed with the author's certificate (DigiCert timestamped), so SmartScreen names the publisher instead of "unknown"; it may still ask on unfamiliar machines until the signature builds reputation. macOS and Linux bundles cannot be built here: CI builds them on their own runners, and [`v0.23.7`](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v0.23.7) publishes the universal `.dmg`, the AppImage, and the `.deb`/`.rpm` packages. CI also launches every bundle it ships: the macOS `.app` and the extracted AppImage are started headlessly and must answer their own UI on the server port the app publishes, so a release cannot go out compiled-but-never-started. What CI cannot do is click through them: no one has driven the macOS or Linux builds on a real desktop.
 
 Every build artifact is gitignored (`**/target/`, `**/src-tauri/binaries/`, `apps/desktop/.cache/`, `dist/`, `*.exe`).
 
@@ -347,7 +347,7 @@ Cost note: every API call spends subscription prompts (one agent run per call).
 - **2026-11-20, v3.0.0 React GUI:** complete rebuild in React + Vite + Tailwind (new amber agent-console design, thinking narration, typed tool cards, markdown answers, checkpoints, folder picker, dual usage bars, welcome hero, session import/export, MCP dialog, slash commands, send queue, checkpoint diffs). 68 unit + 5 E2E + 30 protocol tests green. Legacy single-file `muse-gui.html` kept as fallback.
 - **2026-11-20, modes+compat:** new Debug mode (reproduce/diagnose/fix/verify); bridge/GUI version handshake with an outdated-bridge banner (kills the "Unknown action" class of confusion); proxy research in `apidesign.md`.
 - **2026-11-20, v2.0.1:** `MuseCLIGUI.exe` one-click launcher, ready-to-run zip with bundled Node.js, bridge prefers bundled node, consistent Muse CLI GUI naming.
-- **2026-11-20, release v2.0.0:** published on GitHub Releases (https://github.com/yourbossdonpely/musecligui/releases/tag/v2.0.0).
+- **2026-11-20, release v2.0.0:** published on GitHub Releases (https://github.com/yourbossdonpely/musecodeicon/releases/tag/v2.0.0).
 - **2026-11-20, launcher reliability:** fixed `start-bridge.cmd` batch parse error (a `(...)` comment inside a block aborted the script, so the window blinked off) and the `launch-muse-gui.bat` port check (`findstr` needs `/C:` for patterns with spaces - it always saw the port as busy and skipped the bridge). The launcher now starts the bridge if needed, waits for the port, then opens the GUI, and stays open with the error if the bridge fails.
 - **2026-11-20, stuck "thinking" fix:** the GUI now surfaces run failures (e.g. a project folder containing the OS temp dir) instead of hanging on "Muse is thinking", warns if the bridge takes over 45s to start a run, and the bridge ignores stdin (no stdin hangs) plus logs every run start/finish/reject to its window.
 - **2026-11-20, v2 release:** streaming exec, permissions + modes, real skills/models/usage/MCP/sessions, real file browser, browser + research tab, stop button, token counts (see Features).
@@ -360,7 +360,7 @@ MIT — see [LICENSE](LICENSE). Copyright (c) 2026 yourbossdonpely.
 
 - Repo initialized 2026-11-20. `node_modules/`, `*.log`, `generated_images/`, and the pre-existing `browse.exe*` files are ignored (see `.gitignore`) - they stay on disk, just untracked.
 - Workflow: every change is committed as I work and pushed to the remote below.
-- Remote: https://github.com/yourbossdonpely/musecligui (public)
+- Remote: https://github.com/yourbossdonpely/musecodeicon (public)
 
 ---
 

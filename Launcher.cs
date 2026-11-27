@@ -150,7 +150,7 @@ static class Launcher
              + "It needs muse-bridge.js and the gui folder from MuseCLIGUI-v2.6.2-win-x64.zip beside it.\n\n"
              + "Missing: " + missing + "\n\n"
              + "Download MuseCLIGUI-v2.6.2-win-x64.zip from\n"
-             + "https://github.com/yourbossdonpely/musecligui/releases/tag/v2.6.2\n"
+             + "https://github.com/yourbossdonpely/musecodeicon/releases/tag/v2.6.2\n"
              + "then unzip it and run the MuseCLIGUI.exe inside the unzipped folder.";
     }
 

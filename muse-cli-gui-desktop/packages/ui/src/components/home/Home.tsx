@@ -244,14 +244,14 @@ interface Step {
 }
 
 /** Where MuseCodeIcon sends people whose muse CLI is missing, not found, or not signed in. */
-export const MUSE_HELP_URL = "https://github.com/yourbossdonpely/musecligui/guides/muse-cli-not-found";
+export const MUSE_HELP_URL = "https://github.com/yourbossdonpely/musecodeicon/guides/muse-cli-not-found";
 
 /** Meta's installers for the muse CLI: PowerShell on Windows, a shell script on macOS and Linux. */
 const INSTALL_WINDOWS = "irm https://dev.meta.ai/install.ps1 | iex";
 const INSTALL_POSIX = "curl -fsSL https://dev.meta.ai/install.sh | bash";
 
 /** A new GitHub issue, prefilled, for when MuseCodeIcon itself would not start. */
-const REPORT_URL = "https://github.com/yourbossdonpely/musecligui/issues/new?title=MuseCodeIcon+could+not+start&labels=bug";
+const REPORT_URL = "https://github.com/yourbossdonpely/musecodeicon/issues/new?title=MuseCodeIcon+could+not+start&labels=bug";
 
 /** Shown before the first prompt when Muse is installed but its default login has no credentials yet. */
 export function SignInCard(props: { className?: string }) {
@@ -401,7 +401,7 @@ export function Onboarding() {
   );
 }
 
-/** A plain link out to a github.com/yourbossdonpely/musecligui guide. It carries no tracking parameters. */
+/** A plain link out to a github.com/yourbossdonpely/musecodeicon guide. It carries no tracking parameters. */
 export function HelpLink(props: { href: string; children: ReactNode }) {
   return (
     <a

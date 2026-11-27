@@ -43,7 +43,7 @@ Bulk rename over 95 files, then targeted fixes:
 | `HeliconApp.tsx` | `MuseCodeIconApp.tsx` |
 | `Helicon{Controller,Client,Store,MspHost,Error,Event}` | `MuseCodeIcon…` |
 
-Also: repo links point at `github.com/yourbossdonpely/musecligui` (the
+Also: repo links point at `github.com/yourbossdonpely/musecodeicon` (the
 repository name is kept as-is — it is not the product name), the README gained
 the **unofficial / not affiliated with Meta** notice, and the sidebar's
 "MuseCodeIcon is in your editor too" card was deleted because this copy ships

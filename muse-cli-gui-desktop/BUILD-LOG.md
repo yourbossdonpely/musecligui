@@ -55,7 +55,7 @@ Bulk rename across 95 files, then targeted fixes:
 - `helicon://` → `musecodeicon://`; `HELICON_` → `MUSECODEICON_`
 - Display strings "Helicon" → "MuseCodeIcon" (product name, window title,
   splash page, error pages in `main.rs`)
-- Repo links → `yourbossdonpely/musecligui` (kept as the repo path)
+- Repo links → `yourbossdonpely/musecligui` (kept as the repo path then; renamed to `musecodeicon` after v3.0.0)
 - Special cases: `MuseCodeIconApp.tsx` (renamed from `HeliconApp.tsx`),
   class names `MuseCodeIconController/Error/Client/Store/MspHost/Event`
 - `fetch-node.mjs`: sidecar env var `MUSECODEICON_NODE_TARGET`, Linux binary
@@ -67,8 +67,9 @@ Bulk rename across 95 files, then targeted fixes:
   (home, thread, usage, settings). Nothing in `docs/assets/` shows upstream
   branding.
 
-The GitHub repo path `yourbossdonpely/musecligui` is intentionally preserved
-(it is the repository name, not the product name).
+The GitHub repo path `yourbossdonpely/musecligui` was intentionally preserved at the
+time (it is the repository name, not the product name); it was renamed to
+`yourbossdonpely/musecodeicon` after v3.0.0, when the bridge GUI moved to `bridge-gui/`.
 
 ## Step 3 — Branding: the icon and gold-on-black
 
@@ -276,7 +277,7 @@ with the `workflow` scope: `gh auth refresh -h github.com -s workflow`.
 
 ## Remaining release blockers
 
-Resolved on 2026-11-24 by the first tagged CI run, [45359114370](https://github.com/yourbossdonpely/musecligui/actions/runs/45359114370): `v0.23.6` published the Windows NSIS installer, the universal macOS `.dmg`, and the Linux AppImage, `.deb` and `.rpm`, plus `SHA256SUMS`.
+Resolved on 2026-11-24 by the first tagged CI run, [45359114370](https://github.com/yourbossdonpely/musecodeicon/actions/runs/45359114370): `v0.23.6` published the Windows NSIS installer, the universal macOS `.dmg`, and the Linux AppImage, `.deb` and `.rpm`, plus `SHA256SUMS`.
 
 Two things had to change first. The macOS leg had never compiled: `main.rs` used `OsString` in its `cfg(unix)` PATH helpers without importing it, so Windows-only builds hid a Unix-only error (fixed in `4d9fa7d`). And Linux waited on macOS, so a macOS failure skipped it; it now waits only on Windows, which creates the release.
 

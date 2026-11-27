@@ -711,8 +711,8 @@ mod tests {
     #[test]
     fn sends_only_outside_links_to_the_browser() {
         let external = |u: &str| super::is_external_link(&u.parse::<tauri::Url>().unwrap());
-        assert!(external("https://github.com/yourbossdonpely/musecligui/pull/90"));
-        assert!(external("mailto:hi@github.com/yourbossdonpely/musecligui"));
+        assert!(external("https://github.com/yourbossdonpely/musecodeicon/pull/90"));
+        assert!(external("mailto:hi@github.com/yourbossdonpely/musecodeicon"));
         assert!(!external("http://127.0.0.1:52314/threads/abc"));
         assert!(!external("http://localhost:5173/"));
         assert!(!external("http://ipc.localhost/plugin"));

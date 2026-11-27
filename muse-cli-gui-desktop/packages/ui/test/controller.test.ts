@@ -1956,7 +1956,7 @@ describe("MuseCodeIconController", () => {
     assert.deepEqual(panel(), { tabs: ["README.md"], active: "README.md", tree: false, line: null });
     controller.closeFile("s1", "README.md");
     assert.deepEqual(panel(), { tabs: [], active: null, tree: true, line: null });
-    assert.equal(controller.openFile("s1", "https://github.com/yourbossdonpely/musecligui"), false, "a web link is not a file");
+    assert.equal(controller.openFile("s1", "https://github.com/yourbossdonpely/musecodeicon"), false, "a web link is not a file");
     controller.toggleFiles();
     assert.equal(controller.store.get().prefs.filesOpen, false);
     stop();
