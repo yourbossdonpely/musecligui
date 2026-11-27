@@ -1,6 +1,6 @@
 {
   "name": "@musecodeicon/server",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "author": "Don PELY",
   "description": "MuseCodeIcon local server: REST + SSE bridge between the shared UI and Muse MSP hosts",
   "main": "dist/src/index.js",

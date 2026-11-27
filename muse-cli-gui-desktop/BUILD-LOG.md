@@ -364,39 +364,42 @@ Ported from the bridge GUI (`gui/`, `muse-bridge.js`) into the desktop app, adap
 - **Queue** (`controller.takeQueued/editQueuedMessage/sendQueuedNow`, `QueuedRow` in `components/requests/Requests.tsx`): queued rows offer Edit (pencil, or click the text) and Send now (paper plane) beside Remove. Muse exposes only `turn/unqueue`, so both lift the turn and re-send: edits re-queue the new text behind the running turn, send-now steers it into the running turn (or starts it when idle). Already-started turns refuse with a toast and never double-send; files-only messages stay queued; attachments don't ride along (toast says so); read-only threads keep text + remove only. Editor is IME-safe, Enter saves, Esc cancels, and a failed send keeps the draft for retry.
 - **Icons** (`model/fileicons.ts`, `components/files/FilesPanel.tsx`): folders are gold, with purpose colors by name (`.git` orange, `api` sky, `server` violet, `scripts` emerald, `config` slate, `docs` blue, `tests` green, `assets` pink, `components` cyan, build output stone, `node_modules` dimmed); every file type gets its VS Code-conventional hue (JS yellow, TS blue, JSON amber, Markdown sky, HTML orange, Python green, Rust stone, Go teal, media pink/rose/violet/red). Exact names beat extensions (`Dockerfile`, `Makefile`, `.gitignore`); unknown dotfiles stay quiet. Every tone ships a light/dark pair; classes are full literals because Tailwind cannot see interpolated names. Tabs and search results share the tree's colors through `iconFor`.
 
-### Unreleased — session handoff (export/import thread)
+### v3.2.0 — handoff, worktrees, symbols, forecasting, review fixes, bulk ops
+
+**Handoff.**
 
 - **Format** (`model/handoff.ts`): human Markdown plus a fenced `json handoff-data` block the parser alone trusts, headed by a `<!-- musecodeicon-handoff v1 -->` marker. Caps mirror shares (200 turns, 50k chars a side, 1MB). Queued/in-flight echoes ride along as prompt-only turns; side chats export only their own turns.
 - **Export** (`POST /api/threads/export`, thread menus): the server validates the marker and size, then writes a server-generated safe name (`musecodeicon-thread-<slug>-<date>.md`, numbered when taken) into the project folder — no request bytes reach the path. The viewer opens on the file.
 - **Import** (project menu): file picker → `parseHandoffFile` (loud refusals for non-exports) → preview modal (title, turns, model, date) → `resumeImportedThread` starts a new thread with the transcript as its opening context (first turn for setup plus newest until 24k chars, trimmed middle disclosed; echo stays a one-liner).
 - **Scope note**: no archive storage — the `.md` file is the portable artifact, and resume is a fresh session, since MSP offers no import primitive. Diffs are not re-aggregated (that logic lives in the view layer); replies carry the story.
 
-### Unreleased — worktree manager
+**Worktrees.**
 
 - **Server** (`server/src/worktrees.ts`, `/api/worktrees`, `/api/worktrees/prune`): porcelain parsing, strict branch validation (no shell metacharacters, git's own ref rules), slug folders under `.worktrees/`. Git runs via argv (`git -C`, never a shell string) through the injectable shell runner. Add creates the branch with `-b` only when `show-ref` says it is new; remove matches git's own listing (main is always first, so it can never be removed), refuses lived-in checkouts (any threads, archived included) unless forced, and lets git refuse dirty trees unless forced; prune drops stale admin files. SSH and WSL checkouts refuse with honest reasons.
 - **UI** (project menu → Worktrees… modal): list with main/stale/locked badges, add-by-branch, remove with confirm plus force-after-refusal, prune button, per-row New thread here (adds the folder as a project first via `newThreadIn`).
 - Test notes: route tests stub shellRunner and assert argv (no shell strings); one end-to-end test drives real git in a temp repo (skips when git is absent) — it caught two real bugs: `--verbose` cannot combine with `--porcelain`, and Windows backslash-vs-slash paths need normalizing before comparison.
 
-### Unreleased — `@file#symbol` mentions
+**Symbols.**
 
 - **Server** (`server/src/symbols.ts`, `/api/files/symbols`, `/api/files/symbol`): regex definition finder per language family (TS/JS, Python, Rust, Go, Java, PHP, Markdown headings), capped (200/file, 256KB files skipped). Snippets capture the definition block — brace depth for braced languages, indentation for Python — plus decorators above, bounded (100 lines/8k chars) with a truncation marker.
 - **UI**: typing `#` after a file path in `@` completes its definitions (🔣 rows, `name · kind`); sending `@path#name` attaches just that block (`File @path#name:`), sharing the 3-file cap; unknown symbols stay literal like missing files. `splitMentionRef` in `model/mentions.ts`.
 
-### Unreleased — usage forecasting
+**Forecasting.**
 
 - **Model** (`model/plan.ts`): each meter row gains a forecast from the burn rate, projected linearly from the window start through the reading (weekly defaults to a 7-day window): "Cap in 1h 3m" when the cap lands before reset, "On pace · ~62% at reset" otherwise, "May already be capped" when the projection is already past, "On pace" for untouched windows, nothing once reset. Computed at the observed time since readings lag reality; relative durations only, so no locale-dependent clocks.
 - **UI** (`PlanMeter`): appended to each row's resets line and to the sidebar pill's tooltip.
 
-### Unreleased — apply review findings
+**Review fixes.**
 
 - **Model** (`model/review.ts`): review turns are recognized by their prompt head (`REVIEW_PROMPT_HEAD`, shared with the send path so the marker can never drift); `APPLY_REVIEW_PROMPT` sends the model back over its own review file by file.
 - **Flow** (`controller.applyReview` + `ApplyReviewButton` in `Transcript.tsx`): replies to review turns grow an "Apply findings" button (hidden when read-only); the controller re-verifies a finished review exists and otherwise toasts "Review the changes first". No finding-parsing: the model re-reads its own review.
 
-### Unreleased — bulk thread ops
+**Bulk ops.**
 
 - **Selection** (`selectedSessions` in the store, `toggleThreadSelected`/`clearThreadSelection`): thread rows grow a Gmail-style checkbox over the status glyph on hover (always visible when ticked), with pressed-state labels; in-memory only, cleared by acting or by hand.
 - **Bulk bar** (top of the thread list while anything is ticked): count plus Archive, Pin/Unpin (label follows unanimity), Delete (one confirm for all), Clear.
 - **Controller** (`bulkArchive`/`bulkDelete`/`bulkPin`): optimistic removals, navigate-away when the open thread is affected, one summary toast; archive keeps a single Undo for all of them; per-item failures roll back and are counted, never silent.
+- Suites at release: ui 475/475, daemon 61/61, web 69/69, server 250 pass with the same 10 pre-existing Windows file-viewer failures.
 
 ## Unofficial notice
 

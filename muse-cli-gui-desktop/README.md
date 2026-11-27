@@ -13,7 +13,7 @@
 
 ![MuseCodeIcon: start a thread in a project, black theme with gold accents](docs/assets/app-home.png)
 
-**Download:** [MuseCodeIcon v3.1.0](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.1.0) — `MuseCodeIcon_3.1.0_x64-setup.exe` for Windows, `MuseCodeIcon_3.1.0_amd64.AppImage` plus `.deb` and `.rpm` for Linux, and `MuseCodeIcon_3.1.0_universal.dmg` for macOS (Apple Silicon and Intel). From 0.23.8 on, the app updates itself in-app (Settings → Updates). The Windows installer is self-signed with the author's certificate (untrusted root, so SmartScreen still warns on first run: More info → Run anyway); macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
+**Download:** [MuseCodeIcon v3.2.0](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.2.0) — `MuseCodeIcon_3.2.0_x64-setup.exe` for Windows, `MuseCodeIcon_3.2.0_amd64.AppImage` plus `.deb` and `.rpm` for Linux, and `MuseCodeIcon_3.2.0_universal.dmg` for macOS (Apple Silicon and Intel). From 0.23.8 on, the app updates itself in-app (Settings → Updates). The Windows installer is self-signed with the author's certificate (untrusted root, so SmartScreen still warns on first run: More info → Run anyway); macOS is ad-hoc signed, not notarized, so read the platform notes below before the first launch. Building from source still works too (see [From source](#from-source)).
 
 You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code plan or pay-as-you-go billing. 
 
@@ -23,7 +23,7 @@ You need the `muse` CLI installed and signed in (`muse login`) on a Muse Code pl
 [![Muse Code](https://img.shields.io/badge/powered_by-Muse%20Code%20CLI%20(MSP)-0668E1.svg)](https://developer.meta.com/ai/products/muse-code)
 [![Contributors](https://img.shields.io/github/contributors/yourbossdonpely/musecodeicon.svg)](https://github.com/yourbossdonpely/musecodeicon/graphs/contributors)
 
-> 🏆 **Why MuseCodeIcon.** More features than any other Muse GUI — including [Helicon](https://github.com/HarjjotSinghh/helicon), which hasn't shipped since v0.23.6: **25+ exclusive features** no other Muse GUI has together. **Scheduled prompts** that run themselves · **skill folders + routing** that auto-apply · **MCP server manager** · **one-click review pass** · **terminal card** · **message edit + rollback** · **task modes** (build/supervised/plan/research/debug) · **follow-up chips** · **read aloud** · **share links** · **syntax diagnostics** · **bare-path auto-attach** · **prompt history + templates** · **turn timeline** · **checkpoints + undo** · **queued message edit + send-now** · **file tree icon colors**. Full list in [Idea](#idea).
+> 🏆 **Why MuseCodeIcon.** More features than any other Muse GUI — including [Helicon](https://github.com/HarjjotSinghh/helicon), which hasn't shipped since v0.23.6: **30+ exclusive features** no other Muse GUI has together. **Scheduled prompts** that run themselves · **skill folders + routing** that auto-apply · **MCP server manager** · **one-click review pass** · **terminal card** · **message edit + rollback** · **task modes** (build/supervised/plan/research/debug) · **follow-up chips** · **read aloud** · **share links** · **syntax diagnostics** · **bare-path auto-attach** · **prompt history + templates** · **turn timeline** · **checkpoints + undo** · **queued message edit + send-now** · **file tree icon colors** · **session handoff** · **worktree manager** · **@-symbol mentions** · **usage forecasting** · **apply review findings** · **bulk thread ops**. Full list in [Idea](#idea).
 
 > **MuseCodeIcon** - home of the Muses. An open-source desktop + web ADE for Meta's **Muse Code CLI** (`muse`), in the spirit of the Claude Code desktop app and the Codex / ChatGPT desktop app.
 
@@ -89,6 +89,12 @@ Muse Code today is terminal-only (`muse`, on macOS, Linux and Windows). MuseCode
 - **Auto-attached context** - bare `dir/file.ext` paths named in a prompt attach like `@` mentions
 - **Queued message edit + send-now** - click any queued message to revise it, or force it through immediately
 - **File tree icon colors** - gold folders with purpose colors (`.git`, `api`, `server`, `tests`…) and a hue per file type
+- **Session handoff** - export any thread to a file, import it on another machine as a new session
+- **Worktree manager** - list, add, remove and prune git worktrees from the project menu
+- **@-symbol mentions** - `@file#name` pins one definition instead of attaching the whole file
+- **Usage forecasting** - every meter projects the cap or the landing percentage
+- **Apply review findings** - review replies grow a button that sends the model to fix them
+- **Bulk thread ops** - tick rows to archive, pin and delete threads together
 
 ## Architecture
 
@@ -127,19 +133,20 @@ apps/web         same UI against a remote daemon
 - [x] Prompt history, MCP servers, review pass, terminal card, schedules, auto-attached context (`v3.0.0`)
 - [x] Canonical updater URL, repo renamed, bridge filed away, composer send pinned right (`v3.0.1`)
 - [x] Queued message edit + send-now, file tree icon colors (`v3.1.0`)
+- [x] Session handoff, worktrees, symbol mentions, forecasting, review fixes, bulk ops (`v3.2.0`)
 - [ ] Post-v1: mobile relay to steer running sessions from a phone
 
 ## Install
 
-Windows: download [`MuseCodeIcon_3.1.0_x64-setup.exe`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.1.0/MuseCodeIcon_3.1.0_x64-setup.exe) from the [v3.1.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.1.0), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. The desktop installer is self-signed with the author's certificate (DigiCert timestamped, untrusted root — SmartScreen still warns that the publisher is unknown, so click More info, then Run anyway). From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
+Windows: download [`MuseCodeIcon_3.2.0_x64-setup.exe`](https://github.com/yourbossdonpely/musecodeicon/releases/download/v3.2.0/MuseCodeIcon_3.2.0_x64-setup.exe) from the [v3.2.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.2.0), or build one from source (see [From source](#from-source)) — it lands in `apps/desktop/src-tauri/target/release/bundle/nsis/`. **Not** the 58 KB `MuseCLIGUI.exe` attached to the older `v2.6.x` releases: that is the bridge GUI's launcher, needs `muse-bridge.js` and `gui/` beside it, and stops with `Missing file: ...muse-bridge.js` if you run it alone. The desktop installer is self-signed with the author's certificate (DigiCert timestamped, untrusted root — SmartScreen still warns that the publisher is unknown, so click More info, then Run anyway). From 0.23.8 on, the app checks for updates itself — see Settings → Updates. (Coming from 0.23.7? Install 0.23.8 once from here; that version cannot update itself.)
 
 MuseCodeIcon bundles its own Node.js, so you only need Muse Code for Windows (`irm https://dev.meta.ai/install.ps1 | iex` in PowerShell) with `muse login` done once. Already run Muse inside WSL2? MuseCodeIcon uses that when native Muse is not installed; set `MUSECODEICON_MUSE_RUNTIME=wsl` to keep WSL when both are, and `MUSECODEICON_WSL_DISTRO=<name>` (for example `Ubuntu-24.04`) to pick the distro instead of WSL's default. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-macOS: download `MuseCodeIcon_3.1.0_universal.dmg` from the [v3.1.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.1.0). It runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
+macOS: download `MuseCodeIcon_3.2.0_universal.dmg` from the [v3.2.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.2.0). It runs on Apple Silicon and Intel and is not Apple-notarized. On macOS 15 or later, open MuseCodeIcon once, click Done on the warning, then go to System Settings > Privacy & Security and click Open Anyway. On macOS 14 or earlier, right-click the app, then Open. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/MuseCodeIcon.app`.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 
-Linux: download `MuseCodeIcon_3.1.0_amd64.AppImage` from the [v3.1.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.1.0); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
+Linux: download `MuseCodeIcon_3.2.0_amd64.AppImage` from the [v3.2.0 release](https://github.com/yourbossdonpely/musecodeicon/releases/tag/v3.2.0); the same release carries `.deb` and `.rpm` packages for distro installs. The AppImage runs on most distributions (it needs FUSE, `libfuse2`, on some of them). Before the first launch, make it executable and run it (`chmod +x MuseCodeIcon_*.AppImage`, then `./MuseCodeIcon_*.AppImage`), or right-click it in your file manager and allow executing it as a program.
 
 MuseCodeIcon bundles its own Node.js, so you only need the `muse` CLI (`curl -fsSL https://dev.meta.ai/install.sh | bash`) with `muse login` done once, however you installed it. MuseCodeIcon uses the login you already have and never stores credentials of its own.
 

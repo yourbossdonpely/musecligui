@@ -9,6 +9,10 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
+    "version": "3.2.0",
+    "body": "### Added\n\n- **Session handoff.** Export any thread to a Markdown file in its project, and import it on another machine as a new session with the transcript as opening context.\n- **Worktree manager.** List, add, remove and prune git worktrees from the project menu, and start threads isolated in them.\n- **@-symbol mentions.** `@file#name` completes definitions and attaches just that block instead of the whole file.\n- **Usage forecasting.** Every plan meter projects the burn rate: the cap time, or the landing percentage.\n- **Apply review findings.** Review replies grow a button that sends the model to fix what it flagged.\n- **Bulk thread ops.** Tick sidebar rows to archive, pin and delete threads together, with one summary toast and undo."
+  },
+  {
     "version": "3.1.0",
     "body": "### Added\n\n- **Queued message edit + send-now.** Click any queued message to revise it (or the pencil beside it); the paper plane sends it immediately - steered into the running turn, or started when idle.\n- **File tree icon colors.** Folders are gold, with purpose colors by name (`.git`, `api`, `server`, `tests` and more), and every file type gets its own VS Code-conventional hue."
   },

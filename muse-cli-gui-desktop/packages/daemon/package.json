@@ -1,6 +1,6 @@
 {
   "name": "@musecodeicon/daemon",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "author": "Don PELY",
   "description": "MuseCodeIcon daemon: MSP host management, session orchestration, local state, WSL routing",
   "main": "dist/src/index.js",
