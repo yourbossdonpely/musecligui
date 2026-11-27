@@ -1,4 +1,4 @@
-# Muse CLI GUI — the bridge GUI (older app)
+# Muse CLI GUI by Don PELY — the bridge GUI (older app)
 
 The portable Windows GUI + WebSocket bridge for the `muse` CLI. Unchanged since
 MuseCodeIcon took over; it lives on here for the machines still running it.

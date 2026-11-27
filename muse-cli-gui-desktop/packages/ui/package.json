@@ -1,6 +1,7 @@
 {
   "name": "@musecodeicon/ui",
   "version": "3.1.0",
+  "author": "Don PELY",
   "description": "MuseCodeIcon shared React UI: sidebar, session view, approvals, composer, onboarding",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",

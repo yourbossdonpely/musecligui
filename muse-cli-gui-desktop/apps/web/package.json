@@ -2,6 +2,7 @@
   "name": "@musecodeicon/web",
   "private": true,
   "version": "3.1.0",
+  "author": "Don PELY",
   "description": "MuseCodeIcon web app: shared UI wired to the local server over REST and SSE",
   "type": "module",
   "scripts": {
